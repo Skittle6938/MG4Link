@@ -1967,6 +1967,7 @@ class VideoDecoder(
                         inputIdleThresholdMs = SYNC_STALL_THRESHOLD_MS,
                         keyframeDecodedSinceStart = keyframeRepair.keyframeDecoded,
                         sessionHasRendered = renderedThisSession,
+                        keyframeFedSinceStart = keyframeRepair.keyframeFed,
                     )
                     if (cause == DecoderStallCausePolicy.Cause.PHONE_IDLE) {
                         // Stream is idle on the phone side (no new video frames arriving).

@@ -91,4 +91,17 @@ class DecoderStallCausePolicyTest {
         // for, never a wait for the scheduled one.
         assertTrue(DecoderStallCausePolicy.KEYFRAME_STARVATION_PATIENCE_MS < 60_000L)
     }
+
+    @Test
+    fun `a cold codec never fed a keyframe waits for one instead of rebuilding`() {
+        val c = { gap: Long, fed: Boolean -> DecoderStallCausePolicy.classify(
+            gap, 0L, idleThreshold, keyframeDecodedSinceStart = false, sessionHasRendered = false,
+            keyframeFedSinceStart = fed,
+        ) }
+        assertEquals(Cause.STARVED_OF_KEYFRAME, c(2008L, false))
+        // Fed and still nothing: the cold-start rebuild path, towards the codec fallback.
+        assertEquals(Cause.STALLED, c(2008L, true))
+        // Bounded, like the warm case.
+        assertEquals(Cause.STALLED, c(DecoderStallCausePolicy.KEYFRAME_STARVATION_PATIENCE_MS, false))
+    }
 }

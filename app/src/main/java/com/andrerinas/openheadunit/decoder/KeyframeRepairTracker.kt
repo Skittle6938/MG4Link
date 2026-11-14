@@ -56,6 +56,8 @@ class KeyframeRepairTracker {
 
     private var decoded = false
 
+    private var fed = false
+
     /** Frames rendered since the pending keyframe was fed, none of which reached its timestamp. */
     private var rendersWhilePending = 0
 
@@ -64,6 +66,10 @@ class KeyframeRepairTracker {
     /** Whether any keyframe has produced output since the last [reset]. */
     val keyframeDecoded: Boolean
         @Synchronized get() = decoded
+
+    /** Whether any keyframe has been queued to the codec since the last [reset]. */
+    val keyframeFed: Boolean
+        @Synchronized get() = fed
 
     /** Whether a keyframe is fed and still waiting to be seen at the output. Diagnostic. */
     val awaitingOutput: Boolean
@@ -91,6 +97,7 @@ class KeyframeRepairTracker {
     fun onKeyframeFed(ptsUs: Long) {
         pendingPtsUs = ptsUs
         rendersWhilePending = 0
+        fed = true
     }
 
     /**
@@ -121,6 +128,7 @@ class KeyframeRepairTracker {
         pendingPtsUs = NONE
         rendersWhilePending = 0
         decoded = false
+        fed = false
         // Deliberately not cleared: a component that mangles timestamps still does after a rebuild,
         // and re-learning it would mean another burst of frames confirmed the slow way each time.
     }

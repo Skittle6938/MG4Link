@@ -77,9 +77,14 @@ object DecoderStallCausePolicy {
         inputIdleThresholdMs: Long,
         keyframeDecodedSinceStart: Boolean,
         sessionHasRendered: Boolean,
+        keyframeFedSinceStart: Boolean = true,
     ): Cause {
         if (inputIdleGapMs > inputIdleThresholdMs) return Cause.PHONE_IDLE
         if (keyframeDecodedSinceStart) return Cause.STALLED
+        // Never fed a keyframe at all: a rebuild cannot help, whatever the session has shown. This
+        // is a codec started mid-stream, e.g. Android Auto opened on a session that started in the
+        // background; rebuilding it after 2s only restarted the wait (2026-11-14).
+        if (!keyframeFedSinceStart && stallGapMs < KEYFRAME_STARVATION_PATIENCE_MS) return Cause.STARVED_OF_KEYFRAME
         if (!sessionHasRendered) return Cause.STALLED
         if (stallGapMs >= KEYFRAME_STARVATION_PATIENCE_MS) return Cause.STALLED
         return Cause.STARVED_OF_KEYFRAME

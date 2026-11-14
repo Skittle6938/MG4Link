@@ -148,4 +148,17 @@ class WarmRelaunchKeyframePolicyTest {
                 WarmRelaunchKeyframePolicy.HEALTHY_FIRST_FRAME_CEILING_MS * 2
         )
     }
+
+    @Test
+    fun `a session started in the background gets the cycle when Android Auto is opened`() {
+        val d = { preceded: Boolean -> WarmRelaunchKeyframePolicy.decide(
+            sessionHasRendered = false, renderedSinceSurfaceSet = false, transportStarted = true,
+            msSinceSurfaceSet = 1_000, msSinceLinkActivity = 100,
+            linkQuietThresholdMs = ProjectionWatchdogPolicy.LINK_QUIET_MS, cycleAlreadySpent = false,
+            msSinceLastRequest = 60_000, streamPrecededSurface = preceded,
+        ) }
+        assertEquals(Action.CYCLE_FOCUS, d(true))
+        // A real cold start, surface first: the phone's own sink setup brings the keyframe.
+        assertEquals(Action.NONE, d(false))
+    }
 }
