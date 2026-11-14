@@ -402,6 +402,9 @@ class DaSettingsActivity : BaseActivity() {
         })
         row(R.string.tuto_settings_title, R.string.tuto_settings_summary,
             button(getString(R.string.tuto_settings_button)) { startActivity(DaTutorialActivity.intent(this)) })
+        // MG4Dash is not in the SAIC app list: the way back to it after its Maintenance mode (MG4Dash Discussion #111)
+        if (mg4DashInstalled()) row(R.string.dset_open_mg4dash, R.string.dset_open_mg4dash_summary,
+            button(getString(R.string.dset_open)) { openMg4Dash() })
         row(R.string.dset_logs, R.string.dset_logs_summary, button(getString(R.string.dset_export)) { exportLogs() })
         row(R.string.restore_allgo, R.string.dset_restore_summary, button(getString(R.string.dset_restore), danger = true) {
             MaterialAlertDialogBuilder(this, R.style.DarkAlertDialog)
@@ -427,6 +430,19 @@ class DaSettingsActivity : BaseActivity() {
     }
 
     // --- Actions ------------------------------------------------------------------------------
+
+    private fun mg4DashInstalled(): Boolean = try {
+        packageManager.getApplicationInfo(MG4DASH, 0).enabled
+    } catch (_: Exception) { false }
+
+    /** MG4Dash's home screen; opened in its Maintenance mode, it offers at once to be the home screen again. */
+    private fun openMg4Dash() {
+        try {
+            startActivity(Intent(Intent.ACTION_MAIN).setClassName(MG4DASH, "$MG4DASH.MainActivity")
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            AppLog.i("Settings: MG4Dash opened")
+        } catch (e: Exception) { AppLog.w("Settings: opening MG4Dash: ${e.message}") }
+    }
 
     private fun batteryWaiting(battery: com.andrerinas.openheadunit.vehicle.BatteryCapacityResolver.Resolved): Boolean =
         com.andrerinas.openheadunit.vehicle.BatteryWaitPolicy.waiting(
@@ -981,6 +997,7 @@ class DaSettingsActivity : BaseActivity() {
 
     companion object {
         private const val BATTERY_RECHECK_MS = 3_000L
+        private const val MG4DASH = "app.mg4dash"
 
         /**
          * Set when a setting that the phone only reads at connection time changed during a session;

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_open_mg4dash">MG4Dash megnyitása</string>
+    <string name="dset_open_mg4dash_summary">Az MG4Dash nincs az autó alkalmazáslistájában: innen nyithatja meg, például hogy a karbantartási mód után újra kezdőképernyő legyen.</string>
+</resources>
