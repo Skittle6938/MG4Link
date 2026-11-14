@@ -58,11 +58,27 @@ class UsbDeviceCompat(val wrappedDevice: UsbDevice) {
         fun isAndroidDevice(device: UsbDevice): Boolean {
             // Apple does not support Android Auto
             if (device.vendorId == APPLE_VID) return false
+            if (isCarInternalModem(device.vendorId, device.productId,
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) device.productName else null)
+            ) return false
 
             if (isInAccessoryMode(device)) return true
 
             return hasAndroidInterface(device)
         }
+
+        /**
+         * The car's own 4G modem (SAIC T-Box, Qualcomm MDM9628, 05C6:902D) sits on the internal USB
+         * bus and calls itself "Android MDM9628-MTP". When it re-enumerated mid-drive, MG4Link took
+         * it for a phone plugged in, dropped the wireless session and tried to switch the modem to
+         * accessory mode (#25). Qualcomm's modem chips (MDMxxxx) are never phones.
+         */
+        fun isCarInternalModem(vendorId: Int, productId: Int, productName: String?): Boolean {
+            if (vendorId == QUALCOMM_VID && productId == 0x902D) return true
+            return productName != null && Regex("\\bMDM\\d{4}").containsMatchIn(productName)
+        }
+
+        private const val QUALCOMM_VID = 0x05C6
 
         /**
          * Identifies an Android device by USB class/subclass
