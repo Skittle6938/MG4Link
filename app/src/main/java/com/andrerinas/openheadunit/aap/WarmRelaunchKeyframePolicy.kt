@@ -121,6 +121,10 @@ object WarmRelaunchKeyframePolicy {
      * @param linkQuietThresholdMs how long that may be before the phone counts as gone.
      * @param cycleAlreadySpent whether this surface has already had its one focus cycle.
      * @param msSinceLastRequest age of the last keyframe request of any kind.
+     * @param streamPrecededSurface whether this session's video stream (its parameter sets) was
+     *   already running before the current surface came. True when the session started in the
+     *   background and Android Auto is opened later: the phone sent its keyframe to no codec and
+     *   will not send another of its own accord, like a warm relaunch, although nothing has rendered.
      */
     fun decide(
         sessionHasRendered: Boolean,
@@ -130,13 +134,16 @@ object WarmRelaunchKeyframePolicy {
         msSinceLinkActivity: Long,
         linkQuietThresholdMs: Long,
         cycleAlreadySpent: Boolean,
-        msSinceLastRequest: Long
+        msSinceLastRequest: Long,
+        streamPrecededSurface: Boolean = false,
     ): Action {
         if (!transportStarted) return Action.NONE
         // A picture is on screen. Nothing to ask for, and asking is what costs a stream.
         if (renderedSinceSurfaceSet) return Action.NONE
         // A cold start has never rendered, so there is no "was working a moment ago" to restore.
-        if (!sessionHasRendered) return Action.NONE
+        // A session started in the background is the exception: its keyframe went to no codec, and
+        // waiting for the phone's own next one cost ~5s on an MG4 (2026-11-14).
+        if (!sessionHasRendered && !streamPrecededSurface) return Action.NONE
         // The phone is gone. Nothing to ask, and the reconnecting overlay owns that case.
         //
         // This used to read the age of the last *video* bytes, against a 1.5s window, on the

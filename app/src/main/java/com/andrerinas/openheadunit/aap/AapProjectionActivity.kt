@@ -224,6 +224,9 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
     private var lastSurfaceSetMs = 0L
     private var warmRelaunchCycleSpent = false
 
+    /** The session's video had already started (parameter sets parsed) when the surface came. */
+    private var streamPrecededSurface = false
+
     /**
      * A relaunch handed the decoder a fresh surface and no picture has followed it.
      *
@@ -251,7 +254,8 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
             msSinceLinkActivity = linkQuietMs(),
             linkQuietThresholdMs = ProjectionWatchdogPolicy.LINK_QUIET_MS,
             cycleAlreadySpent = warmRelaunchCycleSpent,
-            msSinceLastRequest = now - lastVideoFocusRequestMs
+            msSinceLastRequest = now - lastVideoFocusRequestMs,
+            streamPrecededSurface = streamPrecededSurface,
         )
         when (action) {
             WarmRelaunchKeyframePolicy.Action.NONE -> return
@@ -1689,6 +1693,7 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
         AppLog.i("[UI_DEBUG] [AapProjectionActivity] onSurfaceChanged. Actual surface dimensions: width=$width, height=$height")
         isSurfaceSet = true
 
+        streamPrecededSurface = videoDecoder.videoWidth > 0 && videoDecoder.videoHeight > 0
         val unparked = videoDecoder.setSurface(surface)
         // A surface arriving inside a cycle's own gap must not strand the pending gain.
         settleFocusCycle()

@@ -1,5 +1,6 @@
 # MG4Link 2.2.5-beta20
 
+- Android Auto opened on a session started in the background: the picture now shows in about 1.5 s instead of 5 s. The phone had sent its first keyframe before there was a screen to show it on; MG4Link now asks for a new one at once (a video focus cycle) instead of rebuilding the decoder after 2 s and waiting.
 - 720p video (#23): at 720p the phone sends H.264, and an ordinary H.264 frame was taken for an H.265 header, so the decoder was not built until the next keyframe: the picture was slow to appear, could stay on the connection screen, and restarted several times. MG4Link now asks for a real H.265 header before building an H.265 decoder.
 
 # MG4Link 2.2.5-beta19
