@@ -1,3 +1,7 @@
+# MG4Link 2.2.5-beta21
+
+- Back to Android Auto from the home screen: the last picture no longer shows slightly shifted for an instant; MG4Link now sizes the view before putting the picture back (#23).
+
 # MG4Link 2.2.5-beta20
 
 - *Settings → About → Open MG4Dash*, shown when MG4Dash is installed: MG4Dash is not in the car's app list, so this is the simple way back to it after its Maintenance mode. MG4Dash then offers at once to be the home screen again.

@@ -1694,6 +1694,18 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
         isSurfaceSet = true
 
         streamPrecededSurface = videoDecoder.videoWidth > 0 && videoDecoder.videoHeight > 0
+        // Video size first when the decoder already knows it: an unparked decoder puts its last
+        // frame on the new surface at once, and that frame showed shifted for a moment with the
+        // scale of the view still to come (#23). This runs on the main thread, so it is immediate.
+        val currentVideoWidth = videoDecoder.videoWidth
+        val currentVideoHeight = videoDecoder.videoHeight
+        if (currentVideoWidth > 0 && currentVideoHeight > 0) {
+            AppLog.i("[AapProjectionActivity] Decoder already has dimensions: ${currentVideoWidth}x$currentVideoHeight. Applying to view.")
+            runOnUiThread {
+                projectionView.setVideoSize(currentVideoWidth, currentVideoHeight)
+                ProjectionViewScaler.updateScale(projectionView as View, currentVideoWidth, currentVideoHeight)
+            }
+        }
         val unparked = videoDecoder.setSurface(surface)
         // A surface arriving inside a cycle's own gap must not strand the pending gain.
         settleFocusCycle()
@@ -1760,18 +1772,6 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
             }
         }
 
-        // Explicitly check and set video dimensions if already known by the decoder
-        // This handles cases where the activity is recreated but the decoder already has dimensions
-        val currentVideoWidth = videoDecoder.videoWidth
-        val currentVideoHeight = videoDecoder.videoHeight
-
-        if (currentVideoWidth > 0 && currentVideoHeight > 0) {
-            AppLog.i("[AapProjectionActivity] Decoder already has dimensions: ${currentVideoWidth}x$currentVideoHeight. Applying to view.")
-            runOnUiThread {
-                projectionView.setVideoSize(currentVideoWidth, currentVideoHeight)
-                ProjectionViewScaler.updateScale(projectionView as View, currentVideoWidth, currentVideoHeight)
-            }
-        }
     }
 
     override fun onSurfaceDestroyed(surface: android.view.Surface) {
