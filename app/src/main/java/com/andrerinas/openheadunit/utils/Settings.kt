@@ -448,6 +448,17 @@ class Settings(private val context: Context) {
      * ladder is what makes turning it on cheap to try: a rejected key now costs one retry instead of
      * the session. See [com.andrerinas.openheadunit.decoder.DecoderConfigLadder].
      */
+    /**
+     * The 720p and low-latency video options were tried in 2.2.5 betas (#23) and removed: on the
+     * MG4, 720p is visibly softer for no measurable gain, and the low-latency key changes nothing.
+     * Whoever set them goes back to 1080p without low latency, once.
+     */
+    fun retireVideoTestOptions() {
+        if (prefs.getBoolean("video-test-options-retired", false)) return
+        prefs.edit().remove("resolutionId").remove("debug-video-low-latency")
+            .putBoolean("video-test-options-retired", true).apply()
+    }
+
     var debugVideoLowLatency: Boolean
         get() = prefs.getBoolean("debug-video-low-latency", false)
         set(value) { prefs.edit().putBoolean("debug-video-low-latency", value).apply() }

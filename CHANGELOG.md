@@ -1,5 +1,6 @@
 # MG4Link 2.2.5-beta21
 
+- *Video resolution* and *Low-latency video* are gone from *Settings → Display → Advanced options*: on the MG4, 720p is visibly softer for no measurable gain and the low-latency key changes nothing (#23). Anyone who had changed them is back to 1080p without low latency.
 - Back to Android Auto from the home screen: the last picture no longer shows slightly shifted for an instant; MG4Link now sizes the view before putting the picture back (#23).
 
 # MG4Link 2.2.5-beta20
