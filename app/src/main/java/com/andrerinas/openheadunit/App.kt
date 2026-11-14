@@ -34,6 +34,7 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        runCatching { com.andrerinas.openheadunit.utils.Settings(this).retireVideoTestOptions() }
 
         com.evsuite.hardware.diag.CrashLogger.install(this, "DiAuto-MG4")
 
