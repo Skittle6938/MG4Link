@@ -1091,8 +1091,14 @@ class VideoDecoder(
                 val avcType = b and 0x1F
                 if (avcType == 7 || avcType == 8) return CodecType.H264
 
+                // An H.265 parameter set starts 0x40/0x42/0x44 then 0x01 (layer 0, temporal id 1).
+                // Without the full check an H.264 slice (0x41, reference P frame) read as an H.265
+                // VPS: at 720p, where the phone sends H.264, the decoder was not built until the
+                // next keyframe and the picture stalled (2026-11-14).
                 val hevcType = (b and 0x7E) shr 1
-                if (hevcType in 32..34 && isHevcSupported()) return CodecType.H265
+                if (hevcType in 32..34 && (b and 0x81) == 0 && headerPos + 1 < limit &&
+                    buffer[headerPos + 1].toInt() == 0x01 && isHevcSupported()
+                ) return CodecType.H265
             }
             // Only scan the first ~100 bytes for performance
             if (i - offset >= 96) break

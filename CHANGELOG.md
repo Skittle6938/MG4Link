@@ -1,3 +1,7 @@
+# MG4Link 2.2.5-beta20
+
+- 720p video (#23): at 720p the phone sends H.264, and an ordinary H.264 frame was taken for an H.265 header, so the decoder was not built until the next keyframe: the picture was slow to appear, could stay on the connection screen, and restarted several times. MG4Link now asks for a real H.265 header before building an H.265 decoder.
+
 # MG4Link 2.2.5-beta19
 
 - Google Maps charging stations (#20): the car's fuel type and plugs were sent one field too low in the Android Auto handshake, so Maps read a petrol car and kept *Gas stations* in its categories. MG4Link now sends them where Maps reads them: electric, with Type 2 and CCS2 plugs, so *Charging stations* should replace *Gas stations*.

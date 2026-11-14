@@ -285,6 +285,16 @@
 
         <!-- Comprehensive receiver for steering wheel and hardware buttons,
              covering both standard Android events and proprietary Chinese headunit broadcasts. -->
+        <!-- Video test options from ADB only (DUMP is held by the shell and the system). -->
+        <receiver
+            android:name=".app.AdbVideoTestReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.allgo.app.androidauto.VIDEO_TEST" />
+            </intent-filter>
+        </receiver>
+
         <receiver
             android:name=".connection.CarKeyReceiver"
             android:exported="true">
