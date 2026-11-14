@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_open_mg4dash">Mở MG4Dash</string>
+    <string name="dset_open_mg4dash_summary">MG4Dash không có trong danh sách ứng dụng của xe: mở nó từ đây, ví dụ để đặt lại làm màn hình chính sau Chế độ bảo dưỡng.</string>
+</resources>

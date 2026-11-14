@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_open_mg4dash">Open MG4Dash</string>
+    <string name="dset_open_mg4dash_summary">MG4Dash is not in the car\'s app list: open it from here, for example to make it the home screen again after its Maintenance mode.</string>
+</resources>

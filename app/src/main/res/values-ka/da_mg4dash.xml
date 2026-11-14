@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_open_mg4dash">MG4Dash-ის გახსნა</string>
+    <string name="dset_open_mg4dash_summary">MG4Dash არ არის მანქანის აპების სიაში: გახსენით აქედან, მაგალითად, მომსახურების რეჟიმის შემდეგ მთავარ ეკრანად დასაბრუნებლად.</string>
+</resources>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_open_mg4dash">Deschide MG4Dash</string>
+    <string name="dset_open_mg4dash_summary">MG4Dash nu este în lista de aplicații a mașinii: deschide-l de aici, de exemplu pentru a-l pune din nou ca ecran principal după Modul întreținere.</string>
+</resources>

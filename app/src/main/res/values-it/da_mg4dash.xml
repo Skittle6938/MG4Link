@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_open_mg4dash">Apri MG4Dash</string>
+    <string name="dset_open_mg4dash_summary">MG4Dash non è nell\'elenco delle app dell\'auto: aprilo da qui, per esempio per rimetterlo come schermata iniziale dopo la sua Modalità manutenzione.</string>
+</resources>

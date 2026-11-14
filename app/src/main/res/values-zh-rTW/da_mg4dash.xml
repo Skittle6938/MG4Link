@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_open_mg4dash">開啟 MG4Dash</string>
+    <string name="dset_open_mg4dash_summary">MG4Dash 不在車輛的應用程式清單中：可從這裡開啟，例如在維護模式之後將其重新設為主畫面。</string>
+</resources>

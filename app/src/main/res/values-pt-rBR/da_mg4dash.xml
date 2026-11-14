@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_open_mg4dash">Abrir MG4Dash</string>
+    <string name="dset_open_mg4dash_summary">O MG4Dash não está na lista de apps do carro: abra-o daqui, por exemplo para torná-lo de novo a tela inicial depois do Modo manutenção.</string>
+</resources>

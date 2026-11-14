@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_open_mg4dash">MG4Dash openen</string>
+    <string name="dset_open_mg4dash_summary">MG4Dash staat niet in de app-lijst van de auto: open het hier, bijvoorbeeld om het na de Onderhoudsmodus weer als startscherm te gebruiken.</string>
+</resources>
