@@ -6,7 +6,7 @@ import com.andrerinas.openheadunit.R
 /**
  * Car firmwares known not to run wireless Android Auto: their Bluetooth stack allows one app
  * connection at a time, so the phone never opens the Android Auto one (seen on SWI68 R46, fixed
- * in R63, and on SWI131 R05). Shown on the home screen for those who install without the README.
+ * in R63, on SWI131 R05, and on SWI165 R11, #26). Shown on the home screen for those who install without the README.
  */
 object FirmwareCompat {
     private val version = Regex("""^(SWI\d+)-\d+-\d+R(\d+)""")
@@ -17,7 +17,7 @@ object FirmwareCompat {
         val name = "${m.groupValues[1]} R${m.groupValues[2]}"
         val warning = when ("${m.groupValues[1]} ${m.groupValues[2].toInt()}") {
             "SWI68 46" -> context.getString(R.string.da_firmware_incompatible_update, name, "SWI68 R63")
-            "SWI131 5" -> context.getString(R.string.da_firmware_incompatible, name)
+            "SWI131 5", "SWI165 11" -> context.getString(R.string.da_firmware_incompatible, name)
             else -> return null
         }
         return warning + " " + context.getString(R.string.da_firmware_dongle_backup)
