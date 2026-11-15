@@ -10,12 +10,12 @@ class Mg4MapsEnergyModelTest {
     @Test
     fun `A matches the spec table`() {
         val std = Mg4Variant.STANDARD
-        assertEquals(159f, Mg4MapsEnergyModel.a(std, 25f), 1f)
-        assertEquals(176f, Mg4MapsEnergyModel.a(std, 15f), 1f)
-        assertEquals(221f, Mg4MapsEnergyModel.a(std, 5f), 1f)
-        assertEquals(290f, Mg4MapsEnergyModel.a(std, -10f), 1f)
-        assertEquals(163f, Mg4MapsEnergyModel.a(Mg4Variant.LONG_RANGE, null), 1f)
-        assertEquals(271f, Mg4MapsEnergyModel.a(Mg4Variant.EXTENDED_RANGE, 0f), 1f)
+        assertEquals(184.5f, Mg4MapsEnergyModel.a(std, 25f), 1f)
+        assertEquals(203.4f, Mg4MapsEnergyModel.a(std, 15f), 1f)
+        assertEquals(256.3f, Mg4MapsEnergyModel.a(std, 5f), 1f)
+        assertEquals(335.5f, Mg4MapsEnergyModel.a(std, -10f), 1f)
+        assertEquals(188.5f, Mg4MapsEnergyModel.a(Mg4Variant.LONG_RANGE, null), 1f)
+        assertEquals(314.0f, Mg4MapsEnergyModel.a(Mg4Variant.EXTENDED_RANGE, 0f), 1f)
     }
 
     @Test

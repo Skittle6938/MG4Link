@@ -11,11 +11,14 @@ import kotlin.math.max
  * temperature. Google's servers then work out the energy of each stretch of the route themselves,
  * with the speed they expect there (traffic included) and the climb.
  *
- * Figures: A = mass in running order × g × 0.0095; under 20 °C, A is divided by the cold factor of
+ * Figures: A = mass in running order × g × 0.011; under 20 °C, A is divided by the cold factor of
  * the automobile-propre simulator, max(0.55, 0.72 + 0.0187 · (T − 5)). C = ½ · 1.225 · Cd 0.287
  * (MG's figure) · 2.36 m² ≈ 0.415 at 20 °C for every MG4, the body being the same, scaled by the air
  * density at the outside temperature. With Cd 0.27 and no density, two cold motorway trips of a
  * 64 kWh car used 13 % and 3.5 % more than the model, most of it above 100 km/h (#19).
+ * Rolling was 0.0095 until 2.2.5-beta24: fitted on four trips of that car (184 km, 1 to 10 °C, air
+ * term then right), the constant term was ~35 % short; 0.011 (+16 %) brings them to 1 % overall,
+ * and also stands for the drivetrain's fixed losses that the constant 88 % efficiency leaves out.
  */
 object Mg4MapsEnergyModel {
 
@@ -28,7 +31,7 @@ object Mg4MapsEnergyModel {
 
     /** Air drag coefficient at [tempC]. */
     fun c(tempC: Float?): Float = C * airDensityFactor(tempC)
-    private const val ROLLING = 0.0095f
+    private const val ROLLING = 0.011f
     private const val G = 9.81f
 
     /** Electronics, 12 V and ventilation: what is left with the climate off. */

@@ -1,5 +1,6 @@
 # MG4Link 2.2.5-beta24
 
+- Google Maps consumption (#19): the rolling term of the model goes up 16 % (0.011 instead of 0.0095). Four cold trips of a 64 kWh MG4 (184 km) used 7 % more than the model, with the air term right since 2.2.5-beta18; with this change they come within 1 % overall.
 - Google Maps model: the message now has exactly the shape a production car sends (checked field by field against a Ford captured by the aa-proxy-rs project), without the extra fields MG4Link added (uncertainty on the road-load terms, motor and charging power, a weight in what is most likely a reserve field). The values are unchanged. The test-mode choice of model format is gone: *Consumption model for Maps* stays the one choice, on by default, the other way being the car's average consumption.
 
 # MG4Link 2.2.5-beta23
