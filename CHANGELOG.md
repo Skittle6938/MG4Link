@@ -1,5 +1,6 @@
 # MG4Link 2.2.5-beta21
 
+- Wireless connection on cars whose Bluetooth closes MG4Link's Android Auto listener when the phone connects for calls (seen on SWI165, #26): MG4Link now opens it again, so the phone can start Android Auto instead of staying on "Connecting to Android Auto".
 - *Video resolution* and *Low-latency video* are gone from *Settings → Display → Advanced options*: on the MG4, 720p is visibly softer for no measurable gain and the low-latency key changes nothing (#23). Anyone who had changed them is back to 1080p without low latency.
 - Back to Android Auto from the home screen: the last picture no longer shows slightly shifted for an instant; MG4Link now sizes the view before putting the picture back (#23).
 
