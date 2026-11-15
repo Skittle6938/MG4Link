@@ -1,5 +1,6 @@
 # MG4Link 2.2.5-beta22
 
+- *Start with the car: No* now really leaves the phone alone (#27): MG4Link no longer starts Android Auto when the phone links over Bluetooth, nor calls it every 30 s, until MG4Link is opened. The choice also takes effect at once instead of at the next start.
 - SWI165 R11 joins the firmwares whose Bluetooth cannot run wireless Android Auto (one app connection at a time, as SWI68 R46): MG4Link says so on its home screen (#26).
 
 # MG4Link 2.2.5-beta21
