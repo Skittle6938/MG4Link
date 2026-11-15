@@ -94,6 +94,7 @@
         android:localeConfig="@xml/locales_config"
         tools:targetApi="33"
         tools:ignore="GoogleAppIndexingWarning">
+        <meta-data android:name="mg4dash.connect" android:value="true" />
         <!-- MG4 Dash's shortcuts menu: this version sees the one finger slide from the top itself (AapProjectionActivity),
              so MG4 Dash lets its strip through over the projection -->
         <meta-data android:name="mg4dash.shortcuts_pull" android:value="true" />
@@ -149,6 +150,9 @@
             android:exported="true"
             android:launchMode="singleTask"
             android:theme="@style/SplashTheme">
+
+            <!-- MG4Dash's Android Auto button may ask for the phone to be connected (mg4dash.connect extra). -->
+            <meta-data android:name="mg4dash.connect" android:value="true" />
 
             <!-- Primary Launcher Filter -->
             <intent-filter>
