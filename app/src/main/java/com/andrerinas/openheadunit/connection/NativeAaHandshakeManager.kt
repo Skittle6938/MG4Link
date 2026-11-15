@@ -153,6 +153,9 @@ class NativeAaHandshakeManager(
     private val extraAaServerSockets = java.util.Collections.synchronizedList(mutableListOf<BluetoothServerSocket>())
     private val extraHfpServerSockets = java.util.Collections.synchronizedList(mutableListOf<BluetoothServerSocket>())
     private var isRunning = false
+
+    /** Bumped by each start(): a listener loop from an earlier start never reopens (#26). */
+    @Volatile private var listenerGeneration = 0
     // Set by closeAaListeners() so the AA accept loops can tell "we closed this on purpose
     // after a successful handoff" apart from a real socket error, for logging only.
     @Volatile private var aaListenersClosedForSession = false
@@ -353,13 +356,15 @@ class NativeAaHandshakeManager(
         AppLog.i("NativeAA: Starting Bluetooth Handshake Servers (primary radio [$localRadioName])...")
 
         // Start AA RFCOMM Server
+        listenerGeneration++
         scope.launch(Dispatchers.IO + CoroutineName("NativeAa-RfcommServer")) {
             // The listener is opened again when the Bluetooth stack closes it under us. On SWI165
             // it died the moment the phone's hands-free link came up, and nothing reopened it: the
             // phone then had no Android Auto service to connect back to, and hung on "Connecting
             // to Android Auto" (#26). Bounded, so a radio that refuses it for good stays quiet.
             var reopenings = 0
-            while (isRunning && isActive) {
+            val generation = listenerGeneration
+            while (isRunning && isActive && generation == listenerGeneration) {
                 try {
                     try { aaServerSocket?.close() } catch (_: Exception) {}
                     aaServerSocket = adapter.listenUsingRfcommWithServiceRecord("AA BT Listener", AA_UUID)
@@ -398,7 +403,7 @@ class NativeAaHandshakeManager(
                         return@launch
                     }
                 }
-                if (aaListenersClosedForSession) return@launch
+                if (aaListenersClosedForSession || generation != listenerGeneration) return@launch
             }
         }
 
