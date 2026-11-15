@@ -623,6 +623,7 @@ class AapService : Service(), UsbReceiver.Listener {
     }
 
     private fun onBluetoothOn() {
+        if (!wirelessWanted()) return
         val phones = App.provide(this).settings.autoStartBluetoothDeviceMacs.toList()
         val linked = try {
             val here = BluetoothHelper.connectedBondedDevices(this).map { it.address }
@@ -1709,6 +1710,10 @@ class AapService : Service(), UsbReceiver.Listener {
     /** Brings up wireless Android Auto over the car's hotspot, unless it is off in the settings. */
     /** Bluetooth auto-start, once the Wi-Fi radio is free: poke the phone or arm the handshake. */
     private fun startNativeAaForPhone(mac: String?) {
+        if (!wirelessWanted()) {
+            AppLog.i("AapService: phone linked, but Start with the car is No - not waking it")
+            return
+        }
         startAccessPoint("phone linked over Bluetooth")
         if (!mac.isNullOrEmpty() &&
             BluetoothWakePolicy.recentPhoneConnect(SystemClock.elapsedRealtime(), lastWatchdogPokeMs, WATCHDOG_POKE_SETTLE_MS)) {
@@ -1757,6 +1762,13 @@ class AapService : Service(), UsbReceiver.Listener {
         activeWirelessEnabled = wirelessEnabled()
         if (activeWirelessEnabled != true) {
             AppLog.i("AapService: wireless Android Auto is off in the settings - USB only")
+            return
+        }
+        if (!wirelessWanted()) {
+            // "Start with the car: No": no listener for the phone to find, no hotspot, no call
+            // until the driver taps Connect phone in MG4Link (#27). USB still works.
+            AppLog.i("AapService: Start with the car is No - wireless waits until MG4Link asks for the phone")
+            wirelessInitialized = false
             return
         }
 
@@ -2001,7 +2013,9 @@ class AapService : Service(), UsbReceiver.Listener {
             ACTION_NATIVE_AA_POKE        -> {
                 val mac = intent?.getStringExtra(EXTRA_MAC)
                 if (mac != null) {
+                    val waited = !wirelessWanted()
                     userAskedThisRun = true
+                    if (waited || !wirelessInitialized) initWifiMode(force = true)
                     AppLog.i("AapService: Received manual Native-AA poke request for $mac")
                     // The user asks for Android Auto again: the hotspot may come back.
                     wifiHandedBackOnExit = false
@@ -3296,6 +3310,13 @@ class AapService : Service(), UsbReceiver.Listener {
     /** The driver opened MG4Link and asked for Android Auto since the service started (#27). */
     @Volatile private var userAskedThisRun = false
 
+    /**
+     * Whether MG4Link may reach for the phone wirelessly: always with Start with the car on Yes or
+     * In the background; on No, only once the driver has tapped Connect phone (#27).
+     */
+    private fun wirelessWanted(): Boolean =
+        App.provide(this).settings.autoStartOnBoot || userAskedThisRun
+
     private fun startPhoneReconnectWatchdog() {
         phoneReconnectJob?.cancel()
         phoneReconnectJob = serviceScope.launch {
@@ -3310,7 +3331,7 @@ class AapService : Service(), UsbReceiver.Listener {
                 val settings = App.provide(this@AapService).settings
                 if (!wirelessEnabled() || userExitedAA || wifiHandedBackOnExit) continue
                 // "Start with the car: No": no calls to the phone unless MG4Link was opened (#27).
-                if (!settings.autoStartOnBoot && !userAskedThisRun) continue
+                if (!wirelessWanted()) continue
                 if (commManager.isBusy || nativeAaPokeJob?.isActive == true) continue
                 val phones = settings.autoStartBluetoothDeviceMacs.toList()
                 if (phones.isEmpty()) continue
