@@ -1558,7 +1558,7 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
             MotionEvent.ACTION_DOWN -> {
                 menuPulling = false
                 menuPullDownX = ev.rawX; menuPullDownY = ev.rawY
-                menuPullCandidate = ev.y <= MENU_PULL_EDGE_PX && mg4DashStripOn()
+                menuPullCandidate = ev.y <= menuPullEdgePx(ev) && mg4DashStripOn()
             }
             MotionEvent.ACTION_POINTER_DOWN -> {
                 if (menuPulling) { sendMenuPull("cancel", 0f); menuPulling = false }
@@ -1582,6 +1582,18 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
             }
         }
         return menuPulling
+    }
+
+    /**
+     * Height of the band the slide must start in, from the top of this window. 20 px when the window
+     * starts at the top of the screen. When the car's status bar sits above it (SWI173: an 80 px bar,
+     * the window from y=80), a finger starting at the very top lands in the bar, which the car keeps,
+     * and reaches this window lower than 20 px in: MG4 Dash's menu never opened there (MG4Dash #113).
+     * The band is then wider, so a slide started on the bar's lower edge counts.
+     */
+    private fun menuPullEdgePx(ev: MotionEvent): Float {
+        val windowTop = ev.rawY - ev.y
+        return if (windowTop > 1f) MENU_PULL_EDGE_BELOW_BAR_PX else MENU_PULL_EDGE_PX.toFloat()
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
@@ -2002,6 +2014,7 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
 
     companion object {
         private const val MENU_PULL_EDGE_PX = 20
+        private const val MENU_PULL_EDGE_BELOW_BAR_PX = 60f
         private const val MENU_PULL_DP = 40
         /** After the bye-bye, so the service has stopped and re-armed wireless before the call. */
         private const val RECONNECT_POKE_DELAY_MS = 2_500L

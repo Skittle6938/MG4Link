@@ -1,3 +1,7 @@
+# MG4Link 2.2.5-beta23
+
+- MG4 Dash's shortcuts menu over Android Auto on cars that keep their status bar above it (SWI173): the one finger slide could never start in the top 20 px of the Android Auto window, which begins below the bar. Under a status bar, the slide now counts from the top 60 px (MG4Dash #113).
+
 # MG4Link 2.2.5-beta22
 
 - *Start with the car: No* now really leaves the phone alone (#27): MG4Link no longer starts Android Auto when the phone links over Bluetooth, nor calls it every 30 s, until MG4Link is opened. The choice also takes effect at once instead of at the next start.
