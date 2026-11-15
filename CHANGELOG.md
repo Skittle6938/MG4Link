@@ -1,3 +1,31 @@
+# MG4Link 2.2.5
+
+**DiAuto MG4+ is now called MG4Link.** Same app and same package (com.allgo.app.androidauto): your settings are kept and updates keep coming in from the app and from MG4Dash as before.
+
+- **USB first:** a phone plugged in during a wireless session now takes over at once, whatever its brand. During a USB session the hotspot goes off and the car's Wi-Fi client comes back on its known networks.
+- **Faster start (#17):** when the car does not reconnect the phone over Bluetooth by itself, MG4Link calls it 15 s after starting, and the hotspot comes up as soon as the phone is linked. *Settings → Connection → Advanced options* lets you set that first call to 0, 5, 15 or 30 s.
+- **Ending Android Auto by hand** (three-finger gesture or *Disconnect*) gives the car its Wi-Fi back at once; asking for Android Auto again is about 5 s faster.
+- **Start with the car: No** now really leaves the phone alone until MG4Link is opened (#27).
+- **The car's own 4G modem** is no longer taken for a phone plugged in, which could drop the wireless session mid-drive (#25).
+- **SWI165 R11** joins SWI68 R46 and SWI131 R05 among the firmwares whose Bluetooth cannot run wireless Android Auto; MG4Link says so on its home screen (#26). USB and wireless dongles still work.
+
+- **Charging stations (#20):** Maps now knows the car is electric, with Type 2 and CCS2 plugs, and shows *Charging stations* instead of *Gas stations*.
+- **Consumption model (#19), on by default:** Maps estimates the battery at arrival from a model of the MG4 (speed, cold, climate), with MG's drag coefficient, the air density at the outside temperature and a rolling term fitted on real trips. The message sent to Maps keeps only what Maps expects.
+- **Battery (#22):** the MG4 version is told from the net capacity, so a cold 64 kWh car is no longer mistaken for a 51 kWh one (wrong charging curve).
+- **Live data to ABRP** (*Settings → Car*, off by default) over the car's own internet, with the token from the ABRP app.
+
+- **Calls on SWI68 (#4):** the car's incoming call banner no longer sits on top of Android Auto.
+- **Climate page on SWI68 (#13):** when the climate comes back on as the car starts, MG4Link closes the climate page the car opens over Android Auto.
+- **Car pull-down over Android Auto (#21):** *Settings → Display → Advanced options* lets you choose between the car's quick settings pull-down and no call banner.
+- **MG4Dash's shortcuts menu** opens over Android Auto with a one-finger slide from the top (with a recent MG4Dash), also on cars that keep their status bar visible.
+- **Picture:** Android Auto opened on a session started in the background shows in about 1.5 s instead of 5 s, and no longer stays on the connection screen; the last picture no longer shows shifted for an instant when coming back from the home screen.
+- **Video always uses the car's hardware decoder**; the bundled software decoder (about 3 MB) is gone.
+
+- **Music uncompressed (PCM) by default** on 5 GHz for better sound (#11); voice prompts sound clearer.
+- **Settings:** every tab ends with folded *Advanced options*; rows react to a tap anywhere on them (#17); *Settings → About → Open MG4Dash* when MG4Dash is installed.
+- **Updates** go over the car's Wi-Fi when it has internet, else over the T-box 4G.
+
+
 # MG4Link 2.2.5-beta24
 
 - Google Maps consumption (#19): the rolling term of the model goes up 16 % (0.011 instead of 0.0095). Four cold trips of a 64 kWh MG4 (184 km) used 7 % more than the model, with the air term right since 2.2.5-beta18; with this change they come within 1 % overall.
