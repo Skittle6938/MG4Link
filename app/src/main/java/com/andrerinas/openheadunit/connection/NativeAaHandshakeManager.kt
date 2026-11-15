@@ -47,6 +47,9 @@ class NativeAaHandshakeManager(
     private val scope: CoroutineScope
 ) {
     companion object {
+        /** Pause before reopening a listener the Bluetooth stack closed (#26). */
+        private const val AA_LISTENER_REOPEN_DELAY_MS = 1_000L
+        private const val AA_LISTENER_MAX_REOPENINGS = 10
         private val AA_UUID = UUID.fromString("4de17a00-52cb-11e6-bdf4-0800200c9a66")
         private val HFP_UUID = UUID.fromString("0000111e-0000-1000-8000-00805f9b34fb")
         private const val OWN_HANDS_FREE_WAIT_MS = 30_000L
@@ -351,31 +354,51 @@ class NativeAaHandshakeManager(
 
         // Start AA RFCOMM Server
         scope.launch(Dispatchers.IO + CoroutineName("NativeAa-RfcommServer")) {
-            try {
-                aaServerSocket = adapter.listenUsingRfcommWithServiceRecord("AA BT Listener", AA_UUID)
-                AppLog.i("NativeAA: ACTIVELY LISTENING on Android Auto UUID ($AA_UUID) on radio [$localRadioName]... Waiting for phone to connect back!")
-                while (isRunning && isActive) {
-                    val socket = aaServerSocket?.accept()
-                    if (socket != null) {
-                        AppLog.i("NativeAA: Connection accepted from ${socket.remoteDevice.name} (${socket.remoteDevice.address}) on local radio [$localRadioName]")
-                        context.onNativeAaServerAccepted()
-                        if (refuseWhileBackedOff(socket)) continue
-                        AllgoRelayNotifier.phoneAddressSeen(socket.remoteDevice.address)
-                        // [FIX] Launch handshake in a separate coroutine so the server can accept the next connection!
-                        scope.launch(Dispatchers.IO + CoroutineName("NativeAa-Handshake-${socket.remoteDevice.address}")) {
-                            handleHandshake(socket, localRadioName)
+            // The listener is opened again when the Bluetooth stack closes it under us. On SWI165
+            // it died the moment the phone's hands-free link came up, and nothing reopened it: the
+            // phone then had no Android Auto service to connect back to, and hung on "Connecting
+            // to Android Auto" (#26). Bounded, so a radio that refuses it for good stays quiet.
+            var reopenings = 0
+            while (isRunning && isActive) {
+                try {
+                    try { aaServerSocket?.close() } catch (_: Exception) {}
+                    aaServerSocket = adapter.listenUsingRfcommWithServiceRecord("AA BT Listener", AA_UUID)
+                    AppLog.i("NativeAA: ACTIVELY LISTENING on Android Auto UUID ($AA_UUID) on radio [$localRadioName]... Waiting for phone to connect back!")
+                    while (isRunning && isActive) {
+                        val socket = aaServerSocket?.accept()
+                        if (socket != null) {
+                            reopenings = 0
+                            AppLog.i("NativeAA: Connection accepted from ${socket.remoteDevice.name} (${socket.remoteDevice.address}) on local radio [$localRadioName]")
+                            context.onNativeAaServerAccepted()
+                            if (refuseWhileBackedOff(socket)) continue
+                            AllgoRelayNotifier.phoneAddressSeen(socket.remoteDevice.address)
+                            // [FIX] Launch handshake in a separate coroutine so the server can accept the next connection!
+                            scope.launch(Dispatchers.IO + CoroutineName("NativeAa-Handshake-${socket.remoteDevice.address}")) {
+                                handleHandshake(socket, localRadioName)
+                            }
                         }
                     }
+                } catch (e: Exception) {
+                    if (aaListenersClosedForSession) {
+                        AppLog.d("NativeAA: AA Server socket closed after successful handoff.")
+                        return@launch
+                    } else if (isRunning) {
+                        AppLog.e("NativeAA: AA Server socket error: ${e.message}", e)
+                        context.onNativeAaServerFailed()
+                        if (++reopenings > AA_LISTENER_MAX_REOPENINGS) {
+                            AppLog.w("NativeAA: AA listener closed $reopenings times in a row - giving up until the next start")
+                            return@launch
+                        }
+                        delay(AA_LISTENER_REOPEN_DELAY_MS)
+                        if (isRunning && !aaListenersClosedForSession) {
+                            AppLog.i("NativeAA: reopening the Android Auto listener (closed by the Bluetooth stack, $reopenings)")
+                        }
+                    } else {
+                        AppLog.d("NativeAA: AA Server socket closed cleanly.")
+                        return@launch
+                    }
                 }
-            } catch (e: Exception) {
-                if (aaListenersClosedForSession) {
-                    AppLog.d("NativeAA: AA Server socket closed after successful handoff.")
-                } else if (isRunning) {
-                    AppLog.e("NativeAA: AA Server socket error: ${e.message}", e)
-                    context.onNativeAaServerFailed()
-                } else {
-                    AppLog.d("NativeAA: AA Server socket closed cleanly.")
-                }
+                if (aaListenersClosedForSession) return@launch
             }
         }
 
