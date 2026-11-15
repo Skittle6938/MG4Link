@@ -115,9 +115,7 @@ object Mg4EnergyReporter {
         val variant = App.instance?.let {
             Mg4Variant.resolve(App.provide(it).settings.mg4Variant, (BatteryCapacityResolver.current(it).netKwh * 1000).toInt())
         } ?: Mg4Variant.detect(snap.capacityWh)
-        val layout = App.instance?.let { VehicleEnergyModelEncoder.Layout.of(App.provide(it).settings.evModelLayout) }
-            ?: VehicleEnergyModelEncoder.Layout.LEGACY
-        val outsideTemp = if (snap.demo || layout == VehicleEnergyModelEncoder.Layout.LEGACY) null else runCatching {
+        val outsideTemp = if (snap.demo) null else runCatching {
             com.evsuite.hardware.saic.SaicClimate.outsideTempCelsius() ?: com.evsuite.hardware.EVHardware.getOutsideTempCelsius()
         }.getOrNull()
         val model = App.instance?.takeIf { !snap.demo && App.provide(it).settings.mapsEnergyModel }?.let {
@@ -136,7 +134,6 @@ object Mg4EnergyReporter {
             batteryPercent = snap.batteryPercent,
             variant = variant,
             outsideTempC = outsideTemp?.takeIf { it in -40f..60f },
-            layout = layout,
             energyModel = model,
         )
 
@@ -161,7 +158,7 @@ object Mg4EnergyReporter {
             AppLog.i(
                 "$TAG vem tx capacity=${snap.capacityWh}Wh current=${snap.currentWh}Wh " +
                     "range=${snap.rangeKm}km battery=${"%.1f".format(snap.batteryPercent)}% " +
-                    "variant=${variant.key} maxDc=${variant.maxDcW / 1000}kW layout=${layout.key} outside=${outsideTemp ?: "-"} types=$types" +
+                    "variant=${variant.key} maxDc=${variant.maxDcW / 1000}kW outside=${outsideTemp ?: "-"} types=$types" +
                     (model?.let { m ->
                         " model A=%.0fN C=%.3f temp=%s climate=%s aux=%s".format(m.a, m.c, m.tempC ?: "-", m.climateOn ?: "-",
                             m.aux.joinToString(",") { "${it.first.toInt()}:${it.second}" }) +

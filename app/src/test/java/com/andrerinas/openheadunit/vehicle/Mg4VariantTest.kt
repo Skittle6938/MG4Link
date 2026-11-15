@@ -37,20 +37,42 @@ class Mg4VariantTest {
         assertEquals(138_000, Mg4Variant.LONG_RANGE.maxDcW)
     }
     @Test
-    fun `each layout adds only its own sections`() {
-        fun bytes(layout: VehicleEnergyModelEncoder.Layout) = VehicleEnergyModelEncoder.encode(
+    fun `the model has the production car's shape and nothing more`() {
+        val model = Mg4MapsEnergyModel.build(Mg4Variant.STANDARD, 8f, true)
+        val bytes = VehicleEnergyModelEncoder.encode(
             VehicleEnergyModelEncoder.Snapshot(
                 capacityWh = 47_858, currentWh = 21_680, rangeMeters = 136_000,
-                variant = Mg4Variant.STANDARD, outsideTempC = 8f, layout = layout,
+                variant = Mg4Variant.STANDARD, outsideTempC = 8f, energyModel = model,
             ),
         )
-        val legacy = bytes(VehicleEnergyModelEncoder.Layout.LEGACY)
-        val vehicle = bytes(VehicleEnergyModelEncoder.Layout.VEHICLE)
-        val full = bytes(VehicleEnergyModelEncoder.Layout.FULL)
-        assertTrue(vehicle.size > legacy.size)
-        assertTrue(full.size > 1_000)
-        // Field 8 (tag 0x42) only once the charge times are asked for.
-        assertTrue(bytes(VehicleEnergyModelEncoder.Layout.DC_TIMES).size > vehicle.size + 200)
+        val top = fields(bytes)
+        assertEquals(setOf(1, 2, 4, 7), top.map { it.first }.toSet())
+        // Battery: energy left, capacity, air density, temperature.
+        assertEquals(listOf(3, 4, 6, 7), fields(top.first { it.first == 1 }.second!!).map { it.first })
+        // Road load: A, B, C, each holding only its value.
+        val road = fields(top.first { it.first == 2 }.second!!)
+        assertEquals(listOf(1, 2, 3), road.map { it.first })
+        road.forEach { assertEquals(listOf(1), fields(it.second!!).map { f -> f.first }) }
+        // Energy left / capacity is the car's own %.
+        assertEquals(21_680.0 / 47_858.0, 0.453, 0.001)
+    }
+
+    /** Top-level fields of a protobuf message: number and, for length-delimited ones, their bytes. */
+    private fun fields(bytes: ByteArray): List<Pair<Int, ByteArray?>> {
+        val input = com.google.protobuf.CodedInputStream.newInstance(bytes)
+        val out = mutableListOf<Pair<Int, ByteArray?>>()
+        while (!input.isAtEnd) {
+            val tag = input.readTag()
+            val field = tag ushr 3
+            when (tag and 7) {
+                0 -> { input.readRawVarint64(); out += field to null }
+                1 -> { input.readRawLittleEndian64(); out += field to null }
+                5 -> { input.readRawLittleEndian32(); out += field to null }
+                2 -> out += field to input.readByteArray()
+                else -> error("wire type ${tag and 7}")
+            }
+        }
+        return out
     }
 
     @Test
