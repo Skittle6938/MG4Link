@@ -11,11 +11,11 @@ can plan your charging stops.
 > **DiPlay-MG4** instead (do not run both at once).
 
 > [!WARNING]
-> **SWI68 R46 and SWI131 (R05) firmwares: wireless Android Auto cannot work.** Their Bluetooth
+> **SWI68 R46, SWI131 (R05) and SWI165 (R11) firmwares: wireless Android Auto cannot work.** Their Bluetooth
 > only allows one app connection at a time, so the phone never opens the Android Auto connection
 > ("connecting to Android Auto", then nothing). This is a bug in the car's firmware that MG4Link
 > cannot work around. On SWI68, ask your dealer to update the car to **SWI68 R63** or later, where
-> it works; on SWI131, ask whether a newer firmware is available.
+> it works; on SWI131 and SWI165, ask whether a newer firmware is available.
 >
 > Another way out: a **USB wireless Android Auto dongle** also works with MG4Link. Early reports and
 > our own tests show a more stable and reliable connection than with the car's original Android Auto
