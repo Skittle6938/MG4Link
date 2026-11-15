@@ -929,7 +929,12 @@ class Settings(private val context: Context) {
 
     var autoStartOnBoot: Boolean
         get() = prefs.getBoolean("auto-start-on-boot", true)
-        set(value) { prefs.edit().putBoolean("auto-start-on-boot", value).apply() }
+        set(value) {
+            prefs.edit().putBoolean("auto-start-on-boot", value).apply()
+            // The Bluetooth and boot receivers read the device-protected copy: keep it in step,
+            // or "No" only took effect at the next app start (#27).
+            syncAutoStartOnBootToDeviceStorage(context, value)
+        }
 
     /** Native AA RFCOMM servers in a row that died without accepting a connection. */
     var nativeAaServerFailures: Int

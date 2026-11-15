@@ -2001,6 +2001,7 @@ class AapService : Service(), UsbReceiver.Listener {
             ACTION_NATIVE_AA_POKE        -> {
                 val mac = intent?.getStringExtra(EXTRA_MAC)
                 if (mac != null) {
+                    userAskedThisRun = true
                     AppLog.i("AapService: Received manual Native-AA poke request for $mac")
                     // The user asks for Android Auto again: the hotspot may come back.
                     wifiHandedBackOnExit = false
@@ -3292,6 +3293,9 @@ class AapService : Service(), UsbReceiver.Listener {
      * 30 s; the poke opens the Bluetooth link, and Bluetooth auto-start does the rest. A phone
      * that is linked but has not started Android Auto is left alone: that is its own setting.
      */
+    /** The driver opened MG4Link and asked for Android Auto since the service started (#27). */
+    @Volatile private var userAskedThisRun = false
+
     private fun startPhoneReconnectWatchdog() {
         phoneReconnectJob?.cancel()
         phoneReconnectJob = serviceScope.launch {
@@ -3305,6 +3309,8 @@ class AapService : Service(), UsbReceiver.Listener {
                 first = false
                 val settings = App.provide(this@AapService).settings
                 if (!wirelessEnabled() || userExitedAA || wifiHandedBackOnExit) continue
+                // "Start with the car: No": no calls to the phone unless MG4Link was opened (#27).
+                if (!settings.autoStartOnBoot && !userAskedThisRun) continue
                 if (commManager.isBusy || nativeAaPokeJob?.isActive == true) continue
                 val phones = settings.autoStartBluetoothDeviceMacs.toList()
                 if (phones.isEmpty()) continue

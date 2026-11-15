@@ -89,6 +89,12 @@ class AutoStartReceiver : BroadcastReceiver() {
             AppLog.hide(name)
             AppLog.i("BT Device connected: ${name ?: "unnamed"} ($address)")
 
+            if (targetMacs.contains(address) && !Settings.isAutoStartOnBootEnabled(context)) {
+                // "Start with the car: No": the phone is left alone until MG4Link is opened, so
+                // a driver who does not want Android Auto on this trip is not prompted (#27).
+                AppLog.i("BT phone $address linked, but Start with the car is off - not waking it")
+                return
+            }
             if (targetMacs.contains(address)) {
                 AppLog.i("MATCH! Starting AapService via Bluetooth Auto-start for $address (background, no UI)...")
 
