@@ -290,10 +290,6 @@ class DaSettingsActivity : BaseActivity() {
         row(R.string.dset_maps_range, R.string.dset_maps_range_summary, yesNo(settings.batteryForGoogleMaps) {
             settings.batteryForGoogleMaps = it
         })
-        // Features being tested: only in test mode (Settings > About).
-        if (settings.testMode) {
-            row(R.string.dset_ev_layout, R.string.dset_ev_layout_summary, value(evLayoutLabel(settings.evModelLayout)) { pickEvLayout() })
-        }
         // On by default; off goes back to the car's average. Switching it on first explains what it does.
         row(R.string.trip_option, R.string.trip_option_summary, yesNo(settings.tripRecording) {
             settings.tripRecording = it
@@ -471,26 +467,6 @@ class DaSettingsActivity : BaseActivity() {
                     settings.batteryCapacityManual = true
                 }
                 com.andrerinas.openheadunit.vehicle.Mg4EnergyProvider.refresh()
-                showTab(selectedTab)
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
-
-    private fun evLayoutLabel(key: String): String {
-        val layouts = com.andrerinas.openheadunit.vehicle.VehicleEnergyModelEncoder.Layout.entries
-        val i = layouts.indexOfFirst { it.key == key }.coerceAtLeast(0)
-        return getString(EV_LAYOUT_LABELS[i])
-    }
-
-    /** Temporary: lets the driver compare what Maps plans with each model layout. */
-    private fun pickEvLayout() {
-        val layouts = com.andrerinas.openheadunit.vehicle.VehicleEnergyModelEncoder.Layout.entries
-        MaterialAlertDialogBuilder(this, R.style.DarkAlertDialog)
-            .setTitle(R.string.dset_ev_layout)
-            .setItems(EV_LAYOUT_LABELS.map { getString(it) }.toTypedArray()) { _, i ->
-                settings.evModelLayout = layouts[i].key
-                appliesOnReconnect()
                 showTab(selectedTab)
             }
             .setNegativeButton(R.string.cancel, null)
@@ -994,10 +970,6 @@ class DaSettingsActivity : BaseActivity() {
         @Volatile var reconnectNeeded = false
 
         const val EXTRA_TAB = "tab"
-        private val EV_LAYOUT_LABELS = intArrayOf(
-            R.string.dset_ev_layout_a, R.string.dset_ev_layout_b, R.string.dset_ev_layout_c,
-            R.string.dset_ev_layout_d, R.string.dset_ev_layout_e,
-        )
         private const val KEY_TAB = "tab"
         private const val DPI_SMALL = 200
         private const val DPI_AUTO = 0

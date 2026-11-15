@@ -1,3 +1,7 @@
+# MG4Link 2.2.5-beta24
+
+- Google Maps model: the message now has exactly the shape a production car sends (checked field by field against a Ford captured by the aa-proxy-rs project), without the extra fields MG4Link added (uncertainty on the road-load terms, motor and charging power, a weight in what is most likely a reserve field). The values are unchanged. The test-mode choice of model format is gone: *Consumption model for Maps* stays the one choice, on by default, the other way being the car's average consumption.
+
 # MG4Link 2.2.5-beta23
 
 - MG4 Dash's shortcuts menu over Android Auto on cars that keep their status bar above it (SWI173): the one finger slide could never start in the top 20 px of the Android Auto window, which begins below the bar. Under a status bar, the slide now counts from the top 60 px (MG4Dash #113).

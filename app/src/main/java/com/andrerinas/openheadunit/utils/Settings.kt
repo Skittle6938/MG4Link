@@ -529,7 +529,6 @@ class Settings(private val context: Context) {
         get() = prefs.getString("mg4-variant", com.andrerinas.openheadunit.vehicle.Mg4Variant.AUTO)!!
         set(value) { prefs.edit().putString("mg4-variant", value).apply() }
 
-    /** Which sections of the Maps energy model are sent (see VehicleEnergyModelEncoder.Layout). */
     /**
      * Test mode (off by default): shows the features still being tested in Settings. Off, they
      * use their defaults whatever was chosen while it was on (the choices are kept for next time).
@@ -537,11 +536,6 @@ class Settings(private val context: Context) {
     var testMode: Boolean
         get() = prefs.getBoolean("test-mode", false)
         set(value) { prefs.edit().putBoolean("test-mode", value).apply() }
-
-    /** Model format sent to Maps: C (dc_curve) outside test mode. */
-    var evModelLayout: String
-        get() = if (testMode) prefs.getString("ev-model-layout", "dc_curve")!! else "dc_curve"
-        set(value) { prefs.edit().putString("ev-model-layout", value).apply() }
 
     /** Switch battery heating on before a charging stop on the route (off by default). */
     var batteryPreheatBeforeCharger: Boolean
