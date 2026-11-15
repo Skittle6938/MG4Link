@@ -13,6 +13,7 @@ import com.andrerinas.openheadunit.utils.Settings
  *   adb shell am broadcast -a com.allgo.app.androidauto.VIDEO_TEST \
  *     -n com.allgo.app.androidauto/com.andrerinas.openheadunit.app.AdbVideoTestReceiver \
  *     --ei resolutionId 2 --ez lowLatency true
+ *   (or --es language en, for the README screenshots)
  *
  * Guarded by android.permission.DUMP in the manifest, which only the ADB shell and the system
  * hold. Applies at the next connection, like the settings screen.
@@ -26,6 +27,10 @@ class AdbVideoTestReceiver : BroadcastReceiver() {
         }
         if (intent.hasExtra("lowLatency")) {
             settings.debugVideoLowLatency = intent.getBooleanExtra("lowLatency", false)
+        }
+        // App language for the README screenshots (e.g. "en"; "" = the car's language).
+        intent.getStringExtra("language")?.let {
+            com.andrerinas.openheadunit.utils.LocaleHelper.setScreenshotLanguage(context, it)
         }
         AppLog.i("ADB video test: resolutionId=${settings.resolutionId} lowLatency=${settings.debugVideoLowLatency}")
     }

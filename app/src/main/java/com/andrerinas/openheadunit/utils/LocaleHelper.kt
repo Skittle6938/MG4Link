@@ -90,6 +90,16 @@ object LocaleHelper {
         }
     }
 
+    private const val SCREENSHOT_KEY = "adb-screenshot-language"
+
+    /** Language set over ADB ([com.andrerinas.openheadunit.app.AdbVideoTestReceiver]), "" = the car's. */
+    fun screenshotLanguage(context: Context): String =
+        preferences(context).getString(SCREENSHOT_KEY, SYSTEM_DEFAULT) ?: SYSTEM_DEFAULT
+
+    fun setScreenshotLanguage(context: Context, language: String) {
+        preferences(context).edit().putString(SCREENSHOT_KEY, language).apply()
+    }
+
     private const val KEY = "app-language"
     private const val MIGRATED = "app-language-platform-migrated"
 
@@ -130,9 +140,9 @@ object LocaleHelper {
     }
 
     fun applyLocale(context: Context, @Suppress("UNUSED_PARAMETER") settings: Settings): Context {
-        // DiAuto for MG4 always speaks the car's language: a language once picked in the app (the
-        // picker is gone) no longer overrides it.
-        val selected = SYSTEM_DEFAULT
+        // MG4Link always speaks the car's language: a language once picked in the app (the picker is
+        // gone) no longer overrides it. Only a language set over ADB for the README screenshots does.
+        val selected = screenshotLanguage(context)
         if (Build.VERSION.SDK_INT >= 33) return context
         // Do not mutate Locale.getDefault(): returning to System default must restore the system locale.
         @Suppress("DEPRECATION")
