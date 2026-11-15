@@ -1,3 +1,7 @@
+# MG4Link 2.2.7-beta1
+
+- MG4Dash's Android Auto button with no phone connected: MG4Link opens and connects the phone at once, as its *Connect phone* button does, also with *Start with the car: No* (with a MG4Dash that supports it).
+
 # MG4Link 2.2.6
 
 - *Start with the car: No* (#27): MG4Link opens nothing wireless until you tap *Connect phone*: no Android Auto listener the phone could find by itself, no hotspot, no call. 2.2.5 only stopped the calls, and a phone could still start Android Auto on its own. USB is unchanged.

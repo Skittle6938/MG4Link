@@ -131,6 +131,7 @@ class MainActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
 
         logLaunchSource()
+        noteDashConnect(intent)
 
         // If an Android Auto session is active, bring the projection activity to front
         if (App.provide(this).commManager.isConnected && !App.isPiPActive) {
@@ -752,8 +753,27 @@ class MainActivity : BaseActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        noteDashConnect(intent)
         handleLaunchIntent(intent)
     }
+
+    /**
+     * MG4Dash's Android Auto button with no phone connected opens MG4Link with [EXTRA_DASH_CONNECT]:
+     * the home screen then does what its Connect phone button does, also with Start with the car
+     * on No. Ignored when a session is already up. The flag is taken by [takeDashConnect].
+     */
+    private fun noteDashConnect(intent: Intent?) {
+        if (intent?.getBooleanExtra(EXTRA_DASH_CONNECT, false) != true) return
+        intent.removeExtra(EXTRA_DASH_CONNECT)
+        if (App.provide(this).commManager.isConnected) return
+        AppLog.i("MG4Dash asked MG4Link to connect the phone")
+        dashConnectPending = true
+    }
+
+    private var dashConnectPending = false
+
+    /** True once after MG4Dash asked to connect the phone. */
+    fun takeDashConnect(): Boolean = dashConnectPending.also { dashConnectPending = false }
 
     private fun logLaunchSource() {
         val source = intent?.getStringExtra(EXTRA_LAUNCH_SOURCE)
@@ -984,6 +1004,8 @@ class MainActivity : BaseActivity() {
 
         private const val permissionRequestCode = 97
         const val EXTRA_LAUNCH_SOURCE = "launch_source"
+        /** Sent by MG4Dash's Android Auto button; MG4Link declares it supports it in its manifest. */
+        const val EXTRA_DASH_CONNECT = "mg4dash.connect"
 
         /**
          * Hard upper bound for how long the auto-connect overlay may stay visible

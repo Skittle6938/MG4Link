@@ -217,6 +217,8 @@ class HomeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        // MG4Dash's Android Auto button: connect as the Connect phone button would.
+        if ((activity as? MainActivity)?.takeDashConnect() == true && !app.commManager.isConnected) connectWireless()
         showTripTile()
         // Also after Settings, where the beta option may have changed.
         ota?.checkOnStartup()
