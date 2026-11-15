@@ -1,3 +1,7 @@
+# MG4Link 2.2.6
+
+- *Start with the car: No* (#27): MG4Link opens nothing wireless until you tap *Connect phone*: no Android Auto listener the phone could find by itself, no hotspot, no call. 2.2.5 only stopped the calls, and a phone could still start Android Auto on its own. USB is unchanged.
+
 # MG4Link 2.2.6-beta1
 
 - *Start with the car: No* (#27): MG4Link no longer opens anything for the phone at all until you tap *Connect phone*: no Android Auto listener the phone could find by itself, no hotspot, no call when the car's Bluetooth comes on. 2.2.5 only stopped the calls, and a phone could still start Android Auto on its own. USB is unchanged.
