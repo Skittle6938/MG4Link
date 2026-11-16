@@ -56,8 +56,10 @@ internal class AapMessageHandlerType(
             }
         }
 
-        // 3. Media Playback Status (separate channel)
-        if (message.channel == Channel.ID_MPB && msgType > 31) {
+        // 3. Media Playback Status (separate channel). A continuation fragment of the title and
+        // cover has no type of its own: its first two bytes are cover art, and when they read as a
+        // control type (0..31) the fragment went to the control path and the title was lost (#28).
+        if (message.channel == Channel.ID_MPB && (msgType > 31 || mediaPlayback.takesContinuation(flags.toInt()))) {
             mediaPlayback.process(message)
             return
         }
