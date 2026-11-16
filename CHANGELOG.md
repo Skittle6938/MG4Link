@@ -1,3 +1,8 @@
+# MG4Link 2.2.7-beta3
+
+- Trip recording for daily trips: a trip can be started with only 5 points of battery to go (10 before), and is kept from 4 points used and 5 km (8 points and 10 km before). Less representative, but closer to most daily drives.
+- Recorded trips also keep the pack voltage against current, to measure the battery's internal resistance for Google Maps' battery-loss table.
+
 # MG4Link 2.2.7-beta2
 
 - Google Maps battery at arrival: back to the model of 2.2.5-beta23, the one that matched daily trips within about 1 point. 2.2.6 dropped fields that Google's servers turn out to use and raised the rolling term, and Maps became about 4 points too optimistic on a 10 % trip.

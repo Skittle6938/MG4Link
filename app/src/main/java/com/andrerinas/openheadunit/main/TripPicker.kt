@@ -11,7 +11,7 @@ import com.andrerinas.openheadunit.R
  * stays in sight. A trip must use at least [MIN_DROP] % to be usable, so the value can't go above that.
  */
 object TripPicker {
-    const val MIN_DROP = 10
+    const val MIN_DROP = 5
     private const val DEFAULT_DROP = 20
 
     /** The highest forecast allowed, or null when the battery is too low to record a usable trip. */

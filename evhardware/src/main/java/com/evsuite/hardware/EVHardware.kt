@@ -577,6 +577,9 @@ object EVHardware {
         val precisePercent: Float?,
         /** Plugged in, charging or V2L. */
         val plugged: Boolean,
+        /** Pack voltage (V) and current (A, positive out) from the BMS, when they read. */
+        val volts: Float? = null,
+        val amps: Float? = null,
     )
 
     fun getCapacityReading(): CapacityReading {
@@ -596,6 +599,8 @@ object EVHardware {
             percent = percent,
             precisePercent = fromBms?.takeIf { it in 0.1f..100f },
             plugged = status != 0,
+            volts = volts,
+            amps = amps,
         )
     }
 
