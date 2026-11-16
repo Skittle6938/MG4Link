@@ -1,3 +1,10 @@
+# MG4Link 2.2.7-beta5
+
+- Steering wheel (#28): two quick presses on next or previous now skip twice (the second was taken for the launcher's copy of the first), and play/pause also reacts as soon as the key is released, instead of 0.4 s later.
+- Music title and cover (#28): the real cause of the titles that stayed on the previous track: a piece of a long title-and-cover message whose first bytes looked like a control message went to the wrong place. Every piece of such a message now stays together.
+- Ending Android Auto on the phone (#27) now counts as ending it from the car: the hotspot goes off and the phone is not called back until Android Auto is asked for again. With *Start with the car: No*, the next connection waits for *Connect phone*.
+- MG4Dash's shortcuts menu on cars that keep their status bar above Android Auto (MG4Dash #113): MG4Link tells MG4Dash whether the Android Auto window covers the top of the screen, so MG4Dash can take the one-finger slide itself when it does not (with a MG4Dash that supports it).
+
 # MG4Link 2.2.7-beta4
 
 - Steering wheel next/previous (#28): the skip goes to Android Auto as soon as the key is released, instead of 0.4 s later. MG4Link waited for a possible copy from the launcher; such a copy is now dropped instead.

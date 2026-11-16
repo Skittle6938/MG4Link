@@ -1007,6 +1007,7 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
         mg4DashPresent = readMg4DashPresent()
         isForeground = true
         AppLog.i("AapProjectionActivity: onResume")
+        reportImmersiveToMg4Dash()
         com.allgo.app.androidauto.RelayState.screen(true)
         SaicHvacPage.onProjectionShown(this)
         // Show the one-time rename notice even here, on top of an active projection.
@@ -1334,6 +1335,7 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
 
     private fun setFullscreen() {
         val container = findViewById<View>(R.id.container)
+        reportImmersiveToMg4Dash()
 
         // Use activity-local override if present, otherwise use stored settings
         val mode = activityFullscreenOverride ?: settings.fullscreenMode
@@ -1543,6 +1545,32 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
         android.provider.Settings.Global.getInt(contentResolver, "mg4dash_shortcuts_strip", 0) == 1
     } catch (_: Exception) { false }
 
+    /**
+     * Tells MG4Dash whether this window covers the top of the screen (MG4Dash #113). With the car's
+     * status bar above it (SWI173 in NAV_ONLY), a one-finger slide from the top never reaches
+     * MG4Link, so MG4Dash takes it itself; with the bar hidden, MG4Link relays it (SHORTCUTS_PULL).
+     * Read once the window has been laid out; repeats are harmless.
+     */
+    private fun reportImmersiveToMg4Dash() {
+        if (!mg4DashPresent) return
+        val root = window?.decorView ?: return
+        root.postDelayed({
+            val content = findViewById<View>(android.R.id.content) ?: return@postDelayed
+            val at = IntArray(2)
+            content.getLocationOnScreen(at)
+            val immersive = at[1] <= 0
+            try {
+                sendBroadcast(Intent("app.mg4dash.LINK_IMMERSIVE").setPackage("app.mg4dash").putExtra("immersive", immersive))
+            } catch (e: Exception) { AppLog.w("MG4 Dash immersive report: ${e.message}") }
+            if (immersive != lastImmersiveReported) {
+                lastImmersiveReported = immersive
+                AppLog.i("MG4 Dash told: Android Auto window ${if (immersive) "covers the top of the screen" else "is below the car's status bar"}")
+            }
+        }, IMMERSIVE_REPORT_DELAY_MS)
+    }
+
+    private var lastImmersiveReported: Boolean? = null
+
     private fun sendMenuPull(phase: String, dy: Float) {
         try {
             sendBroadcast(Intent("app.mg4dash.SHORTCUTS_PULL").setPackage("app.mg4dash").putExtra("phase", phase).putExtra("dy", dy))
@@ -1702,6 +1730,7 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
     }
 
     override fun onSurfaceChanged(surface: android.view.Surface, width: Int, height: Int) {
+        reportImmersiveToMg4Dash()
         AppLog.i("[UI_DEBUG] [AapProjectionActivity] onSurfaceChanged. Actual surface dimensions: width=$width, height=$height")
         isSurfaceSet = true
 
@@ -2015,6 +2044,7 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
     companion object {
         private const val MENU_PULL_EDGE_PX = 20
         private const val MENU_PULL_EDGE_BELOW_BAR_PX = 60f
+        private const val IMMERSIVE_REPORT_DELAY_MS = 300L
         private const val MENU_PULL_DP = 40
         /** After the bye-bye, so the service has stopped and re-armed wireless before the call. */
         private const val RECONNECT_POKE_DELAY_MS = 2_500L
