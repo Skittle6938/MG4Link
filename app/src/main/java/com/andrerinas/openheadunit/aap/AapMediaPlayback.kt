@@ -17,15 +17,20 @@ class AapMediaPlayback(
 
         val flags = message.flags.toInt()
 
+        // A continuation fragment carries no message type: its first two bytes are album art or
+        // metadata, read as a type by chance. When they happened to read as the status or input
+        // type, the fragment went there, was lost, and the whole title and cover failed to parse
+        // (#28). Inside a fragmented metadata message, middle and last fragments always continue it.
+        if (started && (flags == FLAG_MIDDLE_FRAGMENT || flags == FLAG_LAST_FRAGMENT)) {
+            processMetadataPacket(message, flags)
+            return
+        }
+
         when (message.type) {
             MSG_MEDIA_PLAYBACK_METADATA -> processMetadataPacket(message, flags)
             MSG_MEDIA_PLAYBACK_STATUS -> processStatusPacket(message)
             MSG_MEDIA_PLAYBACK_INPUT -> Unit
             else -> {
-                if (started && (flags == FLAG_MIDDLE_FRAGMENT || flags == FLAG_LAST_FRAGMENT)) {
-                    processMetadataPacket(message, flags)
-                    return
-                }
                 AppLog.e("Unsupported %s", message.toString())
             }
         }
