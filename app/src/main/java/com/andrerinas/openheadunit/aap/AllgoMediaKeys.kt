@@ -18,6 +18,12 @@ object AllgoMediaKeys {
 
     @Volatile
     private var lastSkipMs = 0L
+
+    /** When DiAuto last sent a wheel skip of its own (CarKeyBroadcastReceiver). */
+    @Volatile
+    private var lastOwnSkipMs = 0L
+
+    fun noteOwnSkip() { lastOwnSkipMs = SystemClock.elapsedRealtime() }
     /** When the launcher last forwarded the phone key (rui launchApp 3). */
     @Volatile @JvmField var lastLaunchPhoneMs = 0L
 
@@ -35,6 +41,11 @@ object AllgoMediaKeys {
             else -> return false
         }
         if (key == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) lastPlayPauseMs = SystemClock.elapsedRealtime()
+        // The same skip, sent again by a launcher after DiAuto already sent it: one skip, not two.
+        if (key != KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE && SystemClock.elapsedRealtime() - lastOwnSkipMs < OWN_SKIP_WINDOW_MS) {
+            AppLog.i("AllgoMediaKeys: rui code $code dropped - the wheel skip was already sent")
+            return true
+        }
         App.provide(context).commManager.sendKey(key, down, null, "allgo-rui")
         AppLog.i("AllgoMediaKeys: rui code $code -> key $key ${if (down) "down" else "up"}")
         return true
@@ -63,4 +74,6 @@ object AllgoMediaKeys {
      */
     fun skipCameThroughRui(withinMs: Long = 1500L): Boolean =
         SystemClock.elapsedRealtime() - lastSkipMs < withinMs
+
+    private const val OWN_SKIP_WINDOW_MS = 1500L
 }

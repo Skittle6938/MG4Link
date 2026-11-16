@@ -290,18 +290,18 @@ class CarKeyBroadcastReceiver : BroadcastReceiver(), CarKeyReceiver {
         }
 
         // Wheel left/right: as AllGo, skip on release while Android Auto is the car's source (the
-        // stock launcher leaves them to AllGo).
+        // stock launcher leaves them to AllGo). Sent at once: waiting 400 ms for a copy through rui
+        // made every skip late (#28); a copy that comes through rui afterwards is dropped instead
+        // (AllgoMediaKeys.fromRui).
         if (keyCode == SAIC_KEYCODE_LEFT || keyCode == SAIC_KEYCODE_RIGHT) {
             if (!isDown && androidAutoIsSource(context)) {
                 val key = if (keyCode == SAIC_KEYCODE_RIGHT) KeyEvent.KEYCODE_MEDIA_NEXT else KeyEvent.KEYCODE_MEDIA_PREVIOUS
-                val app = context.applicationContext
-                Handler(Looper.getMainLooper()).postDelayed({
-                    if (AllgoMediaKeys.skipCameThroughRui()) {
-                        AppLog.i("CarKeyReceiver: wheel skip already sent through rui")
-                    } else {
-                        handleClick(app, key)
-                    }
-                }, PLAY_PAUSE_RUI_WAIT_MS)
+                if (AllgoMediaKeys.skipCameThroughRui()) {
+                    AppLog.i("CarKeyReceiver: wheel skip already sent through rui")
+                } else {
+                    AllgoMediaKeys.noteOwnSkip()
+                    handleClick(context.applicationContext, key)
+                }
             }
             return
         }

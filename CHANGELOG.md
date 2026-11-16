@@ -1,3 +1,8 @@
+# MG4Link 2.2.7-beta4
+
+- Steering wheel next/previous (#28): the skip goes to Android Auto as soon as the key is released, instead of 0.4 s later. MG4Link waited for a possible copy from the launcher; such a copy is now dropped instead.
+- Music title and cover (#28): a long title message with its cover art, sent in several pieces, could fail to read when one piece happened to begin like a status message; the title on the car then stayed on the previous track.
+
 # MG4Link 2.2.7-beta3
 
 - Trip recording for daily trips: a trip can be started with only 5 points of battery to go (10 before), and is kept from 4 points used and 5 km (8 points and 10 km before). Less representative, but closer to most daily drives.
