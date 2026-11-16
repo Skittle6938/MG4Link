@@ -37,7 +37,7 @@ class Mg4VariantTest {
         assertEquals(138_000, Mg4Variant.LONG_RANGE.maxDcW)
     }
     @Test
-    fun `the model has the production car's shape and nothing more`() {
+    fun `the model keeps the shape Maps was calibrated with`() {
         val model = Mg4MapsEnergyModel.build(Mg4Variant.STANDARD, 8f, true)
         val bytes = VehicleEnergyModelEncoder.encode(
             VehicleEnergyModelEncoder.Snapshot(
@@ -47,12 +47,12 @@ class Mg4VariantTest {
         )
         val top = fields(bytes)
         assertEquals(setOf(1, 2, 4, 7), top.map { it.first }.toSet())
-        // Battery: energy left, capacity, air density, temperature.
-        assertEquals(listOf(3, 4, 6, 7), fields(top.first { it.first == 1 }.second!!).map { it.first })
-        // Road load: A, B, C, each holding only its value.
+        // Battery: energy left, capacity, air density, temperature, the two powers.
+        assertEquals(listOf(3, 4, 6, 7, 9, 10), fields(top.first { it.first == 1 }.second!!).map { it.first })
+        // Road load: A, B, C, each with its value and the second float Maps' servers use.
         val road = fields(top.first { it.first == 2 }.second!!)
         assertEquals(listOf(1, 2, 3), road.map { it.first })
-        road.forEach { assertEquals(listOf(1), fields(it.second!!).map { f -> f.first }) }
+        road.forEach { assertEquals(listOf(1, 2), fields(it.second!!).map { f -> f.first }) }
         // Energy left / capacity is the car's own %.
         assertEquals(21_680.0 / 47_858.0, 0.453, 0.001)
     }

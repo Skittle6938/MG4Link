@@ -1,3 +1,7 @@
+# MG4Link 2.2.7-beta2
+
+- Google Maps battery at arrival: back to the model of 2.2.5-beta23, the one that matched daily trips within about 1 point. 2.2.6 dropped fields that Google's servers turn out to use and raised the rolling term, and Maps became about 4 points too optimistic on a 10 % trip.
+
 # MG4Link 2.2.7-beta1
 
 - MG4Dash's Android Auto button with no phone connected: MG4Link opens and connects the phone at once, as its *Connect phone* button does, also with *Start with the car: No* (with a MG4Dash that supports it).

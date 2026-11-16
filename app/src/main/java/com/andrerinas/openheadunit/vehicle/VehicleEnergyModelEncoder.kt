@@ -6,13 +6,18 @@ import java.io.ByteArrayOutputStream
 /**
  * Wire encoder for Android Auto VehicleEnergyModel (sensor type 23/25).
  *
- * The message has exactly the shape a production car sends (a Ford, captured by the aa-proxy-rs
- * project, decoded field by field 2026-11-15), and nothing that car does not send:
+ * Fields as Google Maps parses them (schema recovered from Maps' own code by the egmp-aa-ev-feat
+ * project): Maps reads only the energy left and the capacity on the phone; everything else goes
+ * unchanged to Google's servers, where the prediction is made.
  *
  *  - 1 = battery and air: 3 energy left (Wh), 4 capacity (Wh), 6 air density (kg/m³) for which the
- *    air term below holds, 7 outside temperature (°C). There is no percentage field: Maps shows
- *    energy left / capacity, so the % it shows at departure is the car's.
- *  - 2 = road load F = A + B·v + C·v² (N, v in m/s): three messages holding only their value.
+ *    air term below holds, 7 outside temperature (°C), 9 and 10 two powers in W (Maps' own demo
+ *    models set them; here peak motor power and max DC power). There is no percentage field: Maps
+ *    shows energy left / capacity, so the % it shows at departure is the car's.
+ *  - 2 = road load F = A + B·v + C·v² (N, v in m/s), each term {1 value, 2 a second float}.
+ *    2.2.5-beta24 to 2.2.6 dropped the second floats and fields 1.9 / 1.10 to copy a Ford capture,
+ *    and Maps became ~4 points more optimistic on a daily 10 % trip, against ~1 point before:
+ *    the servers do use them. They are back as they were.
  *  - 4 = DC charging curve: (energy in the pack Wh, max power W) every 5 %.
  *  - 7 = climate and accessories power by outside temperature: {1 °C, 4 W}.
  *
@@ -32,6 +37,8 @@ object VehicleEnergyModelEncoder {
         /** The car's range: only for the road load from the range (no consumption model). */
         val rangeMeters: Int,
         val batteryPercent: Double = 0.0,
+        val maxChargePowerW: Int = 140_000,
+        val peakMotorPowerW: Int = 150_000,
         val variant: Mg4Variant? = null,
         val outsideTempC: Float? = null,
         /** MG4Link's road load, climate power and temperature; null = constant force from the range. */
@@ -86,6 +93,8 @@ object VehicleEnergyModelEncoder {
             cos.writeFloat(6, airDensity(temp))
             cos.writeFloat(7, temp)
         }
+        cos.writeUInt32(9, snapshot.peakMotorPowerW.coerceAtLeast(1))
+        cos.writeUInt32(10, (snapshot.variant?.maxDcW ?: snapshot.maxChargePowerW).coerceAtLeast(1))
     }
 
     /** Dry air at sea level, kg/m³. */
@@ -93,9 +102,9 @@ object VehicleEnergyModelEncoder {
 
     /** Road load: constant (N), linear (N·s/m) and quadratic (N·s²/m²) terms. */
     private fun encodeRoadLoad(a: Float, b: Float, c: Float): ByteArray = message { cos ->
-        cos.writeByteArray(1, coefficient(a))
-        cos.writeByteArray(2, coefficient(b))
-        cos.writeByteArray(3, coefficient(c))
+        cos.writeByteArray(1, coefficient(a, 10f))
+        cos.writeByteArray(2, coefficient(b, 0.25f))
+        cos.writeByteArray(3, coefficient(c, 0.125f))
     }
 
     /** Maximum DC power the pack takes, as (energy in the pack Wh, power W) every 5 %. */
@@ -110,8 +119,11 @@ object VehicleEnergyModelEncoder {
 
     private fun valueOf(value: Int): ByteArray = message { it.writeInt32(1, value) }
 
-    /** A road-load term: its value alone, as the production car sends it. */
-    private fun coefficient(value: Float): ByteArray = message { it.writeFloat(1, value) }
+    /** A road-load term: its value, and the second float sent since 2.2.0 (see the class comment). */
+    private fun coefficient(value: Float, second: Float): ByteArray = message { cos ->
+        cos.writeFloat(1, value)
+        cos.writeFloat(2, second)
+    }
 
     private inline fun message(write: (CodedOutputStream) -> Unit): ByteArray {
         val out = ByteArrayOutputStream()
