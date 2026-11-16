@@ -37,7 +37,6 @@ class CarKeyBroadcastReceiver : BroadcastReceiver(), CarKeyReceiver {
         @Volatile private var voiceKeyPressSent = false
         /** Steering-wheel phone key. (Hardkey 3 is the car's home key, handled by the car.) */
         private const val SAIC_KEYCODE_PHONE = 291
-        private const val PLAY_PAUSE_RUI_WAIT_MS = 400L
         /** Steering wheel left (previous) and right (next), AllGo's KEYCODE_SWC_LEFT/RIGHT. */
         private const val SAIC_KEYCODE_LEFT = 299
         private const val SAIC_KEYCODE_RIGHT = 300
@@ -276,15 +275,14 @@ class CarKeyBroadcastReceiver : BroadcastReceiver(), CarKeyReceiver {
         if (keyCode == SAIC_KEYCODE_PLAY_PAUSE) {
             if (otherSourceIsCurrent(context)) {
                 if (!isDown) AppLog.i("CarKeyReceiver: play/pause left to the car's current source")
-            } else if (!isDown) {
-                val app = context.applicationContext
-                Handler(Looper.getMainLooper()).postDelayed({
-                    if (AllgoMediaKeys.playPauseCameThroughRui()) {
-                        AppLog.i("CarKeyReceiver: play/pause already sent through rui")
-                    } else {
-                        handleClick(app, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
-                    }
-                }, PLAY_PAUSE_RUI_WAIT_MS)
+            } else if (!isDown && !isLong) {
+                // At once, as next/previous: a copy through rui afterwards is dropped (#28).
+                if (AllgoMediaKeys.playPauseCameThroughRui()) {
+                    AppLog.i("CarKeyReceiver: play/pause already sent through rui")
+                } else {
+                    AllgoMediaKeys.noteOwnPlayPause()
+                    handleClick(context.applicationContext, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+                }
             }
             return
         }

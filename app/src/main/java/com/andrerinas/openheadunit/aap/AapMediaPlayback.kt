@@ -13,6 +13,10 @@ class AapMediaPlayback(
     private val messageBuffer = ByteBuffer.allocate(1024 * 1024) // 1MB to handle large album art
     private var started = false
 
+    /** Whether a fragment with [flags] continues a title and cover message being put together. */
+    fun takesContinuation(flags: Int): Boolean =
+        started && (flags == FLAG_MIDDLE_FRAGMENT || flags == FLAG_LAST_FRAGMENT)
+
     fun process(message: AapMessage) {
 
         val flags = message.flags.toInt()
