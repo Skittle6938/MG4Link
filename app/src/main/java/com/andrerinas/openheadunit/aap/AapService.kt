@@ -1471,7 +1471,11 @@ class AapService : Service(), UsbReceiver.Listener {
         // the next connection. OpenHU keeps its session alive the entire service lifetime.
         safeMediaSessionCall { it.isActive = false }
         updateMediaSessionState(false)
-        if (state.isUserExit && !preemptingWirelessForUsb && wirelessEnabled()) wifiHandedBackOnExit = true
+        if (state.isUserExit && !preemptingWirelessForUsb && wirelessEnabled()) {
+            wifiHandedBackOnExit = true
+            // With Start with the car on No, the next connection waits for Connect phone again.
+            userAskedThisRun = false
+        }
         serviceScope.launch(Dispatchers.IO) {
 
             val settings = App.provide(this@AapService).settings

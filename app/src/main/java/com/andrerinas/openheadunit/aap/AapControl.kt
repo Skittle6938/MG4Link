@@ -371,6 +371,9 @@ internal class AapControlService(
 
     private fun byebyeRequest(request: Control.ByeByeRequest, channel: Int): Int {
         AppLog.i("!!! RECEIVED BYEBYE REQUEST FROM PHONE !!! Reason: ${request.reason}")
+        // The driver ended Android Auto on the phone: as an exit from the car, the hotspot goes
+        // off and nothing calls the phone back until Android Auto is asked for again (#27).
+        if (request.reason == Control.ByeByeReason.USER_SELECTION) aapTransport.wasUserExit = true
 
         val msg = AapMessage(channel, Control.ControlMsgType.MESSAGE_BYEBYE_RESPONSE_VALUE, Control.ByeByeResponse.newBuilder().build())
         AppLog.i("Sending BYEYERESPONSE")
