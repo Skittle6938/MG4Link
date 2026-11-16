@@ -40,6 +40,7 @@ object TripRecorder {
     private var climateReadMs = 0L
     private var climateOn: Boolean? = null
     private var tempC: Float? = null
+    private var slow: TripLog.Extras? = null
 
     private fun dir(context: Context) = File(context.filesDir, DIR).apply { mkdirs() }
 
@@ -57,6 +58,18 @@ object TripRecorder {
         }
         log = saved
         if (System.currentTimeMillis() - file.lastModified() > OFF_GAP_MS) finish(context, "car_off")
+    }
+
+    /** The slow readings, with the GPS altitude of this second (no position is kept). */
+    @android.annotation.SuppressLint("MissingPermission")
+    private fun extras(context: Context): TripLog.Extras? {
+        val altitude = runCatching {
+            val lm = context.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+            lm.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
+                ?.takeIf { it.hasAltitude() && System.currentTimeMillis() - it.time < 5_000 }?.altitude
+        }.getOrNull()
+        val s = slow ?: return altitude?.let { TripLog.Extras(altitudeM = it) }
+        return TripLog.Extras(altitude, s.packTempC, s.cabinTempC, s.setTempC, s.fanStep, s.acOn, s.regenLevel)
     }
 
     fun isActive(context: Context): Boolean {
@@ -116,11 +129,19 @@ object TripRecorder {
             tempC = runCatching { SaicClimate.outsideTempCelsius() ?: EVHardware.getOutsideTempCelsius() }.getOrNull()
                 ?.takeIf { it in -40f..60f }
                 ?.let { Math.round(it).toFloat() }
+            slow = TripLog.Extras(
+                packTempC = runCatching { EVHardware.getBatteryTemperatureCelsius() }.getOrNull()?.takeIf { it in -40f..80f },
+                cabinTempC = runCatching { EVHardware.getCabinTemperatureCelsius() }.getOrNull()?.takeIf { it in -40f..80f },
+                setTempC = runCatching { EVHardware.getTemperatureSetCelsius() }.getOrNull()?.takeIf { it in 10f..35f },
+                fanStep = runCatching { EVHardware.getFanSpeed() }.getOrNull()?.takeIf { it in 0..20 },
+                acOn = runCatching { EVHardware.getAcOn() }.getOrNull(),
+                regenLevel = runCatching { EVHardware.getRegenLevel()?.value }.getOrNull(),
+            )
         }
         val speed = EVHardware.getVehicleSpeedKmh()?.coerceAtLeast(0f) ?: 0f
         trip.plugged = trip.plugged || reading.plugged
         trip.tick(dt, speed, reading.powerW, reading.precisePercent ?: reading.percent?.toFloat(), tempC, climateOn, model(trip),
-            reading.volts, reading.amps)
+            reading.volts, reading.amps, extras(context))
         when {
             reading.plugged -> finish(context, "charging")
             trip.stoppedFor >= PARKED_S && trip.totalKm >= STARTED_KM -> finish(context, "parked")

@@ -77,4 +77,19 @@ class TripLogTest {
         assertEquals(10f, s.speedSeconds[4], 0.01f)
         assertEquals("Standard 51 kWh", back.header.getString("version"))
     }
+
+    @Test
+    fun `climb speeding up and the pack resistance are kept`() {
+        val t = trip()
+        // 0 to 36 km/h: 1/2 v^2 = 50 J/kg = 13.9 Wh per tonne.
+        t.tick(1f, 0f, 1000f, 80f, 10f, false, null, 350f, 10f, TripLog.Extras(altitudeM = 100.0))
+        t.tick(1f, 36f, 30_000f, 80f, 10f, false, null, 340f, 90f, TripLog.Extras(altitudeM = 101.0))
+        t.tick(1f, 36f, 20_000f, 80f, 10f, false, null, 344f, 60f, TripLog.Extras(altitudeM = 110.0))
+        for (k in 0 until 40) t.tick(1f, 36f, 10_000f, 80f, 10f, false, null, 350f - (k % 4) * 3f, 10f + (k % 4) * 30f, TripLog.Extras(altitudeM = 104.0))
+        val seg = t.toJson().getJSONArray("segments").getJSONObject(0)
+        assertEquals(13.9, seg.getDouble("accelWhPerT"), 0.1)
+        assertEquals(10.0, seg.getDouble("climbM"), 0.01)
+        assertEquals(6.0, seg.getDouble("descentM"), 0.01)
+        assertEquals(0.1, seg.getDouble("packOhm"), 0.02)
+    }
 }

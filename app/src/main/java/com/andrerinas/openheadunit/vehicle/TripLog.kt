@@ -30,7 +30,33 @@ class TripLog(val header: JSONObject, val mapsArrivalPercent: Int, val startPerc
          * resistance: the slope of V over I is −R. For Maps' battery-loss table (field 5).
          */
         val vi = DoubleArray(5)
+        /** Seconds into the trip when the segment started. */
+        var startedAtS = 0f
+        /** Climb and descent from the car's GPS altitude (no position kept), m. */
+        var climbM = 0f
+        var descentM = 0f
+        /** Kinetic energy put in by speeding up, Wh per tonne: the cost of stop-and-go. */
+        var accelWhPerT = 0f
+        /** Sums for averages over the samples that read: pack °C, cabin °C, set °C, fan step. */
+        val sums = DoubleArray(8)
+        var acOnSeconds = 0f
+        var regenLevel: Int? = null
     }
+
+    /** Readings that change slowly, taken by [TripRecorder] every few seconds. */
+    class Extras(
+        val altitudeM: Double? = null,
+        val packTempC: Float? = null,
+        val cabinTempC: Float? = null,
+        val setTempC: Float? = null,
+        val fanStep: Int? = null,
+        val acOn: Boolean? = null,
+        val regenLevel: Int? = null,
+    )
+
+    private var elapsedS = 0f
+    private var lastSpeedMs = 0f
+    private var altitudeRef: Double? = null
 
     val segments = mutableListOf<Segment>()
 
@@ -52,9 +78,30 @@ class TripLog(val header: JSONObject, val mapsArrivalPercent: Int, val startPerc
 
     fun tick(
         dtS: Float, speedKmh: Float, powerW: Float?, percent: Float?, tempC: Float?, climateOn: Boolean?, model: Model?,
-        volts: Float? = null, amps: Float? = null,
+        volts: Float? = null, amps: Float? = null, extras: Extras? = null,
     ) {
         val current = segmentFor(climateOn, tempC, percent, model)
+        if (current.seconds == 0f && current.km == 0f) current.startedAtS = elapsedS
+        elapsedS += dtS
+        val speedMs = speedKmh / 3.6f
+        if (speedMs > lastSpeedMs) current.accelWhPerT += (speedMs * speedMs - lastSpeedMs * lastSpeedMs) * 1000f / 2f / 3600f
+        lastSpeedMs = speedMs
+        extras?.let { x ->
+            x.altitudeM?.let { alt ->
+                // 3 m hysteresis: GPS altitude jitters by a few metres.
+                val ref = altitudeRef
+                if (ref == null) altitudeRef = alt
+                else if (alt - ref >= 3.0) { current.climbM += (alt - ref).toFloat(); altitudeRef = alt }
+                else if (ref - alt >= 3.0) { current.descentM += (ref - alt).toFloat(); altitudeRef = alt }
+            }
+            val s = current.sums
+            x.packTempC?.let { s[0] += it.toDouble(); s[1] += 1.0 }
+            x.cabinTempC?.let { s[2] += it.toDouble(); s[3] += 1.0 }
+            x.setTempC?.let { s[4] += it.toDouble(); s[5] += 1.0 }
+            x.fanStep?.let { s[6] += it.toDouble(); s[7] += 1.0 }
+            x.regenLevel?.let { current.regenLevel = it }
+        }
+        if (extras?.acOn == true) current.acOnSeconds += dtS
         if (volts != null && amps != null && volts in 100f..900f && amps in -600f..600f) {
             val v = current.vi
             v[0] += 1.0; v[1] += amps.toDouble(); v[2] += volts.toDouble(); v[3] += amps.toDouble() * amps; v[4] += amps.toDouble() * volts
@@ -127,6 +174,17 @@ class TripLog(val header: JSONObject, val mapsArrivalPercent: Int, val startPerc
                     put("speedSeconds", floats(s.speedSeconds))
                     put("speedKm", floats(s.speedKm))
                     put("speedKwh", floats(s.speedKwh))
+                    put("startedAtS", s.startedAtS.toDouble())
+                    put("climbM", s.climbM.toDouble())
+                    put("descentM", s.descentM.toDouble())
+                    put("accelWhPerT", s.accelWhPerT.toDouble())
+                    put("acOnSeconds", s.acOnSeconds.toDouble())
+                    put("regenLevel", s.regenLevel ?: JSONObject.NULL)
+                    avg(s.sums, 0)?.let { put("packTempC", it) }
+                    avg(s.sums, 2)?.let { put("cabinTempC", it) }
+                    avg(s.sums, 4)?.let { put("setTempC", it) }
+                    avg(s.sums, 6)?.let { put("fanStep", it) }
+                    put("sums", JSONArray().also { a -> s.sums.forEach { a.put(it) } })
                     if (s.vi[0] > 0) {
                         put("vi", JSONArray().also { a -> s.vi.forEach { a.put(it) } })
                         packOhm(s.vi)?.let { put("packOhm", it) }
@@ -135,6 +193,9 @@ class TripLog(val header: JSONObject, val mapsArrivalPercent: Int, val startPerc
             }
         })
     }
+
+    private fun avg(sums: DoubleArray, at: Int): Double? =
+        if (sums[at + 1] > 0) Math.round(sums[at] / sums[at + 1] * 10.0) / 10.0 else null
 
     /** Pack resistance from the running sums: −slope of V over I, when the current varied enough. */
     private fun packOhm(v: DoubleArray): Double? {
@@ -192,6 +253,13 @@ class TripLog(val header: JSONObject, val mapsArrivalPercent: Int, val startPerc
                 o.getJSONArray("speedKm").readInto(segment.speedKm)
                 o.getJSONArray("speedKwh").readInto(segment.speedKwh)
                 o.optJSONArray("vi")?.let { a -> for (k in 0 until minOf(5, a.length())) segment.vi[k] = a.getDouble(k) }
+                o.optJSONArray("sums")?.let { a -> for (k in 0 until minOf(8, a.length())) segment.sums[k] = a.getDouble(k) }
+                segment.startedAtS = o.optDouble("startedAtS", 0.0).toFloat()
+                segment.climbM = o.optDouble("climbM", 0.0).toFloat()
+                segment.descentM = o.optDouble("descentM", 0.0).toFloat()
+                segment.accelWhPerT = o.optDouble("accelWhPerT", 0.0).toFloat()
+                segment.acOnSeconds = o.optDouble("acOnSeconds", 0.0).toFloat()
+                segment.regenLevel = if (o.has("regenLevel") && !o.isNull("regenLevel")) o.getInt("regenLevel") else null
                 log.segments += segment
             }
             return log

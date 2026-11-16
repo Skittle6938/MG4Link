@@ -1,7 +1,7 @@
 # MG4Link 2.2.7-beta3
 
 - Trip recording for daily trips: a trip can be started with only 5 points of battery to go (10 before), and is kept from 4 points used and 5 km (8 points and 10 km before). Less representative, but closer to most daily drives.
-- Recorded trips also keep the pack voltage against current, to measure the battery's internal resistance for Google Maps' battery-loss table.
+- Recorded trips keep more of what the consumption depends on, segment by segment: pack voltage against current (the battery's internal resistance), climb and descent from the GPS altitude (no position is kept), the energy spent speeding up, pack and cabin temperature, climate setting, fan, A/C time and regeneration level.
 
 # MG4Link 2.2.7-beta2
 
