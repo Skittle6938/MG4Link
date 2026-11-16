@@ -25,6 +25,11 @@ class TripLog(val header: JSONObject, val mapsArrivalPercent: Int, val startPerc
         val speedSeconds = FloatArray(SPEED_BUCKETS)
         val speedKm = FloatArray(SPEED_BUCKETS)
         val speedKwh = FloatArray(SPEED_BUCKETS)
+        /**
+         * Pack voltage against current, as running sums (n, ΣI, ΣV, ΣI², ΣI·V), to measure the pack's
+         * resistance: the slope of V over I is −R. For Maps' battery-loss table (field 5).
+         */
+        val vi = DoubleArray(5)
     }
 
     val segments = mutableListOf<Segment>()
@@ -45,8 +50,15 @@ class TripLog(val header: JSONObject, val mapsArrivalPercent: Int, val startPerc
     val isRepresentative: Boolean
         get() = totalKm >= MIN_KM && startPercent - arrivalPercent >= MIN_DROP_PERCENT
 
-    fun tick(dtS: Float, speedKmh: Float, powerW: Float?, percent: Float?, tempC: Float?, climateOn: Boolean?, model: Model?) {
+    fun tick(
+        dtS: Float, speedKmh: Float, powerW: Float?, percent: Float?, tempC: Float?, climateOn: Boolean?, model: Model?,
+        volts: Float? = null, amps: Float? = null,
+    ) {
         val current = segmentFor(climateOn, tempC, percent, model)
+        if (volts != null && amps != null && volts in 100f..900f && amps in -600f..600f) {
+            val v = current.vi
+            v[0] += 1.0; v[1] += amps.toDouble(); v[2] += volts.toDouble(); v[3] += amps.toDouble() * amps; v[4] += amps.toDouble() * volts
+        }
         val moving = speedKmh >= MOVING_KMH
         current.seconds += dtS
         if (moving) stoppedFor = 0f else {
@@ -115,9 +127,23 @@ class TripLog(val header: JSONObject, val mapsArrivalPercent: Int, val startPerc
                     put("speedSeconds", floats(s.speedSeconds))
                     put("speedKm", floats(s.speedKm))
                     put("speedKwh", floats(s.speedKwh))
+                    if (s.vi[0] > 0) {
+                        put("vi", JSONArray().also { a -> s.vi.forEach { a.put(it) } })
+                        packOhm(s.vi)?.let { put("packOhm", it) }
+                    }
                 })
             }
         })
+    }
+
+    /** Pack resistance from the running sums: −slope of V over I, when the current varied enough. */
+    private fun packOhm(v: DoubleArray): Double? {
+        val n = v[0]
+        if (n < 30) return null
+        val varI = v[3] / n - (v[1] / n) * (v[1] / n)
+        if (varI < 25.0) return null
+        val cov = v[4] / n - (v[1] / n) * (v[2] / n)
+        return (-cov / varI).takeIf { it.isFinite() }
     }
 
     private fun floats(values: FloatArray) = JSONArray().also { a -> values.forEach { a.put(it.toDouble()) } }
@@ -125,8 +151,9 @@ class TripLog(val header: JSONObject, val mapsArrivalPercent: Int, val startPerc
     companion object {
         /** Below this, the car counts as stopped. */
         const val MOVING_KMH = 1f
-        const val MIN_KM = 10f
-        const val MIN_DROP_PERCENT = 8f
+        const val MIN_KM = 5f
+        /** Kept from 4 % used (daily trips; less representative, but that is what there is). */
+        const val MIN_DROP_PERCENT = 4f
         private const val TEMP_STEP_C = 1f
         val SPEED_EDGES = intArrayOf(0, 30, 50, 70, 90, 110, 130)
         private val SPEED_BUCKETS = SPEED_EDGES.size
@@ -164,6 +191,7 @@ class TripLog(val header: JSONObject, val mapsArrivalPercent: Int, val startPerc
                 o.getJSONArray("speedSeconds").readInto(segment.speedSeconds)
                 o.getJSONArray("speedKm").readInto(segment.speedKm)
                 o.getJSONArray("speedKwh").readInto(segment.speedKwh)
+                o.optJSONArray("vi")?.let { a -> for (k in 0 until minOf(5, a.length())) segment.vi[k] = a.getDouble(k) }
                 log.segments += segment
             }
             return log

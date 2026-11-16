@@ -51,9 +51,9 @@ class TripLogTest {
     fun `only a long enough trip with a real drop is representative`() {
         val good = trip().apply { tick(3600f, 20f, 1000f, 72f, 10f, false, null) }
         assertEquals(true, good.isRepresentative)
-        val short = trip().apply { tick(1000f, 20f, 1000f, 60f, 10f, false, null) }
+        val short = trip().apply { tick(700f, 20f, 1000f, 60f, 10f, false, null) }
         assertEquals(false, short.isRepresentative)
-        val smallDrop = trip().apply { tick(3600f, 50f, 1000f, 73f, 10f, false, null) }
+        val smallDrop = trip().apply { tick(3600f, 50f, 1000f, 77f, 10f, false, null) }
         assertEquals(false, smallDrop.isRepresentative)
     }
 

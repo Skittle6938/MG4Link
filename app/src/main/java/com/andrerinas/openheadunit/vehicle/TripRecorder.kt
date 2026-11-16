@@ -119,7 +119,8 @@ object TripRecorder {
         }
         val speed = EVHardware.getVehicleSpeedKmh()?.coerceAtLeast(0f) ?: 0f
         trip.plugged = trip.plugged || reading.plugged
-        trip.tick(dt, speed, reading.powerW, reading.precisePercent ?: reading.percent?.toFloat(), tempC, climateOn, model(trip))
+        trip.tick(dt, speed, reading.powerW, reading.precisePercent ?: reading.percent?.toFloat(), tempC, climateOn, model(trip),
+            reading.volts, reading.amps)
         when {
             reading.plugged -> finish(context, "charging")
             trip.stoppedFor >= PARKED_S && trip.totalKm >= STARTED_KM -> finish(context, "parked")
