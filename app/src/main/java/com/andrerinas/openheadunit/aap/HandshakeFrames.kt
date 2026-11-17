@@ -1,23 +1,31 @@
 package com.andrerinas.openheadunit.aap
 
 /**
- * Reading the plain frames of the handshake. A frame starts with channel, flags, a two-byte
- * length (which counts the two type bytes) and the two-byte message type.
+ * Reading the frames that arrive during the TLS handshake. A frame starts with channel, flags
+ * and a two-byte length; a first fragment that is not also the last adds the four-byte total
+ * size. In a plain frame the length counts the two type bytes that follow.
  */
 internal object HandshakeFrames {
-    private const val VERSION_RESPONSE = 2
+    private const val SSL_HANDSHAKE = 3
+    private const val FLAG_FIRST = 0x01
+    private const val FLAG_LAST = 0x02
+    private const val FLAG_ENCRYPTED = 0x08
 
-    /**
-     * A version response arriving once the version exchange is over: the phone answered both the
-     * version request and its repeat. TLS records come as type 3 (SSL handshake), never as 2.
-     */
-    fun isLateVersionResponse(header: ByteArray): Boolean =
-        header.size >= 6 && header[0].toInt() == 0 &&
-            (((header[4].toInt() and 0xFF) shl 8) or (header[5].toInt() and 0xFF)) == VERSION_RESPONSE
+    /** A plain TLS handshake frame on the control channel: the only kind the TLS phase reads. */
+    fun isTlsHandshake(header: ByteArray): Boolean =
+        header[0].toInt() == 0 && (header[1].toInt() and FLAG_ENCRYPTED) == 0 && u16(header, 4) == SSL_HANDSHAKE
 
-    /** Bytes after the type, or -1 when the length cannot even hold the type. */
-    fun payloadLength(header: ByteArray): Int {
-        val total = ((header[2].toInt() and 0xFF) shl 8) or (header[3].toInt() and 0xFF)
-        return if (total < 2) -1 else total - 2
+    /** Bytes of the frame still to read once its first six are in, or -1 for a length that cannot be. */
+    fun bytesLeft(header: ByteArray): Int {
+        val flags = header[1].toInt() and 0xFF
+        val totalSize = if (flags and (FLAG_FIRST or FLAG_LAST) == FLAG_FIRST) 4 else 0
+        val left = u16(header, 2) + totalSize - 2
+        return if (left < 0) -1 else left
     }
+
+    fun describe(header: ByteArray): String =
+        "ch=${header[0].toInt() and 0xFF} flags=0x${Integer.toHexString(header[1].toInt() and 0xFF)} " +
+            "len=${u16(header, 2)} type=${u16(header, 4)}"
+
+    private fun u16(b: ByteArray, at: Int) = ((b[at].toInt() and 0xFF) shl 8) or (b[at + 1].toInt() and 0xFF)
 }
