@@ -203,6 +203,12 @@ class VideoDecoder(
     // changes, which left the returning screen black for seconds.
     private val parkHoldLock = Any()
     private var heldParkedFrame: Pair<MediaCodec, Int>? = null
+    /**
+     * The held frame of an unpark, kept back until the view has drawn with its new scale
+     * ([showDeferredFrame]): put on the new surface at once, it showed for a frame or two half at
+     * the old scale and half at the new one (#23). Dropped if a newer frame comes first.
+     */
+    @Volatile private var deferredFrame: Pair<MediaCodec, Int>? = null
     // Set when an unpark had no frame to show, so the log says how long the screen stayed empty.
     @Volatile private var unparkedWithoutFrameAtMs = 0L
     private var outputThread: Thread? = null
@@ -528,8 +534,12 @@ class VideoDecoder(
         runCatching { texture.release() }
     }
 
-    /** @return true when a parked decoder was moved onto [surface]: the stream never stopped. */
-    fun setSurface(surface: Surface?): Boolean {
+    /**
+     * @param deferHeldFrame keep the last frame back until [showDeferredFrame] (the view is being
+     *   rescaled for the new surface).
+     * @return true when a parked decoder was moved onto [surface]: the stream never stopped.
+     */
+    fun setSurface(surface: Surface?, deferHeldFrame: Boolean = false): Boolean {
         synchronized(this) {
             if (mSurface === surface) return false
 
@@ -542,8 +552,13 @@ class VideoDecoder(
                     val shown = synchronized(parkHoldLock) {
                         val held = heldParkedFrame
                         heldParkedFrame = null
-                        val ok = held != null && held.first === current &&
-                            runCatching { current.releaseOutputBuffer(held.second, true) }.isSuccess
+                        val ok = if (deferHeldFrame && held != null && held.first === current) {
+                            deferredFrame = held
+                            true
+                        } else {
+                            held != null && held.first === current &&
+                                runCatching { current.releaseOutputBuffer(held.second, true) }.isSuccess
+                        }
                         parked = false
                         ok
                     }
@@ -556,8 +571,11 @@ class VideoDecoder(
                     lastFrameRenderedMs = if (shown) SystemClock.elapsedRealtime() else 0L
                     unparkedWithoutFrameAtMs = if (shown) 0L else SystemClock.elapsedRealtime()
                     AppLog.i(
-                        "Decoder unparked onto the new surface: " +
-                            if (shown) "last frame shown at once" else "no held frame, waiting for the next one"
+                        "Decoder unparked onto the new surface: " + when {
+                            !shown -> "no held frame, waiting for the next one"
+                            deferredFrame != null -> "last frame shown once the view is rescaled"
+                            else -> "last frame shown at once"
+                        }
                     )
                     return true
                 } catch (e: Exception) {
@@ -578,6 +596,23 @@ class VideoDecoder(
             lastFrameRenderedMs = 0L
             keyframeRepair.reset()
             return false
+        }
+    }
+
+    /** Shows the frame kept back by [setSurface], unless a newer one was shown meanwhile. */
+    fun showDeferredFrame() {
+        synchronized(parkHoldLock) {
+            val frame = deferredFrame ?: return
+            deferredFrame = null
+            if (frame.first === codec) runCatching { frame.first.releaseOutputBuffer(frame.second, true) }
+        }
+    }
+
+    private fun dropDeferredFrame(current: MediaCodec) {
+        synchronized(parkHoldLock) {
+            val frame = deferredFrame ?: return
+            deferredFrame = null
+            if (frame.first === current) runCatching { current.releaseOutputBuffer(frame.second, false) }
         }
     }
 
@@ -617,7 +652,7 @@ class VideoDecoder(
             // surface goes with it, or every restart configures onto a released surface and fails
             // (error -19 twenty times a second, each asking the phone for a keyframe; 2026-10-28).
             val parkedSurface = if (parked) mSurface else null
-            synchronized(parkHoldLock) { heldParkedFrame = null }
+            synchronized(parkHoldLock) { heldParkedFrame = null; deferredFrame = null }
             try {
                 // If calling from output thread, don't join itself to avoid deadlock
                 if (outputThread != null && outputThread != Thread.currentThread()) {
@@ -1813,6 +1848,8 @@ class VideoDecoder(
                     }
                 }
             }
+            // A newer frame than the one kept back for the rescale: that one is no longer needed.
+            if (deferredFrame != null) dropDeferredFrame(codec)
             if (pacer == null) {
                 codec.releaseOutputBuffer(index, true)
                 return true

@@ -826,6 +826,8 @@ class AapService : Service(), UsbReceiver.Listener {
         super.onCreate()
         AppLog.i("AapService creating...")
         Mg4DashContract.publishCarPullDown(this, App.provide(this).settings.carPullDownOverAndroidAuto)
+        // The car service connects asynchronously: ready before the first press of the voice key (#35).
+        com.andrerinas.openheadunit.decoder.CarVoicePath.prepare(this)
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
