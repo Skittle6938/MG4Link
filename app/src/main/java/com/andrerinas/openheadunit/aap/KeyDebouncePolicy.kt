@@ -32,9 +32,10 @@ object KeyDebouncePolicy {
     /**
      * The steering wheel's own key (src=carkey) is the physical press: a repeat of it inside this
      * window is the same press delivered twice, and a person cannot press again that fast. A longer
-     * window dropped the 2nd and 3rd clicks of a quick series (#28).
+     * window dropped the 2nd and 3rd clicks of a quick series; 150 ms still dropped a click 129 ms
+     * after the previous one (#28).
      */
-    const val CAR_KEY_WINDOW_MS = 150L
+    const val CAR_KEY_WINDOW_MS = 100L
 
     /**
      * Copies of a wheel press that other routes deliver late (the launcher's media button, about

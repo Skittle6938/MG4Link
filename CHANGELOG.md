@@ -1,3 +1,8 @@
+# MG4Link 2.2.7-beta20
+
+- SWI68 climate page after remote pre-conditioning (#32): the minute during which MG4Link closes the climate page now starts when Android Auto first shows on the screen. It started with MG4Link, which remote pre-conditioning brings up minutes before the driver gets in, so it was long over.
+- Steering wheel quick clicks (#28): a click on the wheel is only taken for the same press delivered twice within 100 ms (150 before), which still dropped a click 129 ms after the previous one.
+
 # MG4Link 2.2.7-beta19
 
 - Start reserve for Google Maps: the heating or A/C now counts whenever it is switched on or off while the reserve lasts (the first 15 km or 15 minutes), not only in the first 2 minutes.

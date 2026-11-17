@@ -236,4 +236,15 @@ class KeyDebouncePolicyTest {
         key.deliver(isPress = false, now = 420)
         assertEquals(listOf(true, false), key.edges())
     }
+
+    @Test
+    fun `a wheel click 129 ms after the previous one gets through`() {
+        // 18:24:39.176 in the reporter's beta16 log.
+        val key = Key()
+        key.deliver(isPress = true, now = 0, fromCarKey = true)
+        key.deliver(isPress = false, now = 15, fromCarKey = true)
+        key.deliver(isPress = true, now = 129, fromCarKey = true)
+        key.deliver(isPress = false, now = 144, fromCarKey = true)
+        assertEquals(listOf(true, false, true, false), key.edges())
+    }
 }
