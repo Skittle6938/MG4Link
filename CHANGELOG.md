@@ -1,7 +1,7 @@
 # MG4Link 2.2.7-beta13
 
 - Gestures from the top of the screen shared with MG4Dash (with a MG4Dash that supports it): MG4Link keeps its own gestures in its window, full screen or below the car's status bar, and takes MG4Dash's request to disconnect when three fingers start in the status bar, where MG4Link receives no touch. MG4Link works the same without MG4Dash.
-- With *Car pull-down over Android Auto* on, the top of the screen is left to the car: no one finger menu of MG4Dash and no two-finger slide from the top on MG4Link (three fingers and the screen edges stay). MG4Link tells MG4Dash, which then lets the top of the screen through.
+- With *Car pull-down over Android Auto* on, the top of the screen is left to the car: no one finger menu of MG4Dash and no two-finger slide from the top on MG4Link (three fingers and the screen edges stay). MG4Link tells MG4Dash when the screen opens (an option changed meanwhile applies at the next opening), and MG4Dash then lets the top of the screen through.
 - The gesture recognition is now tested on its own.
 
 # MG4Link 2.2.7-beta12

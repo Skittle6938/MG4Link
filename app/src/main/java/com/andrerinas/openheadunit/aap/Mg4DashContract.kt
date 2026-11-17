@@ -40,9 +40,23 @@ object Mg4DashContract {
     fun shouldDisconnect(action: String?, sessionUp: Boolean): Boolean =
         action == ACTION_USER_DISCONNECT && sessionUp
 
-    fun publishCarPullDown(context: Context, enabled: Boolean) {
+    /**
+     * What to publish when the option changes: the new value at once only with no projection screen
+     * open (an open one keeps the name it opened under, and tells MG4Dash itself at its next opening);
+     * null otherwise.
+     */
+    fun valueToPublishOnChange(enabled: Boolean, openScreens: Int): Int? =
+        if (openScreens <= 0) carPullDownValue(enabled) else null
+
+    fun publishCarPullDown(context: Context, enabled: Boolean) = publish(context, carPullDownValue(enabled))
+
+    fun publishCarPullDownOnChange(context: Context, enabled: Boolean, openScreens: Int) {
+        valueToPublishOnChange(enabled, openScreens)?.let { publish(context, it) }
+    }
+
+    private fun publish(context: Context, value: Int) {
         try {
-            android.provider.Settings.Global.putInt(context.contentResolver, GLOBAL_CAR_PULLDOWN, carPullDownValue(enabled))
+            android.provider.Settings.Global.putInt(context.contentResolver, GLOBAL_CAR_PULLDOWN, value)
         } catch (e: Exception) {
             // Not a platform-signed build: MG4Dash then simply never sees the setting.
             AppLog.w("Car pull-down state for MG4 Dash: ${e.javaClass.simpleName} ${e.message ?: ""}")

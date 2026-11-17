@@ -86,6 +86,7 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
 
     // The touch gestures (top, edges, three fingers) are recognised by TopGestureRecognizer.
     private val topGestures = TopGestureRecognizer()
+    private var carPullDownAtOpen = false
     private var mg4DashStripCached = false
 
     // Activity-local override for fullscreen mode. If non-null, setFullscreen() will use this
@@ -763,7 +764,14 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        openScreens++
         if (redirectsHome()) return
+        // The car's pull-down is decided by the name this screen opened under, so it holds for as
+        // long as the screen does: changing the option later applies at the next opening. MG4 Dash
+        // is told now, not when the option changes, so its strip never lets the top through while
+        // the screen still blocks the car's menu.
+        carPullDownAtOpen = settings.carPullDownOverAndroidAuto
+        Mg4DashContract.publishCarPullDown(this, carPullDownAtOpen)
         // [FIX] applyOrientationSettings() must be called AFTER super.onCreate() so that the
         // Activity window is fully initialized before we lock the orientation. Calling it before
         // super.onCreate() caused SCREEN_ORIENTATION_LOCKED to inherit the orientation context
@@ -1589,7 +1597,7 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
     }
 
     /** The top of the screen is MG4Link's, unless the car's pull-down over Android Auto is switched on. */
-    private fun topOfScreenIsOurs() = !settings.carPullDownOverAndroidAuto
+    private fun topOfScreenIsOurs() = !carPullDownAtOpen
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         if (ev.actionMasked == MotionEvent.ACTION_DOWN) mg4DashStripCached = mg4DashStripOn()
@@ -1930,6 +1938,7 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
     override fun onDestroy() {
         bydFullscreen.release()
         super.onDestroy()
+        openScreens = (openScreens - 1).coerceAtLeast(0)
         if (isFinishReceiverRegistered) {
             unregisterReceiver(finishReceiver)
             isFinishReceiverRegistered = false
@@ -1977,6 +1986,9 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
         private const val GESTURE_HINT_REPEATS = 3
         private const val GESTURE_HINT_TOAST_MS = 3_500L
         @Volatile var isForeground = false
+
+        /** Projection screens alive (created, not yet destroyed): the car's pull-down option applies to them as opened. */
+        @Volatile var openScreens = 0
 
         /**
          * Optional one-shot override for the loading-screen status text. Set by
