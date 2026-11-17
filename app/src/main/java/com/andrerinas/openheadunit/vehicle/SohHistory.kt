@@ -20,7 +20,7 @@ object SohHistory {
         val fmt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
         return samples.takeLast(MAX_LINES).map { s ->
             val soh = netKwh?.takeIf { it > 0f }?.let { " soh %.1f %%".format(Locale.US, s.kwh / it * 100f) } ?: ""
-            val km = s.km?.let { "%.0f km".format(Locale.US, it) } ?: "? km"
+            val km = s.km?.let { "%.0f km driven".format(Locale.US, it) } ?: "? km driven"
             "${fmt.format(Date(s.at))} $km %.1f kWh over %.1f %%%s".format(Locale.US, s.kwh, s.drop, soh)
         }
     }

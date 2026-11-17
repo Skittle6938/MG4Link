@@ -7,14 +7,14 @@ import org.junit.Test
 class SohHistoryTest {
     @Test
     fun `a sample reads as date, odometer, kWh, drop and state of health`() {
-        val line = SohHistory.lines(listOf(BatteryCapacityMeter.Sample(0L, 45.9f, 15.2f, 12_345f)), 49f).single()
-        assertTrue(line, line.endsWith("12345 km 45.9 kWh over 15.2 % soh 93.7 %"))
+        val line = SohHistory.lines(listOf(BatteryCapacityMeter.Sample(0L, 45.9f, 15.2f, 38f)), 49f).single()
+        assertTrue(line, line.endsWith("38 km driven 45.9 kWh over 15.2 % soh 93.7 %"))
     }
 
     @Test
     fun `an unknown odometer or net capacity is said so`() {
         val line = SohHistory.lines(listOf(BatteryCapacityMeter.Sample(0L, 45.9f, 15.2f)), null).single()
-        assertTrue(line, line.endsWith("? km 45.9 kWh over 15.2 %"))
+        assertTrue(line, line.endsWith("? km driven 45.9 kWh over 15.2 %"))
     }
 
     @Test
