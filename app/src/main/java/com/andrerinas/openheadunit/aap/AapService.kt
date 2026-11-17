@@ -2558,7 +2558,32 @@ class AapService : Service(), UsbReceiver.Listener {
         serviceScope.launch(Dispatchers.IO) {
             delay(UsbLinkResetPolicy.SETTLE_MS)
             AppLog.w("USB handshake failed on $name: the phone no longer uses this cable link - resetting it, as unplugging does")
-            resetAccessoryUsbDevice(device)
+            if (!frameworkUsbReset(device) && !resetAccessoryUsbDevice(device)) return@launch
+            // A reset that brings the phone back unchanged sends no attach event: look again.
+            delay(UsbLinkResetPolicy.RESCAN_MS)
+            withContext(Dispatchers.Main) {
+                if (!(commManager.isConnected && !commManager.isWirelessSession)) checkAlreadyConnectedUsb(force = true)
+            }
+        }
+    }
+
+    /**
+     * UsbDeviceConnection.resetDevice(), hidden in the SDK but present on the car and open to
+     * MG4Link (system uid). caradapter resets a phone this way, and so does the AA Kick boot fix.
+     */
+    private fun frameworkUsbReset(device: UsbDevice): Boolean {
+        val usbManager = getSystemService(Context.USB_SERVICE) as UsbManager
+        var connection: android.hardware.usb.UsbDeviceConnection? = null
+        return try {
+            connection = usbManager.openDevice(device) ?: return false
+            val done = android.hardware.usb.UsbDeviceConnection::class.java.getMethod("resetDevice").invoke(connection) as? Boolean ?: true
+            AppLog.i("USB reset (framework) for ${UsbDeviceCompat(device).uniqueName}: ${if (done) "done" else "refused"}")
+            done
+        } catch (t: Throwable) {
+            AppLog.w("USB reset (framework) not available: ${t.javaClass.simpleName} ${t.message ?: ""}")
+            false
+        } finally {
+            try { connection?.close() } catch (_: Throwable) {}
         }
     }
 

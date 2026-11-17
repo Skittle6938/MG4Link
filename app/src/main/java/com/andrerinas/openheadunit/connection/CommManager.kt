@@ -391,6 +391,9 @@ class CommManager(
                 // quitting nulls _transport before it returns — the failure reason would be
                 // unreachable by the time we came to report it.
                 val transport = _transport
+                // Read before the handshake: a failed one quits the transport, which drops the
+                // connection before startHandshake() returns.
+                val overCable = _connection is UsbAccessoryConnection || _connection is LibusbAccessoryConnection
                 if (transport?.startHandshake(_connection!!) == true) {
                     // A session that got this far had a working link to carry video on. See
                     // VideoStarvationPolicy for what it means when one ends without carrying any.
@@ -399,7 +402,6 @@ class CommManager(
                     _connectionState.emit(ConnectionState.HandshakeComplete)
                 } else {
                     val silent = transport?.lastHandshakeFailure == AapTransport.HandshakeFailure.PEER_SILENT
-                    val overCable = _connection is UsbAccessoryConnection || _connection is LibusbAccessoryConnection
                     _connectionState.emit(
                         ConnectionState.Error(if (silent) ERROR_HANDSHAKE_PEER_SILENT else "Handshake failed")
                     )
