@@ -25,7 +25,7 @@ class SohHistoryTest {
 
     @Test
     fun `the summary gives the state of health of the figure in use`() {
-        assertEquals("MG4Link: 45.93 kWh = soh 93.7 % from 4 sample(s)", SohHistory.summary("MG4Link", 45.93f, 4, 49f))
+        assertEquals("MG4Link: 45.93 kWh = soh 93.7 % from 4 sample(s) over 61 points of battery", SohHistory.summary("MG4Link", 45.93f, 4, 49f, 61f))
         assertEquals("MG4Link: no measurement", SohHistory.summary("MG4Link", null, 0, 49f))
     }
 }
