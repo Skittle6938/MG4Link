@@ -13,6 +13,28 @@ import com.andrerinas.openheadunit.utils.AppLog
 import com.evsuite.hardware.FirmwareInfo
 
 /**
+ * When the climate page is to be closed: the climate has come on (at the first reading, or after
+ * being off) and Android Auto is in front, once for each time the climate came on. The close is
+ * not lost when Android Auto is not in front at the reading that sees the climate on.
+ */
+internal class HvacCloseWhen {
+    private var lastPower: Boolean? = null
+    private var pending = false
+
+    /** @param power the climate's state, null when it could not be read. @return close the page now. */
+    fun onReading(power: Boolean?, androidAutoInFront: Boolean): Boolean {
+        if (power == true && lastPower != true) pending = true
+        if (power == false) pending = false
+        if (power != null) lastPower = power
+        if (pending && power == true && androidAutoInFront) {
+            pending = false
+            return true
+        }
+        return false
+    }
+}
+
+/**
  * SWI68 climate page (#13): when the climate comes back on as the car starts, SystemUI opens its
  * climate page on its own, on top of Android Auto. MG4Link closes it, as SystemUI itself does,
  * through its exported StartActivityService, during the first minute after the start only: a
@@ -36,6 +58,7 @@ object SaicHvacPage {
     private var watching = false
     private var lastPower: Boolean? = null
     private var appContext: Context? = null
+    private var closeWhen = HvacCloseWhen()
 
     private fun applies() = FirmwareInfo.getGeneration() == FirmwareInfo.Gen.SWI68
 
@@ -48,6 +71,7 @@ object SaicHvacPage {
         bind(context.applicationContext)
         watching = true
         lastPower = null
+        closeWhen = HvacCloseWhen()
         handler.post(poll)
         handler.postDelayed({ stop() }, left)
     }
@@ -64,7 +88,9 @@ object SaicHvacPage {
                 val power = runCatching { com.evsuite.hardware.saic.SaicClimate.powerOn() }.getOrNull()
                 handler.post {
                     // On at the first reading too: the page opened just before Android Auto came up.
-                    if (power == true && lastPower != true && AapProjectionActivity.isForeground) {
+                    // Remote pre-conditioning pauses the screen several times as the car starts (#32):
+                    // the close then waits for the moment Android Auto is in front.
+                    if (closeWhen.onReading(power, AapProjectionActivity.isForeground)) {
                         AppLog.i("SaicHvacPage: climate on at start with Android Auto in front - closing the climate page")
                         handler.postDelayed({ Thread({ close() }, "hvac-page").start() }, CLOSE_DELAY_MS)
                     }
