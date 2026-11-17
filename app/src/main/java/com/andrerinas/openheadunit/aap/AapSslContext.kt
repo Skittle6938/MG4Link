@@ -118,10 +118,17 @@ class AapSslContext(keyManager: SingleKeyKeyManager): AapSsl {
                 return null
             }
             if (HandshakeFrames.isTlsHandshake(header)) break
-            // Not a TLS handshake frame: the phone's answer to a repeated version request (it took
-            // over 2 s to answer the first while closing a wireless session), or what was still
-            // on its way from the previous USB session. Handing either to the TLS engine ended
-            // the USB handshake, and Android Auto came back wirelessly with the cable plugged in.
+            if (HandshakeFrames.isEncrypted(header)) {
+                // The phone is still in its previous USB session (MG4Link restarted with the phone
+                // plugged in): it keeps streaming that session and never answers a new one, so
+                // waiting is pointless (seen for 15 s on the car). Fail now, wireless takes over.
+                AppLog.e("SSL Handshake: the phone is still in its previous USB session (${HandshakeFrames.describe(header)}, after $skippedFrames frame(s) skipped)")
+                return null
+            }
+            // A plain frame that is not TLS handshake: the phone's answer to a repeated version
+            // request (it took over 2 s to answer the first while closing a wireless session).
+            // Handing it to the TLS engine ended the USB handshake, and Android Auto came back
+            // wirelessly with the cable plugged in.
             val left = HandshakeFrames.bytesLeft(header)
             if (left < 0 || skippedBytes + left > MAX_SKIPPED_BYTES) {
                 AppLog.e("SSL Handshake: no TLS handshake frame after skipping $skippedFrames frame(s), $skippedBytes bytes (${HandshakeFrames.describe(header)})")

@@ -15,6 +15,9 @@ internal object HandshakeFrames {
     fun isTlsHandshake(header: ByteArray): Boolean =
         header[0].toInt() == 0 && (header[1].toInt() and FLAG_ENCRYPTED) == 0 && u16(header, 4) == SSL_HANDSHAKE
 
+    /** A frame of an established session: from a previous one when it comes during the handshake. */
+    fun isEncrypted(header: ByteArray): Boolean = (header[1].toInt() and FLAG_ENCRYPTED) != 0
+
     /** Bytes of the frame still to read once its first six are in, or -1 for a length that cannot be. */
     fun bytesLeft(header: ByteArray): Int {
         val flags = header[1].toInt() and 0xFF
