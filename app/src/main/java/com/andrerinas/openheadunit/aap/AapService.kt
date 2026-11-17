@@ -825,6 +825,7 @@ class AapService : Service(), UsbReceiver.Listener {
     override fun onCreate() {
         super.onCreate()
         AppLog.i("AapService creating...")
+        Mg4DashContract.publishCarPullDown(this, App.provide(this).settings.carPullDownOverAndroidAuto)
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

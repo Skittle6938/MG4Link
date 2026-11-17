@@ -915,7 +915,11 @@ class Settings(private val context: Context) {
      */
     var carPullDownOverAndroidAuto: Boolean
         get() = prefs.getBoolean("car-pulldown-over-aa", false)
-        set(value) { prefs.edit().putBoolean("car-pulldown-over-aa", value).apply() }
+        set(value) {
+            prefs.edit().putBoolean("car-pulldown-over-aa", value).apply()
+            // MG4 Dash makes its top strip transparent to touches while the car keeps the top (2026-11-17).
+            com.andrerinas.openheadunit.aap.Mg4DashContract.publishCarPullDown(context, value)
+        }
 
     var openProjectionOnConnect: Boolean
         get() = prefs.getBoolean("open-projection-on-connect", true)

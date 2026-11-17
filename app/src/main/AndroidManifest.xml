@@ -42,6 +42,11 @@
         android:name="com.andrerinas.openheadunit.permission.NAVIGATION_UPDATE"
         android:protectionLevel="signature" />
 
+    <!-- MG4 Dash asks MG4Link to disconnect (three fingers from the top, over the car's status bar). -->
+    <permission
+        android:name="com.allgo.app.androidauto.permission.USER_DISCONNECT"
+        android:protectionLevel="signature" />
+
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.car.permission.CAR_ENERGY" />
@@ -290,6 +295,15 @@
         <!-- Comprehensive receiver for steering wheel and hardware buttons,
              covering both standard Android events and proprietary Chinese headunit broadcasts. -->
         <!-- Video test options from ADB only (DUMP is held by the shell and the system). -->
+        <receiver
+            android:name=".app.UserDisconnectReceiver"
+            android:exported="true"
+            android:permission="com.allgo.app.androidauto.permission.USER_DISCONNECT">
+            <intent-filter>
+                <action android:name="com.allgo.app.androidauto.USER_DISCONNECT" />
+            </intent-filter>
+        </receiver>
+
         <receiver
             android:name=".app.AdbVideoTestReceiver"
             android:exported="true"
