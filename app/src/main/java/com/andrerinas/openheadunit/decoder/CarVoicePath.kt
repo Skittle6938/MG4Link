@@ -44,7 +44,7 @@ object CarVoicePath {
     /** Connects to the car service ahead of time so focus can be taken the moment the mic opens. */
     @Synchronized
     fun prepare(context: Context) {
-        if (car != null) return
+        if (!takesVoiceFocus() || car != null) return
         try {
             val carClass = Class.forName("android.car.Car")
             val connection = object : ServiceConnection {
@@ -67,13 +67,22 @@ object CarVoicePath {
         }
     }
 
+    /**
+     * Only on SWI68, where SAIC's wake-word engine was found holding the mic (#35, R71). On an SWI69
+     * the same focus left Android Auto's assistant hearing nothing (2026-11-17), so other firmwares
+     * keep the speech path alone, as before.
+     */
+    private fun takesVoiceFocus(): Boolean =
+        runCatching { com.evsuite.hardware.FirmwareInfo.getGeneration() == com.evsuite.hardware.FirmwareInfo.Gen.SWI68 }.getOrDefault(false)
+
     @Synchronized
     fun enable(context: Context, wireless: Boolean) {
         if (enabledKey != null) return
         logSaicVoiceState(context)
-        prepare(context)
-        val focusGranted = requestVoiceFocus()
-        requestAudioFocus(context)
+        val takeFocus = takesVoiceFocus()
+        if (takeFocus) prepare(context)
+        val focusGranted = takeFocus && requestVoiceFocus()
+        if (takeFocus) requestAudioFocus(context)
         val param = parameter(wireless, enabled = true)
         try {
             (context.getSystemService(Context.AUDIO_SERVICE) as AudioManager).setParameters(param)
