@@ -29,6 +29,8 @@ object CarVoicePath {
     private const val USAGE_ASSISTANT = 16
     /** How long SAIC's wake-word engine gets to let go of the mic before we open it. */
     private const val MIC_RELEASE_WAIT_MS = 400L
+    /** Without voice focus (no android.car, or nothing to release): as AllGo waits, and as before. */
+    private const val PATH_SWITCH_WAIT_MS = 100L
 
     private var enabledKey: String? = null
     private var car: Any? = null
@@ -70,7 +72,7 @@ object CarVoicePath {
         if (enabledKey != null) return
         logSaicVoiceState(context)
         prepare(context)
-        requestVoiceFocus()
+        val focusGranted = requestVoiceFocus()
         requestAudioFocus(context)
         val param = parameter(wireless, enabled = true)
         try {
@@ -80,7 +82,9 @@ object CarVoicePath {
             AppLog.w("CarVoicePath: could not set $param: ${e.message}")
         }
         enabledKey = param.substringBefore("=")
-        SystemClock.sleep(MIC_RELEASE_WAIT_MS)
+        // The longer wait only when the wake-word engine was actually asked to let go of the mic:
+        // cars where the mic already worked keep the assistant's start as quick as before.
+        SystemClock.sleep(if (focusGranted) MIC_RELEASE_WAIT_MS else PATH_SWITCH_WAIT_MS)
     }
 
     @Synchronized
@@ -110,16 +114,22 @@ object CarVoicePath {
         AppLog.i("CarVoicePath: SAIC wake word switch=${wake ?: "unset (on)"} consent=${consent ?: "unset"}")
     }
 
-    private fun requestVoiceFocus() {
-        val manager = focusManager ?: return AppLog.w("CarVoicePath: app-focus service not connected yet")
-        try {
+    /** True when the car granted the voice-command focus. */
+    private fun requestVoiceFocus(): Boolean {
+        val manager = focusManager ?: run {
+            AppLog.w("CarVoicePath: app-focus service not connected yet")
+            return false
+        }
+        return try {
             val callbackType = Class.forName("android.car.CarAppFocusManager\$OnAppFocusOwnershipCallback")
             val callback = focusCallback ?: newFocusCallback(callbackType).also { focusCallback = it }
             val result = manager.javaClass.getMethod("requestAppFocus", Int::class.javaPrimitiveType, callbackType)
                 .invoke(manager, APP_FOCUS_TYPE_VOICE_COMMAND, callback)
             AppLog.i("CarVoicePath: voice-command focus requested, result=$result (1 = granted)")
+            result == 1
         } catch (e: Exception) {
             AppLog.w("CarVoicePath: voice-command focus failed: ${e.cause ?: e}")
+            false
         }
     }
 

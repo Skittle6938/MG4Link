@@ -1677,7 +1677,14 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
                 ProjectionViewScaler.updateScale(projectionView as View, currentVideoWidth, currentVideoHeight)
             }
         }
-        val unparked = videoDecoder.setSurface(surface)
+        // The last frame waits until the view has drawn with its new scale (#23): two display frames.
+        val rescaling = currentVideoWidth > 0 && currentVideoHeight > 0
+        val unparked = videoDecoder.setSurface(surface, deferHeldFrame = rescaling)
+        if (unparked && rescaling) {
+            android.view.Choreographer.getInstance().postFrameCallback {
+                android.view.Choreographer.getInstance().postFrameCallback { videoDecoder.showDeferredFrame() }
+            }
+        }
         // A surface arriving inside a cycle's own gap must not strand the pending gain.
         settleFocusCycle()
         lastSurfaceSetMs = SystemClock.elapsedRealtime()
