@@ -16,8 +16,8 @@ class KeyDebouncePolicyTest {
         var state = KeyState()
         val sent = mutableListOf<Pair<Boolean, Long>>()
 
-        fun deliver(isPress: Boolean, now: Long, downTime: Long? = null) {
-            val result = KeyDebouncePolicy.decide(state, isPress, downTime, isMediaKey, now)
+        fun deliver(isPress: Boolean, now: Long, downTime: Long? = null, fromCarKey: Boolean = false) {
+            val result = KeyDebouncePolicy.decide(state, isPress, downTime, isMediaKey, now, fromCarKey)
             state = result.state
             if (result.releaseFirst) sent.add(false to now)
             if (result.forward) sent.add(isPress to now)
@@ -173,5 +173,67 @@ class KeyDebouncePolicyTest {
         val key = Key()
         key.deliver(isPress = true, now = 5)
         assertEquals(listOf(true), key.edges())
+    }
+
+    // --- #28: quick series of clicks on the wheel's own key --------------------------------------
+
+    @Test
+    fun `quick clicks on the wheel key all get through`() {
+        // Clicks 192 ms and 214 ms apart, as in the reporter's log (09:09:37).
+        val key = Key()
+        for (t in listOf(0L, 192L, 406L)) {
+            key.deliver(isPress = true, now = t, fromCarKey = true)
+            key.deliver(isPress = false, now = t + 20, fromCarKey = true)
+        }
+        assertEquals(listOf(true, false, true, false, true, false), key.edges())
+    }
+
+    @Test
+    fun `the same wheel press delivered twice at once is one click`() {
+        val key = Key()
+        key.deliver(isPress = true, now = 0, fromCarKey = true)
+        key.deliver(isPress = true, now = 5, fromCarKey = true)
+        key.deliver(isPress = false, now = 10, fromCarKey = true)
+        key.deliver(isPress = false, now = 12, fromCarKey = true)
+        assertEquals(listOf(true, false), key.edges())
+    }
+
+    @Test
+    fun `the launcher's late copy of a wheel press is dropped, even after the old window`() {
+        // Wheel press at 0, the launcher's copy 650 ms later (after the 600 ms window), then a real
+        // second click at 800 ms: only the copy is dropped.
+        val key = Key()
+        key.deliver(isPress = true, now = 0, fromCarKey = true)
+        key.deliver(isPress = false, now = 20, fromCarKey = true)
+        key.deliver(isPress = true, now = 650)
+        key.deliver(isPress = false, now = 660)
+        key.deliver(isPress = true, now = 800, fromCarKey = true)
+        key.deliver(isPress = false, now = 820, fromCarKey = true)
+        assertEquals(listOf(true, false, true, false), key.edges())
+    }
+
+    @Test
+    fun `a late copy does not block the next wheel clicks`() {
+        // 09:09:15 in the log: the launcher's copy used to reset the window and block clicks 4 and 5.
+        val key = Key()
+        key.deliver(isPress = true, now = 0, fromCarKey = true)
+        key.deliver(isPress = false, now = 20, fromCarKey = true)
+        key.deliver(isPress = true, now = 250)
+        key.deliver(isPress = false, now = 260)
+        key.deliver(isPress = true, now = 400, fromCarKey = true)
+        key.deliver(isPress = false, now = 420, fromCarKey = true)
+        key.deliver(isPress = true, now = 640, fromCarKey = true)
+        key.deliver(isPress = false, now = 660, fromCarKey = true)
+        assertEquals(listOf(true, false, true, false, true, false), key.edges())
+    }
+
+    @Test
+    fun `without the wheel key, keys from other routes keep the old window`() {
+        val key = Key()
+        key.deliver(isPress = true, now = 0)
+        key.deliver(isPress = false, now = 20)
+        key.deliver(isPress = true, now = 400)
+        key.deliver(isPress = false, now = 420)
+        assertEquals(listOf(true, false), key.edges())
     }
 }

@@ -30,6 +30,19 @@ object KeyDebouncePolicy {
     const val DEFAULT_WINDOW_MS = 300L
 
     /**
+     * The steering wheel's own key (src=carkey) is the physical press: a repeat of it inside this
+     * window is the same press delivered twice, and a person cannot press again that fast. A longer
+     * window dropped the 2nd and 3rd clicks of a quick series (#28).
+     */
+    const val CAR_KEY_WINDOW_MS = 150L
+
+    /**
+     * Copies of a wheel press that other routes deliver late (the launcher's media button, about
+     * 400 ms after the release) are dropped for this long after the wheel's own press was sent.
+     */
+    const val LATE_COPY_WINDOW_MS = 1_500L
+
+    /**
      * How long a key may stay held before the next press is treated as a new one rather than a
      * duplicate of the one still down. Without this, a delivery path that sends a press and never
      * its release latches the key: every later press matches the held state and is dropped, and
@@ -46,6 +59,8 @@ object KeyDebouncePolicy {
         val downAt: Long = 0L,
         /** When the last press was forwarded, for the fallback window. Null until there is one. */
         val lastForwardedPressAt: Long? = null,
+        /** When the last press sent by the wheel's own key was forwarded, to recognise its late copies. */
+        val lastCarKeyPressAt: Long? = null,
         /** Identity of the last forwarded press, or null if that delivery carried none. */
         val lastForwardedDownTime: Long? = null,
         /** The press of the click in flight was dropped, so its release must be dropped too. */
@@ -70,17 +85,18 @@ object KeyDebouncePolicy {
         isPress: Boolean,
         downTime: Long?,
         isMediaKey: Boolean,
-        now: Long
+        now: Long,
+        fromCarKey: Boolean = false
     ): Result {
         // A synthetic KeyEvent built from (action, code) alone carries a zero downTime, and every
         // press would then look like a redelivery of the last one. No identity is better than a
         // constant one.
         val id = downTime?.takeIf { it > 0L }
 
-        return if (isPress) decidePress(state, id, isMediaKey, now) else decideRelease(state)
+        return if (isPress) decidePress(state, id, isMediaKey, now, fromCarKey) else decideRelease(state)
     }
 
-    private fun decidePress(state: KeyState, id: Long?, isMediaKey: Boolean, now: Long): Result {
+    private fun decidePress(state: KeyState, id: Long?, isMediaKey: Boolean, now: Long, fromCarKey: Boolean): Result {
         val last = state.lastForwardedDownTime
         if (id != null && last != null && id == last) {
             // Same physical press, arriving by another route. Nothing about the state changes: the
@@ -115,9 +131,18 @@ object KeyDebouncePolicy {
             )
         }
 
+        val lastCarKeyAt = state.lastCarKeyPressAt
+        if (!fromCarKey && !identityProvesNewPress && lastCarKeyAt != null && now - lastCarKeyAt < LATE_COPY_WINDOW_MS) {
+            return Result(
+                forward = false,
+                dropReason = "late copy ${now - lastCarKeyAt}ms after the wheel's own press",
+                state = state.copy(pressDropped = true)
+            )
+        }
+
         val lastPressAt = state.lastForwardedPressAt
         if (!identityProvesNewPress && lastPressAt != null) {
-            val window = if (isMediaKey) MEDIA_WINDOW_MS else DEFAULT_WINDOW_MS
+            val window = if (fromCarKey) CAR_KEY_WINDOW_MS else if (isMediaKey) MEDIA_WINDOW_MS else DEFAULT_WINDOW_MS
             val since = now - lastPressAt
             if (since < window) {
                 // Drop the click as a unit. Marking the key down here — as the original code did
@@ -136,6 +161,7 @@ object KeyDebouncePolicy {
                 down = true,
                 downAt = now,
                 lastForwardedPressAt = now,
+                lastCarKeyPressAt = if (fromCarKey) now else state.lastCarKeyPressAt,
                 lastForwardedDownTime = id,
                 pressDropped = false
             )
