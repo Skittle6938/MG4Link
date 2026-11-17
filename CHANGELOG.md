@@ -1,5 +1,6 @@
 # MG4Link 2.2.7-beta16
 
+- Battery health sent to Google Maps: a measurement (MG4 Dash's or MG4Link's) replaces the default 95 % only once it rests on 3 samples (45 points of battery). One sample alone can read anywhere from 88 to 98 % on the same car, and made the health jump between trips.
 - Battery health: the log now lists the capacity measurements behind it, with date, distance driven, kWh, drop and health, MG4 Dash's and MG4Link's side by side. MG4Link now measures also when MG4 Dash does (MG4 Dash's value is still the one used), so the two can be compared on the same car. While MG4 Dash is being updated, its last value holds instead of the default 95 % for a few seconds.
 - Trip recording back to its earlier thresholds: a trip can be started with at least 10 points of battery to go, and is kept from 8 points used and 10 km (5, 4 and 5 since 2.2.7-beta3). Short trips are dominated by the climate and electronics starting up, and say little about a model Maps applies to whole routes.
 - Returning to Android Auto from the car's home screen (#23): the screen has no window animation any more. It is shown twice within 250 ms on that return, and the car's opening animation seemed to run twice over (black bar and a squashed copy of the picture during the transition).

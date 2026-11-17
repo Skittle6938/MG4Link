@@ -124,4 +124,17 @@ class BatteryCapacityResolverTest {
         assertEquals(64, BatteryCapacityResolver.nearestPack(57f))
         assertEquals(77, BatteryCapacityResolver.nearestPack(70f))
     }
+
+    @Test
+    fun `a measurement replaces the default only from 3 samples`() {
+        val one = listOf(BatteryCapacityMeter.Sample(0L, 46f, 15f))
+        val two = one + BatteryCapacityMeter.Sample(1L, 44f, 15f)
+        val three = two + BatteryCapacityMeter.Sample(2L, 45f, 15f)
+        assertEquals(false, BatteryCapacityResolver.settledMeasurement(emptyList()))
+        assertEquals(false, BatteryCapacityResolver.settledMeasurement(one))
+        assertEquals(false, BatteryCapacityResolver.settledMeasurement(two))
+        assertEquals(true, BatteryCapacityResolver.settledMeasurement(three))
+        // MG4Link samples can end a little past 15 points.
+        assertEquals(true, BatteryCapacityResolver.settledMeasurement(listOf(BatteryCapacityMeter.Sample(0L, 46f, 22.4f), BatteryCapacityMeter.Sample(1L, 46f, 22.4f))))
+    }
 }
