@@ -1,3 +1,7 @@
+# MG4Link 2.2.7-beta22
+
+- Wireless on cars whose head unit answers no ARP request (#30): MG4Link now asks the system's network service to make the car's hotspot answer ARP again (arp_ignore 1 on the hotspot, the other interfaces keep the firmware's setting), so the phone can find the car without help. The firmware puts its own setting back at the next start; the log shows the values before and after, or why the change was refused.
+
 # MG4Link 2.2.7-beta21
 
 - Wireless on cars whose head unit answers no ARP request (#30): besides the broadcast requests it already makes the car send, MG4Link now also sends a byte every second to each phone on the hotspot, so that the car asks the phone itself for its address: a phone that did not learn the car's address from the broadcast learns it then.
