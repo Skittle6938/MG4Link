@@ -1,3 +1,8 @@
+# MG4Link 2.2.7-beta6
+
+- MG4Dash's shortcuts menu (MG4Dash #113): MG4Link now tells MG4Dash correctly when the car's status bar is above Android Auto (it read the whole window, which starts at the top of the screen even then).
+- Trip recordings: climb and descent now come from the GPS fixes MG4Link already receives (they stayed at 0).
+
 # MG4Link 2.2.7-beta5
 
 - Steering wheel (#28): two quick presses on next or previous now skip twice (the second was taken for the launcher's copy of the first), and play/pause also reacts as soon as the key is released, instead of 0.4 s later.
