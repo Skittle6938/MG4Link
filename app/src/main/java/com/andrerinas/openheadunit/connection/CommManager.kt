@@ -546,7 +546,8 @@ class CommManager(
             isPress = isPress,
             downTime = downTime,
             isMediaKey = isMedia,
-            now = SystemClock.elapsedRealtime()
+            now = SystemClock.elapsedRealtime(),
+            fromCarKey = source == "carkey"
         )
         keyStates[logicalCode] = decision.state
 

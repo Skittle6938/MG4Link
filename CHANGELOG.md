@@ -1,3 +1,7 @@
+# MG4Link 2.2.7-beta15
+
+- Steering wheel next/previous, quick series of clicks (#28): clicks less than 600 ms apart were partly dropped, and the launcher's late copy of a click could reset the window and block the next ones. The wheel's own key now only ignores a repeat within 150 ms (the same press delivered twice), and the launcher's copies are dropped for 1.5 s after a click of the wheel.
+
 # MG4Link 2.2.7-beta14
 
 - SWI68, climate page left open on top of Android Auto after remote pre-conditioning (#32): when the car starts with the climate already on, the screen is paused several times as the car switches over, and the one check that closes the page could fall in one of those moments and never run again. The page is now closed as soon as Android Auto is in front, once for each time the climate comes on.
