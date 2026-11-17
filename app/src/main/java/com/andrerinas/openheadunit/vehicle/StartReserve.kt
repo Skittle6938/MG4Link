@@ -10,7 +10,7 @@ import kotlin.math.roundToInt
  * points more at arrival than ABRP whatever the distance (83/80, 66/62, 6/3): 0.9 kWh then.
  *
  * Worked out from the temperatures when the car is switched on, not when guidance starts:
- * [BASE_WH], plus the cabin (only with the climate on) and the battery (pack under [PACK_COLD_C]),
+ * [BASE_WH], plus the cabin (only while the climate is on, read live) and the battery (pack under [PACK_COLD_C]),
  * capped at [MAX_WH]. It fades with what the drive has already done: [FADE_KM] or [FADE_MIN],
  * whichever comes first, so guidance started in a warm car, or later on, sets nothing aside.
  * Theoretical figures except the 0.9 kWh at 13 °C, to be checked this winter.
