@@ -179,6 +179,8 @@ object Mg4EnergyProvider {
         if (!initialized) return
         runCatching {
             val now = SystemClock.elapsedRealtime()
+            // When the car was switched on and its temperatures then, for the Maps start reserve.
+            DriveStart.onReading(now)
             if (dashCheckedAt == 0L || now - dashCheckedAt >= DASH_CHECK_MS) {
                 dashCheckedAt = now
                 dashMeasures = Mg4DashBattery.read(ctx)?.measuredKwh != null
