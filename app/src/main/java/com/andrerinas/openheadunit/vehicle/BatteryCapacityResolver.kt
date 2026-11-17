@@ -29,6 +29,8 @@ object BatteryCapacityResolver {
         val pack: Int?,
         val sohPercent: Float,
         val sohSource: Source,
+        /** Usable energy measured from charging sessions, when there is one, whatever the settings say. */
+        val measuredKwh: Float? = null,
     ) {
         val effectiveKwh: Float get() = (netKwh * sohPercent / 100f).coerceIn(1f, 200f)
     }
@@ -106,7 +108,7 @@ object BatteryCapacityResolver {
             measured != null -> (measured / net * 100f).coerceIn(1f, 100f) to Source.MEASURED
             else -> DEFAULT_SOH to Source.DEFAULT
         }
-        return Resolved(net, netSource, packOf(net), soh, sohSource)
+        return Resolved(net, netSource, packOf(net), soh, sohSource, measured)
     }
 
     /**

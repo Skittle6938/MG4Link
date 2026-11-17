@@ -764,6 +764,7 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        @Suppress("DEPRECATION") overridePendingTransition(0, 0)
         openScreens++
         if (redirectsHome()) return
         // The car's pull-down is decided by the name this screen opened under, so it holds for as
@@ -1050,6 +1051,7 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         AppLog.i("AapProjectionActivity: onNewIntent received")
+        @Suppress("DEPRECATION") overridePendingTransition(0, 0)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

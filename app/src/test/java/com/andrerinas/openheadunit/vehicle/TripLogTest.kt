@@ -92,4 +92,34 @@ class TripLogTest {
         assertEquals(6.0, seg.getDouble("descentM"), 0.01)
         assertEquals(0.1, seg.getDouble("packOhm"), 0.02)
     }
+
+    @Test
+    fun `the exported file is schema 2 and keeps the header`() {
+        val header = JSONObject().put("version", "Standard 51 kWh").put("netSource", "CAR").put("sohSource", "MEASURED")
+            .put("measuredKwh", 58.5).put("precisePercent", true).put("modelRolling", 0.0095)
+            .put("tireKpa", org.json.JSONArray().put(250.0).put(250.0).put(JSONObject.NULL).put(240.0))
+        val t = TripLog(header, 42, 80f)
+        t.tick(10f, 50f, 8_000f, 79f, 10f, false, null)
+        val json = t.toJson()
+        assertEquals(2, json.getInt("schema"))
+        assertEquals("CAR", json.getString("netSource"))
+        assertEquals("MEASURED", json.getString("sohSource"))
+        assertEquals(58.5, json.getDouble("measuredKwh"), 0.001)
+        assertEquals(true, json.getBoolean("precisePercent"))
+        assertEquals(4, json.getJSONArray("tireKpa").length())
+        // And back, after the app restarted in the middle of a trip.
+        val back = TripLog.fromJson(JSONObject(json.toString())).toJson()
+        assertEquals(2, back.getInt("schema"))
+        assertEquals("CAR", back.getString("netSource"))
+        assertEquals(0.0095, back.getDouble("modelRolling"), 0.00001)
+    }
+
+    @Test
+    fun `the drive mode is kept for each segment`() {
+        val t = trip()
+        t.tick(10f, 50f, 8_000f, 79f, 10f, false, null, extras = TripLog.Extras(driveMode = 4))
+        t.tick(10f, 50f, 8_000f, 79f, 10f, false, null, extras = TripLog.Extras(driveMode = 2))
+        val seg = TripLog.fromJson(JSONObject(t.toJson().toString())).toJson().getJSONArray("segments").getJSONObject(0)
+        assertEquals(2, seg.getInt("driveMode"))
+    }
 }
