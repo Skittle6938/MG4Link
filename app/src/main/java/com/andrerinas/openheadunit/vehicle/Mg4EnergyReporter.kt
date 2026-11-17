@@ -160,7 +160,8 @@ object Mg4EnergyReporter {
                     "range=${snap.rangeKm}km battery=${"%.1f".format(snap.batteryPercent)}% " +
                     "variant=${variant.key} maxDc=${variant.maxDcW / 1000}kW outside=${outsideTemp ?: "-"} types=$types" +
                     (model?.let { m ->
-                        " model A=%.0fN C=%.3f temp=%s climate=%s aux=%s".format(m.a, m.c, m.tempC ?: "-", m.climateOn ?: "-",
+                        " model A=%.0fN C=%.3f (sent to Maps from the battery side: A=%.0fN C=%.3f) temp=%s climate=%s aux=%s".format(m.a, m.c,
+                            m.a / Mg4MapsEnergyModel.DRIVETRAIN, m.c / Mg4MapsEnergyModel.DRIVETRAIN, m.tempC ?: "-", m.climateOn ?: "-",
                             m.aux.joinToString(",") { "${it.first.toInt()}:${it.second}" }) +
                             (if (Mg4MapsEnergyModel.test.active) " TEST ${Mg4MapsEnergyModel.test}" else "")
                     } ?: ""),
