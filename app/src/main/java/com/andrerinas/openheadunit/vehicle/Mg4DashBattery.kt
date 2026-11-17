@@ -30,8 +30,8 @@ object Mg4DashBattery {
         val packChosen: Boolean,
         /** Usable capacity measured by MG4 Dash today, kWh. */
         val measuredKwh: Float?,
-        /** MG4 Dash's samples (t ms, kWh, drop %), for the log. */
-        val samples: List<Triple<Long, Double, Int>> = emptyList(),
+        /** MG4 Dash's samples (date, kWh, drop, odometer km "m" when it has it), for the log. */
+        val samples: List<BatteryCapacityMeter.Sample> = emptyList(),
     )
 
     @Volatile private var cached: Reading? = null
@@ -77,14 +77,17 @@ object Mg4DashBattery {
         return Reading(pack, chosen != null, measured, samples(samplesJson))
     }
 
-    internal fun samples(samplesJson: String?): List<Triple<Long, Double, Int>> {
+    internal fun samples(samplesJson: String?): List<BatteryCapacityMeter.Sample> {
         if (samplesJson.isNullOrBlank()) return emptyList()
         return runCatching {
             val arr = JSONArray(samplesJson)
             (0 until arr.length()).map { i ->
-                arr.getJSONObject(i).let { o -> Triple(o.getLong("t"), o.getDouble("k"), o.getInt("d")) }
+                arr.getJSONObject(i).let { o ->
+                    BatteryCapacityMeter.Sample(o.getLong("t"), o.getDouble("k").toFloat(), o.getDouble("d").toFloat(),
+                        if (o.has("m")) o.getDouble("m").toFloat() else null)
+                }
             }
-        }.getOrNull()?.filter { it.third > 0 && it.second.isFinite() } ?: emptyList()
+        }.getOrNull()?.filter { it.drop > 0f && it.kwh.isFinite() } ?: emptyList()
     }
 
     private fun measuredKwh(samplesJson: String?, now: Long): Float? {

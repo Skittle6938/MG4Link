@@ -36,7 +36,7 @@ object SohHistory {
         runCatching {
             val net = BatteryCapacityResolver.lastNetKwh
             val dash = Mg4DashBattery.read(context)
-            val dashSamples = dash?.samples.orEmpty().map { BatteryCapacityMeter.Sample(it.first, it.second.toFloat(), it.third.toFloat()) }
+            val dashSamples = dash?.samples.orEmpty()
             val own = BatteryCapacityMeter.samples(context)
             AppLog.i("$TAG SOH history ($why), net ${net ?: "?"} kWh:")
             AppLog.i("$TAG   " + summary("MG4 Dash (used when there)", dash?.measuredKwh, dashSamples.size, net))
