@@ -143,6 +143,12 @@ class CommManager(
     /** Playback status from the phone (AAP media channel), includes current position. */
     var onAaPlaybackStatus: ((MediaPlayback.MediaPlaybackStatus) -> Unit)? = null
 
+    /** The Android Auto handshake failed over the cable to this phone (called on an IO thread). */
+    var onUsbHandshakeFailed: ((UsbDevice) -> Unit)? = null
+
+    /** The phone the current or last USB connection was opened to. */
+    @Volatile private var usbDevice: UsbDevice? = null
+
     /** @Volatile: written on IO thread, read on Main and IO threads. */
     @Volatile private var _transport: AapTransport? = null
 
@@ -245,6 +251,7 @@ class CommManager(
 
 
         lastAttemptedEndpoint = null
+        usbDevice = device
 
         val usbManager = context.getSystemService(Context.USB_SERVICE) as UsbManager
         if (!usbManager.hasPermission(device)) {
@@ -392,10 +399,13 @@ class CommManager(
                     _connectionState.emit(ConnectionState.HandshakeComplete)
                 } else {
                     val silent = transport?.lastHandshakeFailure == AapTransport.HandshakeFailure.PEER_SILENT
+                    val overCable = _connection is UsbAccessoryConnection || _connection is LibusbAccessoryConnection
                     _connectionState.emit(
                         ConnectionState.Error(if (silent) ERROR_HANDSHAKE_PEER_SILENT else "Handshake failed")
                     )
                     disconnect(sendByeBye = false, isUserExit = false)
+                    // Told here: the Error state is gone before AapService's collector sees it.
+                    if (overCable) usbDevice?.let { onUsbHandshakeFailed?.invoke(it) }
                 }
             } else {
                 _connectionState.emit(ConnectionState.Error("Starting handshake without connection"))
