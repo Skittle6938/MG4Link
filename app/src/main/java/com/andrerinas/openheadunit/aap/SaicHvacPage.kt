@@ -12,6 +12,11 @@ import android.os.SystemClock
 import com.andrerinas.openheadunit.utils.AppLog
 import com.evsuite.hardware.FirmwareInfo
 
+/** The rest of the watch, from the first time Android Auto was shown ([firstShownAtMs]). */
+internal object HvacWatchWindow {
+    fun leftMs(firstShownAtMs: Long, nowMs: Long, watchMs: Long): Long = watchMs - (nowMs - firstShownAtMs)
+}
+
 /**
  * When the climate page is to be closed: the climate has come on (at the first reading, or after
  * being off) and Android Auto is in front, once for each time the climate came on. The close is
@@ -37,8 +42,9 @@ internal class HvacCloseWhen {
 /**
  * SWI68 climate page (#13): when the climate comes back on as the car starts, SystemUI opens its
  * climate page on its own, on top of Android Auto. MG4Link closes it, as SystemUI itself does,
- * through its exported StartActivityService, during the first minute after the start only: a
- * page the driver opens later stays open. R73 names the interface IPageService (closeHvac),
+ * through its exported StartActivityService, during the first minute after Android Auto first
+ * shows only: a page the driver opens later stays open. The minute used to count from MG4Link's
+ * start, which remote pre-conditioning brings minutes before the driver gets in (#32). R73 names the interface IPageService (closeHvac),
  * R46 IStartActivityService (stopHVAC); both use transaction 2. MG4 Dash does the same (#62).
  */
 object SaicHvacPage {
@@ -51,8 +57,8 @@ object SaicHvacPage {
     private const val CLOSE_DELAY_MS = 300L
 
     private val handler = Handler(Looper.getMainLooper())
-    /** MG4Link starts with the car. */
-    private val startedAtMs = android.os.Process.getStartElapsedRealtime()
+    /** When Android Auto first came to the screen in this process; 0 until then. */
+    @Volatile private var firstShownAtMs = 0L
     @Volatile private var binder: IBinder? = null
     @Volatile private var binding = false
     private var watching = false
@@ -65,7 +71,9 @@ object SaicHvacPage {
     /** Android Auto took the screen: watches the climate for the rest of the first minute. */
     fun onProjectionShown(context: Context) {
         if (!applies() || watching) return
-        val left = WATCH_MS - (SystemClock.elapsedRealtime() - startedAtMs)
+        val now = SystemClock.elapsedRealtime()
+        if (firstShownAtMs == 0L) firstShownAtMs = now
+        val left = HvacWatchWindow.leftMs(firstShownAtMs, now, WATCH_MS)
         if (left <= 0) return
         appContext = context.applicationContext
         bind(context.applicationContext)
