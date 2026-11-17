@@ -1,3 +1,7 @@
+# MG4Link 2.2.7-beta12
+
+- Phone plugged in by cable: changing the screen format (two-finger slide) or connecting again after ending Android Auto now comes back over USB, with the USB link reset first as unplugging does. It went wireless before, after a 10 s wait on reconnection. Wireless still takes over if USB is not back within 15 s.
+
 # MG4Link 2.2.7-beta11
 
 - The USB reset of 2.2.7-beta10 never started (the failed connection was already gone when MG4Link checked it came over the cable).
