@@ -1555,10 +1555,14 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
         if (!mg4DashPresent) return
         val root = window?.decorView ?: return
         root.postDelayed({
-            val content = findViewById<View>(android.R.id.content) ?: return@postDelayed
+            // The picture itself, not the content view: in NAV_ONLY the content view still starts
+            // at y=0 under the car's bar, and only the picture is pushed below it (SWI165 log, #31).
+            val picture = (if (::projectionView.isInitialized) projectionView as? View else null)
+                ?: findViewById<View>(android.R.id.content) ?: return@postDelayed
             val at = IntArray(2)
-            content.getLocationOnScreen(at)
-            val immersive = at[1] <= 0
+            picture.getLocationOnScreen(at)
+            val mode = activityFullscreenOverride ?: settings.fullscreenMode
+            val immersive = mode == Settings.FullscreenMode.IMMERSIVE && at[1] <= 0
             try {
                 sendBroadcast(Intent("app.mg4dash.LINK_IMMERSIVE").setPackage("app.mg4dash").putExtra("immersive", immersive))
             } catch (e: Exception) { AppLog.w("MG4 Dash immersive report: ${e.message}") }
