@@ -1021,6 +1021,7 @@ class NativeAaHandshakeManager(
         handshakeStartedAt = SystemClock.elapsedRealtime()
         if (previousSocket != null && previousSocket !== socket) {
             AppLog.i("NativeAA: A new handshake arrived while one was still settling — closing the previous session.")
+            AppLog.i("NativeAA: hotspot now: ${CarNetworkQuirks.hotspotNeighbours()}")
             handoffSettlingSince = 0L
             // Cancel *and* close, in that order: see activeHandshakeJob. Cancelling first means
             // the old coroutine cannot mistake the close for a phone-side drop and act on it.
@@ -1444,6 +1445,7 @@ class NativeAaHandshakeManager(
                     val st = if (s.hasStatus()) s.status else null
                     AppLog.i("NativeAA: [RX] WifiConnectStatus status=${st ?: "-"} (0 = the phone got onto our network)")
                     if (st == 0) {
+                        AppLog.i("NativeAA: hotspot at the join: ${CarNetworkQuirks.refusalCounters()}")
                         AppLog.i(
                             "NativeAA: Phone is on our WiFi. Now waiting for TCP Incoming on " +
                                 "${credentials?.ip ?: "?"}:${context.wirelessPort} " +

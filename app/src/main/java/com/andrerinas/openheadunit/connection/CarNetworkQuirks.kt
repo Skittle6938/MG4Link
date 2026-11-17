@@ -76,7 +76,12 @@ object CarNetworkQuirks {
             try {
                 val f = File(path)
                 if (f.isFile && f.canRead()) {
-                    parseFirewall(f.readText(), path)?.let { return it }
+                    val text = f.readText()
+                    // The rules as this firmware has them, once (#30: R29 differs from the R43 we know).
+                    firewallLines(text).takeIf { it.isNotEmpty() }?.let {
+                        AppLog.i("$TAG: firewall rules in $path: " + it.joinToString(" | "))
+                    }
+                    parseFirewall(text, path)?.let { return it }
                 }
             } catch (e: Exception) {
                 AppLog.d("$TAG: cannot read $path (${e.javaClass.simpleName}: ${e.message})")
@@ -133,6 +138,32 @@ object CarNetworkQuirks {
         return needed
     }
 
+    /** The iptables INPUT rules and the arp settings of the script, comments left out. */
+    fun firewallLines(text: String): List<String> =
+        text.lineSequence().map { it.trim() }
+            .filter { it.isNotEmpty() && !it.startsWith("#") }
+            .filter { (it.contains("iptables") && it.contains("INPUT")) || it.contains("arp_ignore") || it.contains("arp_announce") }
+            .toList()
+
+    /**
+     * The car's kernel counters that tell whether the phone's packets reach it: ICMP "unreachable"
+     * sent (a rejected packet), TCP connection attempts received and their resets. Read before and
+     * after the wait for the phone: unchanged, nothing came; up, it came and was refused (#30).
+     */
+    fun refusalCounters(): String = runCatching {
+        val lines = File("/proc/net/snmp").readLines()
+        fun field(proto: String, name: String): String? {
+            val pair = lines.filter { it.startsWith("$proto:") }
+            if (pair.size < 2) return null
+            val names = pair[0].split(Regex("\\s+"))
+            val values = pair[1].split(Regex("\\s+"))
+            val i = names.indexOf(name)
+            return if (i in values.indices) values[i] else null
+        }
+        "icmpOutDestUnreachs=${field("Icmp", "OutDestUnreachs")} tcpPassiveOpens=${field("Tcp", "PassiveOpens")} " +
+            "tcpOutRsts=${field("Tcp", "OutRsts")} tcpInSegs=${field("Tcp", "InSegs")}"
+    }.getOrElse { "counters unreadable" }
+
     /**
      * Devices the car knows on the hotspot: the kernel's ARP table for [iface] (IP and whether
      * the entry is complete), and the hotspot's own arp_ignore. When the phone says it joined but
@@ -143,9 +174,18 @@ object CarNetworkQuirks {
         val rows = runCatching {
             File("/proc/net/arp").readLines().drop(1).mapNotNull { HotspotNeighbours.row(it, iface) }
         }.getOrNull()
-        return "$iface arp_ignore=${arpIgnore ?: "unreadable"}, neighbours=" +
+        return "$iface arp_ignore=${arpIgnore ?: "unreadable"}, " + refusalCounters() + ", neighbours=" +
             (rows?.let { if (it.isEmpty()) "none" else it.joinToString("; ") } ?: "unreadable")
     }
+
+    /** Addresses on the hotspot the car has a complete ARP entry for (the phones that got one). */
+    fun hotspotPhones(subnetPrefix: String): List<String> = runCatching {
+        File("/proc/net/arp").readLines().drop(1).mapNotNull { line ->
+            val cols = line.trim().split(Regex("\\s+"))
+            val complete = cols.size >= 3 && ((cols[2].removePrefix("0x").toIntOrNull(16) ?: 0) and 0x2) != 0
+            cols.firstOrNull()?.takeIf { complete && it.startsWith(subnetPrefix) }
+        }
+    }.getOrElse { emptyList() }
 }
 
 /** One line of /proc/net/arp for a given interface, as "IP (complete|incomplete)". */

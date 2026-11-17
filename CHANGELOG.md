@@ -1,3 +1,8 @@
+# MG4Link 2.2.7-beta21
+
+- Wireless on cars whose head unit answers no ARP request (#30): besides the broadcast requests it already makes the car send, MG4Link now also sends a byte every second to each phone on the hotspot, so that the car asks the phone itself for its address: a phone that did not learn the car's address from the broadcast learns it then.
+- Wireless diagnosis (#30): the log now shows the firewall rules of the car's firmware once, and the car's counters of refused packets and incoming TCP connections when the phone joins and when it gives up, to tell a phone whose packets never arrive from one whose packets are refused.
+
 # MG4Link 2.2.7-beta20
 
 - Wireless diagnosis (#30): when the phone joined the car's hotspot but never connected, the log now shows the devices the car knows on the hotspot (address, and whether it answered) and the hotspot's ARP setting.
