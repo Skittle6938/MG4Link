@@ -1,3 +1,7 @@
+# MG4Link 2.2.7-beta14
+
+- SWI68, climate page left open on top of Android Auto after remote pre-conditioning (#32): when the car starts with the climate already on, the screen is paused several times as the car switches over, and the one check that closes the page could fall in one of those moments and never run again. The page is now closed as soon as Android Auto is in front, once for each time the climate comes on.
+
 # MG4Link 2.2.7-beta13
 
 - Gestures from the top of the screen shared with MG4Dash (with a MG4Dash that supports it): MG4Link keeps its own gestures in its window, full screen or below the car's status bar, and takes MG4Dash's request to disconnect when three fingers start in the status bar, where MG4Link receives no touch. MG4Link works the same without MG4Dash.
