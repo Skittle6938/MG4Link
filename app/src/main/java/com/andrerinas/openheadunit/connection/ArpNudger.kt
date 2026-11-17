@@ -67,7 +67,24 @@ object ArpNudger {
                 // source = hotspot address, so the ARP sender IP is the one the phone is looking for
                 DatagramSocket(0, host).use { socket ->
                     var i = 0
+                    val prefix = "${raw[0].toInt() and 0xFF}.${raw[1].toInt() and 0xFF}.${raw[2].toInt() and 0xFF}."
+                    var lastPhonesMs = 0L
                     while (isActive && System.currentTimeMillis() < deadline) {
+                        // Every second, the phones on the hotspot too: once the car's entry for a
+                        // phone goes stale, the car asks the phone itself, and a host always learns the
+                        // address of whoever asks it directly (#30: a phone that did not learn it from
+                        // the broadcast requests below).
+                        val now = System.currentTimeMillis()
+                        if (now - lastPhonesMs >= 1_000L) {
+                            lastPhonesMs = now
+                            for (phone in CarNetworkQuirks.hotspotPhones(prefix)) {
+                                if (phone == host.hostAddress) continue
+                                try {
+                                    socket.send(DatagramPacket(byteArrayOf(0), 1, InetAddress.getByName(phone), 9))
+                                    sent++
+                                } catch (_: Exception) {}
+                            }
+                        }
                         // addresses .200 to .249: never handed out by the DHCP (low range), never the car
                         val lastOctet = 200 + (i % 50)
                         i++
