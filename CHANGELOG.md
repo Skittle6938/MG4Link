@@ -1,3 +1,7 @@
+# MG4Link 2.2.7-beta11
+
+- The USB reset of 2.2.7-beta10 never started (the failed connection was already gone when MG4Link checked it came over the cable).
+
 # MG4Link 2.2.7-beta10
 
 - USB after ending Android Auto from the car, or after MG4Link restarted during a USB session: the phone no longer answered on the cable and the connection went wireless, until the phone was unplugged. MG4Link now resets the USB link itself when that happens, as unplugging does, and the phone connects over USB again.
