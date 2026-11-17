@@ -956,6 +956,8 @@ class AapService : Service(), UsbReceiver.Listener {
                         }
                         com.andrerinas.openheadunit.connection.UsbWifiClient.onSessionStarted(
                             this@AapService, commManager.isWirelessSession)
+                        lastSessionOverUsb = !commManager.isWirelessSession
+                        usbReconnectFallbackJob?.cancel()
                         accessoryHandshakeFailures = 0
                         automaticReconnectAttempts = 0
                         sendBroadcast(Intent(ACTION_REQUEST_NIGHT_MODE_UPDATE).apply {
@@ -1433,6 +1435,8 @@ class AapService : Service(), UsbReceiver.Listener {
      * 4. Scheduling a reconnect attempt if applicable (see [scheduleReconnectIfNeeded])
      */
     private fun onDisconnected(state: CommManager.ConnectionState.Disconnected) {
+        val endedOverUsb = lastSessionOverUsb
+        lastSessionOverUsb = false
         relayAnnounceJob?.cancel()
         relayAnnounceJob = null
         handsFreeRestoreJob?.cancel()
@@ -1491,7 +1495,12 @@ class AapService : Service(), UsbReceiver.Listener {
                 // Unexpected disconnect — reset and re-initialize for auto-reconnect.
                 AppLog.i("AapService: Native AA disconnected. Resetting the handshake in 1.5s...")
                 nativeAaHandshakeManager?.stop()
-                serviceScope.launch {
+                // A USB session that ended with the phone still plugged in (a new screen height
+                // restarts the session): back over the cable, not wireless (2026-11-17).
+                val usbPhone = if (endedOverUsb) pluggedUsbPhone() else null
+                if (usbPhone != null && withContext(Dispatchers.Main) { reconnectOverUsb(usbPhone, "USB session ended") }) {
+                    // Wireless only if USB does not come back (reconnectOverUsb).
+                } else serviceScope.launch {
                     delay(1500) // Give the hardware time to settle before re-initializing
                     if (commManager.isBusy) {
                         // The phone reconnects within ~300 ms; re-initialising now would tear
@@ -2018,7 +2027,12 @@ class AapService : Service(), UsbReceiver.Listener {
             ACTION_STOP_WIRELESS         -> stopWirelessServer()
             ACTION_NATIVE_AA_POKE        -> {
                 val mac = intent?.getStringExtra(EXTRA_MAC)
-                if (mac != null) {
+                val usbPhone = if (mac != null && !commManager.isBusy) pluggedUsbPhone() else null
+                if (mac != null && usbPhone != null && reconnectOverUsb(usbPhone, "Connect phone", mac)) {
+                    // The phone is on the cable: USB first, without the wait meant for wireless.
+                    userAskedThisRun = true
+                    wifiHandedBackOnExit = false
+                } else if (mac != null) {
                     val waited = !wirelessWanted()
                     userAskedThisRun = true
                     if (waited || !wirelessInitialized) initWifiMode(force = true)
@@ -2537,6 +2551,47 @@ class AapService : Service(), UsbReceiver.Listener {
     }
 
     @Volatile private var lastUsbLinkResetMs = 0L
+
+    /** The last session that started carried Android Auto over the cable. */
+    @Volatile private var lastSessionOverUsb = false
+    private var usbReconnectFallbackJob: Job? = null
+
+    /** A phone on the car's USB socket (in accessory mode or not), when USB is in use. */
+    private fun pluggedUsbPhone(): UsbDevice? {
+        if (!settings.showsUsb()) return null
+        val usbManager = getSystemService(Context.USB_SERVICE) as UsbManager
+        return usbManager.deviceList.values.firstOrNull { UsbDeviceCompat.isAndroidDevice(it) }
+    }
+
+    private fun usbSessionUp() = commManager.isConnected && !commManager.isWirelessSession
+
+    /**
+     * Brings Android Auto back over the cable to [device] instead of wireless: after the session
+     * restarted for a new screen height, or when the driver asks for Android Auto again. Once a
+     * USB session has ended, the phone's Android Auto no longer reads its accessory link, so the
+     * link is reset first (as unplugging does) and the phone comes back as a new device. Wireless
+     * only if USB is not back after a while. False when the link was reset too recently.
+     */
+    private fun reconnectOverUsb(device: UsbDevice, reason: String, mac: String? = null): Boolean {
+        val now = SystemClock.elapsedRealtime()
+        val accessory = UsbDeviceCompat.isInAccessoryMode(device)
+        if (accessory && !UsbLinkResetPolicy.mayReset(now, lastUsbLinkResetMs)) return false
+        if (accessory) lastUsbLinkResetMs = now
+        AppLog.i("AapService: $reason with ${UsbDeviceCompat(device).uniqueName} on the cable - reconnecting over USB${if (accessory) ", resetting the link first" else ""}")
+        serviceScope.launch(Dispatchers.IO) {
+            if (accessory && (frameworkUsbReset(device) || resetAccessoryUsbDevice(device))) delay(UsbLinkResetPolicy.RESCAN_MS)
+            withContext(Dispatchers.Main) { if (!usbSessionUp()) checkAlreadyConnectedUsb(force = true) }
+        }
+        usbReconnectFallbackJob?.cancel()
+        usbReconnectFallbackJob = serviceScope.launch {
+            delay(UsbLinkResetPolicy.USB_FALLBACK_MS)
+            if (commManager.isBusy || isSwitchingToAccessory.get()) return@launch
+            AppLog.i("AapService: USB not back after $reason - going wireless")
+            initWifiMode(force = true)
+            if (mac != null) scheduleNativeAaPoke(mac, reason = "manual poke")
+        }
+        return true
+    }
 
     /**
      * The handshake failed with the phone still in accessory mode on the cable: its Android Auto

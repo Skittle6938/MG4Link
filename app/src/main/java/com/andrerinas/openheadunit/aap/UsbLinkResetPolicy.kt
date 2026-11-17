@@ -11,5 +11,8 @@ internal object UsbLinkResetPolicy {
     /** After the reset, when to look for the phone again if no attach event came. */
     const val RESCAN_MS = 2_000L
 
+    /** Wireless takes over when USB is not back this long after a reconnection over the cable. */
+    const val USB_FALLBACK_MS = 15_000L
+
     fun mayReset(nowMs: Long, lastResetMs: Long): Boolean = lastResetMs == 0L || nowMs - lastResetMs >= COOLDOWN_MS
 }
