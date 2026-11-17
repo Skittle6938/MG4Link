@@ -1,3 +1,7 @@
+# MG4Link 2.2.7-beta18
+
+- Google Maps battery forecast (#14): with the consumption model, 0.9 kWh is set aside at the start of a drive and fades out over the first 15 km. Warming up the cabin, battery and electronics costs about the same whatever the trip: on three routes from 89 % at 13 °C, Maps forecast 3 to 4 points more at arrival than ABRP whatever the distance. Maps then also shows about 2 points less at departure (on a 51 kWh car) for the first kilometres. Test build.
+
 # MG4Link 2.2.7-beta17
 
 - Google Maps battery forecast (#14, #19): the road load sent to Maps is now the one seen from the battery, with the drivetrain losses (rolling and air terms divided by 0.88, +14 %). Maps is given no loss of its own, and with the force at the wheels it forecast about what the wheels need: 10 to 15 % less than the battery really gave on daily trips (16 % for a 50 km motorway trip where 20 % is used). MG4Link's own model, which matches the measured energy, is unchanged. Test build: compare Maps' arrival % with the real one.
