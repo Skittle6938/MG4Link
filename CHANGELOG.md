@@ -1,3 +1,8 @@
+# MG4Link 2.2.7-beta7
+
+- Plugging the phone in while Android Auto runs wirelessly: when the phone took more than 2 s to answer (it was still closing the wireless session), MG4Link asked again and the phone answered twice. The second answer ended the USB connection, and Android Auto came back wirelessly with the cable plugged in. The extra answer is now ignored.
+- Log files now keep the name and message of each error (the line under an error was empty).
+
 # MG4Link 2.2.7-beta6
 
 - MG4Dash's shortcuts menu (MG4Dash #113): MG4Link now tells MG4Dash correctly when the car's status bar is above Android Auto (it read the whole window, which starts at the top of the screen even then).
