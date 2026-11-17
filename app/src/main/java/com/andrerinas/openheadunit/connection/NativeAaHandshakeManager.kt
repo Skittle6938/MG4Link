@@ -1355,9 +1355,6 @@ class NativeAaHandshakeManager(
             // MG4: The car's kernel drops all inbound ARP requests (arp_ignore=8), preventing 
             // the phone from reaching our IP. We send broadcast ARP requests to force it to 
             // learn our MAC address.
-            // And where the firmware set arp_ignore=8, have netd make the hotspot answer ARP again
-            // (#30). On cars that already answer, this only writes the same value back.
-            HotspotArpFix.apply("ap0")
             if (CarNetworkQuirks.needsArpNudge()) ArpNudger.start(scope, credIp)
             AppLog.i("NativeAA: Starting Handshake Exchange:")
             AppLog.i("  > Target SSID: $credSsid")
