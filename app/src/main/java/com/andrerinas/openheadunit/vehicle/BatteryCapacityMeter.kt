@@ -22,7 +22,7 @@ object BatteryCapacityMeter {
     /** Readings further apart than this are a gap, not a stretch of driving. */
     private const val MAX_STEP_MS = 5_000L
 
-    /** One measurement: when, usable kWh, over what drop (%), and the odometer then (km, when it reads). */
+    /** One measurement: when, usable kWh, over what drop (%), and the distance driven meanwhile (km, when it reads). */
     data class Sample(val at: Long, val kwh: Float, val drop: Float, val km: Float? = null)
 
     private var accKwh = 0f
@@ -56,6 +56,11 @@ object BatteryCapacityMeter {
             lastSoc = precise ?: percent?.toFloat()
             return
         }
+        if (prefs(context).getFloat("acc_start_km", -1f) < 0f) {
+            runCatching { com.evsuite.hardware.EVHardware.getOdometerKm() }.getOrNull()?.let {
+                prefs(context).edit().putFloat("acc_start_km", it).apply()
+            }
+        }
         accKwh += powerW * dt / 3_600_000_000f
         accDrop += prev - socPercent
         lastSoc = socPercent
@@ -66,9 +71,13 @@ object BatteryCapacityMeter {
         val kwh = accKwh / accDrop * 100f
         if (accKwh >= 3f && kwh in 30f..100f) {
             val odometer = runCatching { com.evsuite.hardware.EVHardware.getOdometerKm() }.getOrNull()
-            val list = samples(context) + Sample(System.currentTimeMillis(), kwh, accDrop, odometer)
-            prefs(context).edit().putString("samples", toJson(list.takeLast(MAX_SAMPLES))).apply()
-            AppLog.i("$TAG capacity sample %.1f kWh over %.1f %% at %s km".format(kwh, accDrop, odometer?.let { "%.0f".format(it) } ?: "?"))
+            // Distance driven over the sample, as MG4 Dash records it ("m").
+            val startKm = prefs(context).getFloat("acc_start_km", -1f).takeIf { it >= 0f }
+            val driven = if (odometer != null && startKm != null) (odometer - startKm).coerceAtLeast(0f) else null
+            val list = samples(context) + Sample(System.currentTimeMillis(), kwh, accDrop, driven)
+            prefs(context).edit().putString("samples", toJson(list.takeLast(MAX_SAMPLES)))
+                .putFloat("acc_start_km", odometer ?: -1f).apply()
+            AppLog.i("$TAG capacity sample %.1f kWh over %.1f %% and %s km".format(kwh, accDrop, driven?.let { "%.0f".format(it) } ?: "?"))
             SohHistory.log(context, "new MG4Link sample")
         } else {
             AppLog.i("$TAG capacity sample rejected: %.2f kWh for %.1f %%".format(accKwh, accDrop))
