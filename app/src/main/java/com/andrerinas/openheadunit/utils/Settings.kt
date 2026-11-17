@@ -918,7 +918,9 @@ class Settings(private val context: Context) {
         set(value) {
             prefs.edit().putBoolean("car-pulldown-over-aa", value).apply()
             // MG4 Dash makes its top strip transparent to touches while the car keeps the top (2026-11-17).
-            com.andrerinas.openheadunit.aap.Mg4DashContract.publishCarPullDown(context, value)
+            // A screen already open keeps the name it opened under: it tells MG4 Dash itself when it opens.
+            com.andrerinas.openheadunit.aap.Mg4DashContract.publishCarPullDownOnChange(
+                context, value, com.andrerinas.openheadunit.aap.AapProjectionActivity.openScreens)
         }
 
     var openProjectionOnConnect: Boolean
