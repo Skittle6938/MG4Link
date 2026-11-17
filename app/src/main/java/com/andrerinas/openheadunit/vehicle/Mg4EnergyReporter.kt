@@ -20,8 +20,8 @@ import java.util.concurrent.atomic.AtomicReference
 object Mg4EnergyReporter {
     private const val TAG = "DiAuto-MG4"
     private const val INTERVAL_MS = 30_000L
-        /** Longer than this without sending: the car was off, the next send starts a new drive. */
-        private const val NEW_DRIVE_GAP_MS = 20 * 60_000L
+    /** Longer than this without sending: the car was off, the next send starts a new drive. */
+    private const val NEW_DRIVE_GAP_MS = 20 * 60_000L
 
     /** Outside temperature last put in DiAuto's model (see [Mg4MapsEnergyModel.heldTemp]). */
     @Volatile private var heldTemp: Float? = null
