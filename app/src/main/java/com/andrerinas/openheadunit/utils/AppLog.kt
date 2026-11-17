@@ -312,9 +312,22 @@ object AppLog {
     private fun isLoggable(priority: Int): Boolean = priority >= LOG_LEVEL
 
     private fun loge(message: String, tr: Throwable?) {
-        val trace = if (LOGGER is Logger.Android) Log.getStackTraceString(tr) else ""
+        // Files keep the exception's name and message (they are posted on GitHub, so masked); the
+        // stack goes to logcat only. Without them the file showed an empty line under the error.
+        val trace = if (LOGGER is Logger.Android) Log.getStackTraceString(tr) else maskPrivate(describe(tr))
         DiagnosticJournal.record(Log.ERROR, maskPrivate(message))
         LOGGER.println(Log.ERROR, TAG, (if (LOGGER is Logger.Android) message else maskPrivate(message)) + '\n' + trace)
+    }
+
+    internal fun describe(tr: Throwable?): String {
+        if (tr == null) return ""
+        val parts = mutableListOf<String>()
+        var t: Throwable? = tr
+        while (t != null && parts.size < 3) {
+            parts += "${t.javaClass.simpleName}: ${t.message ?: ""}".trimEnd(':', ' ')
+            t = t.cause.takeIf { it !== t }
+        }
+        return parts.joinToString(" / caused by ")
     }
 
     private fun closeAppLogFileLogger() {
