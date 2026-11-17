@@ -217,9 +217,9 @@ class TripLog(val header: JSONObject, val mapsArrivalPercent: Int, val startPerc
     companion object {
         /** Below this, the car counts as stopped. */
         const val MOVING_KMH = 1f
-        const val MIN_KM = 5f
-        /** Kept from 4 % used (daily trips; less representative, but that is what there is). */
-        const val MIN_DROP_PERCENT = 4f
+        /** Kept from 10 km and 8 % used: short trips say little about a model Maps applies to whole routes. */
+        const val MIN_KM = 10f
+        const val MIN_DROP_PERCENT = 8f
         private const val TEMP_STEP_C = 1f
         val SPEED_EDGES = intArrayOf(0, 30, 50, 70, 90, 110, 130)
         private val SPEED_BUCKETS = SPEED_EDGES.size

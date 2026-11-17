@@ -1,5 +1,6 @@
 # MG4Link 2.2.7-beta16
 
+- Trip recording back to its earlier thresholds: a trip can be started with at least 10 points of battery to go, and is kept from 8 points used and 10 km (5, 4 and 5 since 2.2.7-beta3). Short trips are dominated by the climate and electronics starting up, and say little about a model Maps applies to whole routes.
 - Returning to Android Auto from the car's home screen (#23): the screen has no window animation any more. It is shown twice within 250 ms on that return, and the car's opening animation seemed to run twice over (black bar and a squashed copy of the picture during the transition).
 - Recorded trips (#14), file format 2: the file also says where the battery capacity comes from (set by hand, read from the car, or a default), the energy measured from charging whatever the settings say, whether the charge is read to the tenth, the drive mode for each part of the trip, the tyre pressures at the start and the rolling term of the model. The format number was 1 up to now, even for the trips with the extra data of 2.2.7-beta3.
 
