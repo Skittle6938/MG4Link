@@ -30,16 +30,21 @@ object Mg4DashBattery {
         val packChosen: Boolean,
         /** Usable capacity measured by MG4 Dash today, kWh. */
         val measuredKwh: Float?,
+        /** MG4 Dash's samples (t ms, kWh, drop %), for the log. */
+        val samples: List<Triple<Long, Double, Int>> = emptyList(),
     )
 
     @Volatile private var cached: Reading? = null
     @Volatile private var cachedStamp = Long.MIN_VALUE
 
     fun read(context: Context): Reading? {
-        val file = prefsFile(context) ?: return null
+        // While MG4 Dash is being updated its file is briefly out of reach: the last reading holds,
+        // instead of Maps getting the default 95 % for a few seconds.
+        val file = prefsFile(context) ?: return cached
         val stamp = file.lastModified()
         if (stamp == cachedStamp) return cached
         val reading = runCatching { file.inputStream().use { parse(it, System.currentTimeMillis()) } }.getOrNull()
+            ?: cached
         cached = reading
         cachedStamp = stamp
         return reading
@@ -69,7 +74,17 @@ object Mg4DashBattery {
         val measured = measuredKwh(samplesJson, now)
         val chosen = model?.takeIf { pack -> BatteryCapacityResolver.PACKS.any { it.first == pack } }
         val pack = chosen ?: measured?.let(BatteryCapacityResolver::nearestPack) ?: return null
-        return Reading(pack, chosen != null, measured)
+        return Reading(pack, chosen != null, measured, samples(samplesJson))
+    }
+
+    internal fun samples(samplesJson: String?): List<Triple<Long, Double, Int>> {
+        if (samplesJson.isNullOrBlank()) return emptyList()
+        return runCatching {
+            val arr = JSONArray(samplesJson)
+            (0 until arr.length()).map { i ->
+                arr.getJSONObject(i).let { o -> Triple(o.getLong("t"), o.getDouble("k"), o.getInt("d")) }
+            }
+        }.getOrNull()?.filter { it.third > 0 && it.second.isFinite() } ?: emptyList()
     }
 
     private fun measuredKwh(samplesJson: String?, now: Long): Float? {
