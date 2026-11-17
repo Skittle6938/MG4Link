@@ -1,6 +1,6 @@
 # MG4Link 2.2.7-beta18
 
-- Google Maps battery forecast (#14): with the consumption model, 0.9 kWh is set aside at the start of a drive and fades out over the first 15 km. Warming up the cabin, battery and electronics costs about the same whatever the trip: on three routes from 89 % at 13 °C, Maps forecast 3 to 4 points more at arrival than ABRP whatever the distance. Maps then also shows about 2 points less at departure (on a 51 kWh car) for the first kilometres. Test build.
+- Google Maps battery forecast (#14): with the consumption model, some energy is set aside at the start of a drive, taken off the energy left sent to Maps: bringing the cabin and the battery to temperature costs about the same whatever the trip. On three routes from 89 % at 13 °C, Maps forecast 3 to 4 points more at arrival than ABRP whatever the distance. Worked out from the temperatures when the car is switched on: 0.3 kWh, plus the cabin with the climate on (0.075 kWh per degree to heat, 0.05 to cool, to the setpoint), plus the battery under 5 °C (0.1 kWh per degree), at most 3.5 kWh; 0.9 kWh at 13 °C with the heating on. It fades over the first 15 km or 15 minutes, whichever comes first, so guidance started in a warm car sets nothing aside. Maps also shows that much less at departure for the first kilometres. Test build, figures to be checked this winter.
 
 # MG4Link 2.2.7-beta17
 

@@ -20,8 +20,6 @@ import java.util.concurrent.atomic.AtomicReference
 object Mg4EnergyReporter {
     private const val TAG = "DiAuto-MG4"
     private const val INTERVAL_MS = 30_000L
-    /** Longer than this without sending: the car was off, the next send starts a new drive. */
-    private const val NEW_DRIVE_GAP_MS = 20 * 60_000L
 
     /** Outside temperature last put in DiAuto's model (see [Mg4MapsEnergyModel.heldTemp]). */
     @Volatile private var heldTemp: Float? = null
@@ -98,27 +96,6 @@ object Mg4EnergyReporter {
         if (due || !vemEverSent.get()) sendNow(force = !vemEverSent.get())
     }
 
-    // Start of the drive, for the start reserve: the odometer then, and when.
-    private var startOdometerKm: Float? = null
-    private var startAtMs = 0L
-    private var lastReserveAtMs = 0L
-
-    /** The start reserve now: a new drive after [NEW_DRIVE_GAP_MS] without sending (car off). */
-    private fun startReserveWh(): Int {
-        val now = SystemClock.elapsedRealtime()
-        val odometer = runCatching { com.evsuite.hardware.EVHardware.getOdometerKm() }.getOrNull()
-        if (startAtMs == 0L || now - lastReserveAtMs > NEW_DRIVE_GAP_MS) {
-            startAtMs = now
-            startOdometerKm = odometer
-        }
-        lastReserveAtMs = now
-        if (startOdometerKm == null) startOdometerKm = odometer
-        val start = startOdometerKm
-        // Without the odometer, about a kilometre a minute.
-        val km = if (odometer != null && start != null) odometer - start else (now - startAtMs) / 60_000f
-        return StartReserve.wh(km)
-    }
-
     private fun sendNow(force: Boolean) {
         if (requestedTypes.isEmpty() && !force) return
         val transport = transportRef.get() ?: return
@@ -151,7 +128,7 @@ object Mg4EnergyReporter {
         }
         lastModel = model
         // With the consumption model, the energy the start of a drive costs is set aside (#14).
-        val reserveWh = if (model != null) startReserveWh() else 0
+        val reserveWh = if (model != null) DriveStart.reserveWh(SystemClock.elapsedRealtime()) else 0
         val sentWh = StartReserve.sentWh(snap.currentWh, reserveWh)
         val encoded = VehicleEnergyModelEncoder.Snapshot(
             capacityWh = snap.capacityWh,
@@ -183,7 +160,7 @@ object Mg4EnergyReporter {
             vemEverSent.set(true)
             AppLog.i(
                 "$TAG vem tx capacity=${snap.capacityWh}Wh current=${snap.currentWh}Wh " +
-                    "(sent ${sentWh}Wh, start reserve ${reserveWh}Wh) " +
+                    "(sent ${sentWh}Wh, start reserve ${reserveWh}Wh at ${DriveStart.describe()}) " +
                     "range=${snap.rangeKm}km battery=${"%.1f".format(snap.batteryPercent)}% " +
                     "variant=${variant.key} maxDc=${variant.maxDcW / 1000}kW outside=${outsideTemp ?: "-"} types=$types" +
                     (model?.let { m ->

@@ -5,28 +5,52 @@ import org.junit.Test
 
 class StartReserveTest {
     @Test
-    fun `the whole reserve at the start`() {
-        assertEquals(900, StartReserve.wh(0f))
+    fun `0,9 kWh at 13 degrees with the heating on, as measured against ABRP`() {
+        assertEquals(900, StartReserve.fullWh(climateOn = true, setC = 21f, cabinC = 13f, outsideC = 13f, packC = 15f))
     }
 
     @Test
-    fun `it fades over the first 15 km`() {
-        assertEquals(600, StartReserve.wh(5f))
-        assertEquals(300, StartReserve.wh(10f))
-        assertEquals(0, StartReserve.wh(15f))
-        assertEquals(0, StartReserve.wh(120f))
+    fun `climate off or the cabin already at the setpoint gives the base only`() {
+        assertEquals(300, StartReserve.fullWh(climateOn = false, setC = 21f, cabinC = 13f, outsideC = 13f, packC = 15f))
+        assertEquals(300, StartReserve.fullWh(climateOn = true, setC = 21f, cabinC = 21f, outsideC = 13f, packC = 15f))
     }
 
     @Test
-    fun `about 2 points of a 45,9 kWh battery at the start`() {
-        // On the test car: 89 % sent as about 87 %.
+    fun `cooling costs less per degree than heating`() {
+        assertEquals(1_000, StartReserve.fullWh(climateOn = true, setC = 21f, cabinC = 35f, outsideC = 30f, packC = 30f))
+    }
+
+    @Test
+    fun `a cold pack adds its own share`() {
+        // -5 °C: cabin 26 °C to heat (1 950 Wh) and the pack 10 °C under 5 °C (1 000 Wh).
+        assertEquals(3_250, StartReserve.fullWh(climateOn = true, setC = 21f, cabinC = -5f, outsideC = -5f, packC = -5f))
+    }
+
+    @Test
+    fun `capped at 3,5 kWh`() {
+        assertEquals(3_500, StartReserve.fullWh(climateOn = true, setC = 22f, cabinC = -15f, outsideC = -15f, packC = -15f))
+    }
+
+    @Test
+    fun `without the cabin or the pack, the outside temperature stands in, and 21 degrees for the setpoint`() {
+        assertEquals(900, StartReserve.fullWh(climateOn = true, setC = null, cabinC = null, outsideC = 13f, packC = null))
+        assertEquals(300 + 75 * 21 + 500, StartReserve.fullWh(climateOn = true, setC = null, cabinC = null, outsideC = 0f, packC = null))
+    }
+
+    @Test
+    fun `it fades over 15 km or 15 minutes, whichever comes first`() {
+        assertEquals(900, StartReserve.remainingWh(900, 0f, 0f))
+        assertEquals(450, StartReserve.remainingWh(900, 7.5f, 2f))
+        assertEquals(450, StartReserve.remainingWh(900, 1f, 7.5f))
+        assertEquals(0, StartReserve.remainingWh(900, 15f, 3f))
+        // Guidance started in a car that has been on for 20 minutes: nothing.
+        assertEquals(0, StartReserve.remainingWh(900, 0f, 20f))
+    }
+
+    @Test
+    fun `about 2 points of a 45,9 kWh battery at the start, never below 1 Wh`() {
         val current = (45_933 * 0.89).toInt()
-        val sent = StartReserve.sentWh(current, StartReserve.wh(0f))
-        assertEquals(87.0, sent * 100.0 / 45_933, 0.1)
-    }
-
-    @Test
-    fun `never below 1 Wh`() {
+        assertEquals(87.0, StartReserve.sentWh(current, 900) * 100.0 / 45_933, 0.1)
         assertEquals(1, StartReserve.sentWh(500, 900))
     }
 }
