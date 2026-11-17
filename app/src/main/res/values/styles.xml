@@ -16,6 +16,12 @@
         <item name="materialAlertDialogTheme">@style/DarkAlertDialog</item>
     </style>
 
+    <!-- The Android Auto screen: no window animation. Coming back from the car's home screen shows it
+         twice in 250 ms, and the car's opening animation then ran twice over (#23). -->
+    <style name="AppTheme.Projection" parent="AppTheme">
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+
     <style name="AppTheme.Translucent" parent="android:Theme.Translucent.NoTitleBar" />
 
     <style name="AppTheme.Fullscreen" parent="AppTheme">

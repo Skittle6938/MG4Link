@@ -41,6 +41,8 @@ class TripLog(val header: JSONObject, val mapsArrivalPercent: Int, val startPerc
         val sums = DoubleArray(8)
         var acOnSeconds = 0f
         var regenLevel: Int? = null
+        /** Drive mode (2 Eco, 3 Normal, 4 Sport, 6 Snow, 7 Custom) at the last reading. */
+        var driveMode: Int? = null
     }
 
     /** Readings that change slowly, taken by [TripRecorder] every few seconds. */
@@ -52,6 +54,7 @@ class TripLog(val header: JSONObject, val mapsArrivalPercent: Int, val startPerc
         val fanStep: Int? = null,
         val acOn: Boolean? = null,
         val regenLevel: Int? = null,
+        val driveMode: Int? = null,
     )
 
     private var elapsedS = 0f
@@ -100,6 +103,7 @@ class TripLog(val header: JSONObject, val mapsArrivalPercent: Int, val startPerc
             x.setTempC?.let { s[4] += it.toDouble(); s[5] += 1.0 }
             x.fanStep?.let { s[6] += it.toDouble(); s[7] += 1.0 }
             x.regenLevel?.let { current.regenLevel = it }
+            x.driveMode?.let { current.driveMode = it }
         }
         if (extras?.acOn == true) current.acOnSeconds += dtS
         if (volts != null && amps != null && volts in 100f..900f && amps in -600f..600f) {
@@ -147,7 +151,7 @@ class TripLog(val header: JSONObject, val mapsArrivalPercent: Int, val startPerc
     class Model(val a: Float, val c: Float, val auxW: Int, val watts: (Float) -> Float)
 
     fun toJson(reason: String? = null): JSONObject = JSONObject(header.toString()).apply {
-        put("schema", 1)
+        put("schema", SCHEMA)
         put("mapsArrivalPercent", mapsArrivalPercent)
         put("startPercent", startPercent.toDouble())
         put("arrivalPercent", arrivalPercent.toDouble())
@@ -180,6 +184,7 @@ class TripLog(val header: JSONObject, val mapsArrivalPercent: Int, val startPerc
                     put("accelWhPerT", s.accelWhPerT.toDouble())
                     put("acOnSeconds", s.acOnSeconds.toDouble())
                     put("regenLevel", s.regenLevel ?: JSONObject.NULL)
+                    put("driveMode", s.driveMode ?: JSONObject.NULL)
                     avg(s.sums, 0)?.let { put("packTempC", it) }
                     avg(s.sums, 2)?.let { put("cabinTempC", it) }
                     avg(s.sums, 4)?.let { put("setTempC", it) }
@@ -218,6 +223,13 @@ class TripLog(val header: JSONObject, val mapsArrivalPercent: Int, val startPerc
         private const val TEMP_STEP_C = 1f
         val SPEED_EDGES = intArrayOf(0, 30, 50, 70, 90, 110, 130)
         private val SPEED_BUCKETS = SPEED_EDGES.size
+
+        /**
+         * Format of the exported file. 1: up to 2.2.7-beta2. 2: climb, pack voltage and current, A/C,
+         * fan, regeneration, the energy spent speeding up (2.2.7-beta3 on), and from 2.2.7-beta16 the
+         * source of the capacity, drive mode, tyre pressures and the model's rolling term.
+         */
+        const val SCHEMA = 2
 
         internal fun bucketOf(speedKmh: Float): Int =
             SPEED_EDGES.indexOfLast { speedKmh >= it }.coerceAtLeast(0)
@@ -260,6 +272,7 @@ class TripLog(val header: JSONObject, val mapsArrivalPercent: Int, val startPerc
                 segment.accelWhPerT = o.optDouble("accelWhPerT", 0.0).toFloat()
                 segment.acOnSeconds = o.optDouble("acOnSeconds", 0.0).toFloat()
                 segment.regenLevel = if (o.has("regenLevel") && !o.isNull("regenLevel")) o.getInt("regenLevel") else null
+                segment.driveMode = if (o.has("driveMode") && !o.isNull("driveMode")) o.getInt("driveMode") else null
                 log.segments += segment
             }
             return log

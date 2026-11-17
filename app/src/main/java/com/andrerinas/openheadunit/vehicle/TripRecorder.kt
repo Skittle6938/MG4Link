@@ -72,7 +72,7 @@ object TripRecorder {
                 ?.takeIf { it.hasAltitude() && System.currentTimeMillis() - it.time < 10_000 }?.altitude
         }.getOrNull()
         val s = slow ?: return altitude?.let { TripLog.Extras(altitudeM = it) }
-        return TripLog.Extras(altitude, s.packTempC, s.cabinTempC, s.setTempC, s.fanStep, s.acOn, s.regenLevel)
+        return TripLog.Extras(altitude, s.packTempC, s.cabinTempC, s.setTempC, s.fanStep, s.acOn, s.regenLevel, s.driveMode)
     }
 
     fun isActive(context: Context): Boolean {
@@ -102,6 +102,21 @@ object TripRecorder {
             put("netKwh", battery.netKwh.toDouble())
             put("sohPercent", battery.sohPercent.toDouble())
             put("sohSource", battery.sohSource.name)
+            // Where the capacity comes from (MANUAL: set by hand; CAR: read from the car or its type;
+            // DEFAULT: a guess) and the energy measured from charging, whatever the settings say.
+            put("netSource", battery.netSource.name)
+            battery.measuredKwh?.let { put("measuredKwh", it.toDouble()) }
+            battery.pack?.let { put("packKwh", it) }
+            // Charge to the tenth from the BMS, or whole percent.
+            put("precisePercent", reading.precisePercent != null)
+            put("modelRolling", Mg4MapsEnergyModel.ROLLING.toDouble())
+            // Tyre pressures (kPa) at the start, front left, front right, rear left, rear right: rolling resistance.
+            put("tireKpa", org.json.JSONArray().also { a ->
+                EVHardware.Wheel.values().forEach { w ->
+                    val kpa = runCatching { EVHardware.getTirePressureKpa(w) }.getOrNull()
+                    if (kpa != null) a.put(kpa.toDouble()) else a.put(JSONObject.NULL)
+                }
+            })
             put("capacitySentKwh", battery.effectiveKwh.toDouble())
             put("mapsModel", settings.mapsEnergyModel)
         }
@@ -139,6 +154,7 @@ object TripRecorder {
                 fanStep = runCatching { EVHardware.getFanSpeed() }.getOrNull()?.takeIf { it in 0..20 },
                 acOn = runCatching { EVHardware.getAcOn() }.getOrNull(),
                 regenLevel = runCatching { EVHardware.getRegenLevel()?.value }.getOrNull(),
+                driveMode = runCatching { EVHardware.getDriveMode()?.value }.getOrNull(),
             )
         }
         val speed = EVHardware.getVehicleSpeedKmh()?.coerceAtLeast(0f) ?: 0f

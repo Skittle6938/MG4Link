@@ -118,7 +118,7 @@
             android:launchMode="singleTask"
             android:resizeableActivity="true"
             android:supportsPictureInPicture="true"
-            android:theme="@style/AppTheme" />
+            android:theme="@style/AppTheme.Projection" />
 
         <activity
             android:name="com.allgo.app.androidauto.ProjectionActivity"
@@ -128,7 +128,7 @@
             android:launchMode="singleTask"
             android:resizeableActivity="true"
             android:supportsPictureInPicture="true"
-            android:theme="@style/AppTheme">
+            android:theme="@style/AppTheme.Projection">
 
         </activity>
 

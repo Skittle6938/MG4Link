@@ -30,7 +30,8 @@ object Mg4MapsEnergyModel {
 
     /** Air drag coefficient at [tempC]. */
     fun c(tempC: Float?): Float = C * airDensityFactor(tempC)
-    private const val ROLLING = 0.0095f
+    /** Rolling resistance coefficient, also written in each recorded trip. */
+    const val ROLLING = 0.0095f
     private const val G = 9.81f
 
     /** Electronics, 12 V and ventilation: what is left with the climate off. */

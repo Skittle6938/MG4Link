@@ -1,3 +1,8 @@
+# MG4Link 2.2.7-beta16
+
+- Returning to Android Auto from the car's home screen (#23): the screen has no window animation any more. It is shown twice within 250 ms on that return, and the car's opening animation seemed to run twice over (black bar and a squashed copy of the picture during the transition).
+- Recorded trips (#14), file format 2: the file also says where the battery capacity comes from (set by hand, read from the car, or a default), the energy measured from charging whatever the settings say, whether the charge is read to the tenth, the drive mode for each part of the trip, the tyre pressures at the start and the rolling term of the model. The format number was 1 up to now, even for the trips with the extra data of 2.2.7-beta3.
+
 # MG4Link 2.2.7-beta15
 
 - Steering wheel next/previous, quick series of clicks (#28): clicks less than 600 ms apart were partly dropped, and the launcher's late copy of a click could reset the window and block the next ones. The wheel's own key now only ignores a repeat within 150 ms (the same press delivered twice), and the launcher's copies are dropped for 1.5 s after a click of the wheel.
