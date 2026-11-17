@@ -1,3 +1,7 @@
+# MG4Link 2.2.7-beta10
+
+- USB after ending Android Auto from the car, or after MG4Link restarted during a USB session: the phone no longer answered on the cable and the connection went wireless, until the phone was unplugged. MG4Link now resets the USB link itself when that happens, as unplugging does, and the phone connects over USB again.
+
 # MG4Link 2.2.7-beta9
 
 - When MG4Link restarts while the phone stays plugged in (after an update, for instance), the phone keeps its previous USB session going and does not answer a new one until it is unplugged: Android Auto goes wireless at once, as before. 2.2.7-beta8 tried to wait for it and took 15 s more.
