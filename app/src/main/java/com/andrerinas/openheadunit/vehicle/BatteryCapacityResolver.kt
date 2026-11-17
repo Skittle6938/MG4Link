@@ -45,6 +45,17 @@ object BatteryCapacityResolver {
     /** What Maps is told while there is no measurement yet: most cars are not new. */
     const val DEFAULT_SOH = 95f
 
+    /**
+     * Points of battery a measurement must rest on before it replaces [DEFAULT_SOH]: three samples.
+     * A single 15-point sample reads anywhere from 88 to 98.5 % on the same car (MG4 Dash's 32
+     * samples on an SWI69, 2026-11-17); one or two of them made a tester's health jump from 91 to
+     * 100 % between trips (#14).
+     */
+    const val MIN_MEASURED_POINTS = 45f
+
+    fun settledMeasurement(samples: List<BatteryCapacityMeter.Sample>): Boolean =
+        samples.sumOf { it.drop.toDouble() } >= MIN_MEASURED_POINTS - 0.5f
+
     fun usableKwh(pack: Int): Float = PACKS.first { it.first == pack }.second
 
     /** The battery whose usable capacity is nearest to [kwh]. */
@@ -135,8 +146,11 @@ object BatteryCapacityResolver {
             manualNetKwh = settings.batteryNetCapacityKwh.takeIf { settings.batteryCapacityManual },
             manualSohPercent = settings.batteryStateOfHealthPercent.takeIf { settings.batterySohManual },
             carKwh = carCapacityKwh(),
-            mg4Dash = Mg4DashBattery.read(context),
-            measuredKwh = BatteryCapacityMeter.capacityKwh(context),
+            mg4Dash = Mg4DashBattery.read(context)?.let { dash ->
+                if (settledMeasurement(dash.samples)) dash else dash.copy(measuredKwh = null)
+            },
+            measuredKwh = BatteryCapacityMeter.capacityKwh(context)
+                ?.takeIf { settledMeasurement(BatteryCapacityMeter.samples(context)) },
             carTypeCode = carBatteryType(),
         ).also {
             val changed = it != lastLogged
