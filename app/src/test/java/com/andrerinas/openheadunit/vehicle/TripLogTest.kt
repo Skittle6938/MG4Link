@@ -96,7 +96,7 @@ class TripLogTest {
     @Test
     fun `the exported file is schema 2 and keeps the header`() {
         val header = JSONObject().put("version", "Standard 51 kWh").put("netSource", "CAR").put("sohSource", "MEASURED")
-            .put("measuredKwh", 58.5).put("precisePercent", true).put("modelRolling", 0.0095)
+            .put("measuredKwh", 58.5).put("precisePercent", true).put("modelRolling", 0.0097)
             .put("tireKpa", org.json.JSONArray().put(250.0).put(250.0).put(JSONObject.NULL).put(240.0))
         val t = TripLog(header, 42, 80f)
         t.tick(10f, 50f, 8_000f, 79f, 10f, false, null)
@@ -111,7 +111,7 @@ class TripLogTest {
         val back = TripLog.fromJson(JSONObject(json.toString())).toJson()
         assertEquals(2, back.getInt("schema"))
         assertEquals("CAR", back.getString("netSource"))
-        assertEquals(0.0095, back.getDouble("modelRolling"), 0.00001)
+        assertEquals(0.0097, back.getDouble("modelRolling"), 0.00001)
     }
 
     @Test

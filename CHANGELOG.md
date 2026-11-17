@@ -1,5 +1,6 @@
 # MG4Link 2.2.7-beta16
 
+- Google Maps consumption model (#14): rolling and air resistance raised 2 % (rolling 0.0097 instead of 0.0095, air 0.424 instead of 0.415). On trips of 30 km or more, the battery gave 2 % more energy than the model; short trips, dominated by the climate and electronics starting up, were left aside.
 - Battery health sent to Google Maps: a measurement (MG4 Dash's or MG4Link's) replaces the default 95 % only once it rests on 3 samples (45 points of battery). One sample alone can read anywhere from 88 to 98 % on the same car, and made the health jump between trips.
 - Battery health: the log now lists the capacity measurements behind it, with date, distance driven, kWh, drop and health, MG4 Dash's and MG4Link's side by side. MG4Link now measures also when MG4 Dash does (MG4 Dash's value is still the one used), so the two can be compared on the same car. While MG4 Dash is being updated, its last value holds instead of the default 95 % for a few seconds.
 - Trip recording back to its earlier thresholds: a trip can be started with at least 10 points of battery to go, and is kept from 8 points used and 10 km (5, 4 and 5 since 2.2.7-beta3). Short trips are dominated by the climate and electronics starting up, and say little about a model Maps applies to whole routes.

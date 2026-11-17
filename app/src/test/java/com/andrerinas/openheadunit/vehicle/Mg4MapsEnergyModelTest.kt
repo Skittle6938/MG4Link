@@ -10,12 +10,12 @@ class Mg4MapsEnergyModelTest {
     @Test
     fun `A matches the spec table`() {
         val std = Mg4Variant.STANDARD
-        assertEquals(159f, Mg4MapsEnergyModel.a(std, 25f), 1f)
-        assertEquals(176f, Mg4MapsEnergyModel.a(std, 15f), 1f)
-        assertEquals(221f, Mg4MapsEnergyModel.a(std, 5f), 1f)
-        assertEquals(290f, Mg4MapsEnergyModel.a(std, -10f), 1f)
-        assertEquals(163f, Mg4MapsEnergyModel.a(Mg4Variant.LONG_RANGE, null), 1f)
-        assertEquals(271f, Mg4MapsEnergyModel.a(Mg4Variant.EXTENDED_RANGE, 0f), 1f)
+        assertEquals(162f, Mg4MapsEnergyModel.a(std, 25f), 1f)
+        assertEquals(180f, Mg4MapsEnergyModel.a(std, 15f), 1f)
+        assertEquals(226f, Mg4MapsEnergyModel.a(std, 5f), 1f)
+        assertEquals(296f, Mg4MapsEnergyModel.a(std, -10f), 1f)
+        assertEquals(166f, Mg4MapsEnergyModel.a(Mg4Variant.LONG_RANGE, null), 1f)
+        assertEquals(277f, Mg4MapsEnergyModel.a(Mg4Variant.EXTENDED_RANGE, 0f), 1f)
     }
 
     @Test
@@ -41,7 +41,7 @@ class Mg4MapsEnergyModelTest {
         val m = Mg4MapsEnergyModel.build(Mg4Variant.STANDARD, -5f, false, t)
         assertTrue(m.aux.all { it.second == 2500 })
         assertEquals(2 * Mg4MapsEnergyModel.a(Mg4Variant.STANDARD, 20f), m.a, 0.1f)
-        assertEquals(0.2075f, m.c, 0.001f)
+        assertEquals(0.212f, m.c, 0.001f)
         assertEquals(20f, m.tempC!!, 0f)
     }
 
@@ -55,9 +55,9 @@ class Mg4MapsEnergyModelTest {
 
     @Test
     fun `cold air is denser and brakes more (#19)`() {
-        assertEquals(0.415f, Mg4MapsEnergyModel.c(20f), 0.001f)
-        assertEquals(0.4455f, Mg4MapsEnergyModel.c(0f), 0.001f)
-        assertEquals(0.4013f, Mg4MapsEnergyModel.c(30f), 0.001f)
-        assertEquals(0.415f, Mg4MapsEnergyModel.c(null), 0.001f)
+        assertEquals(0.424f, Mg4MapsEnergyModel.c(20f), 0.001f)
+        assertEquals(0.4551f, Mg4MapsEnergyModel.c(0f), 0.001f)
+        assertEquals(0.4100f, Mg4MapsEnergyModel.c(30f), 0.001f)
+        assertEquals(0.424f, Mg4MapsEnergyModel.c(null), 0.001f)
     }
 }
