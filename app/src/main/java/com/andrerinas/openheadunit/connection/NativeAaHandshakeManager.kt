@@ -1255,6 +1255,7 @@ class NativeAaHandshakeManager(
                     // until AapService stopped and restarted the manager), and restart the poke,
                     // which was cancelled once the credentials went out.
                     AppLog.w("NativeAA: No WiFi session within ${limit / 1000}s of delivering credentials — keeping the AA listener open and resuming the wake poke.")
+                    AppLog.i("NativeAA: hotspot now: ${CarNetworkQuirks.hotspotNeighbours()}")
                     feed(WppEvent.SettleTimeout)
                 } else {
                     feed(WppEvent.StageTimeout)
