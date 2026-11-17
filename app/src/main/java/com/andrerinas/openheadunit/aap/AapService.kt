@@ -854,6 +854,7 @@ class AapService : Service(), UsbReceiver.Listener {
 
         commManager.onAaMediaMetadata = { meta -> onAaMediaMetadataFromPhone(meta) }
         commManager.onAaPlaybackStatus = { status -> onAaPlaybackStatusFromPhone(status) }
+        commManager.onUsbHandshakeFailed = { device -> resetDeadUsbLink(device) }
         settingsPrefs = getSharedPreferences("settings", MODE_PRIVATE).also { prefs ->
             prefs.registerOnSharedPreferenceChangeListener(settingsPreferenceListener)
         }
@@ -1896,6 +1897,7 @@ class AapService : Service(), UsbReceiver.Listener {
         mediaNotification.cancel()
         commManager.onAaMediaMetadata = null
         commManager.onAaPlaybackStatus = null
+        commManager.onUsbHandshakeFailed = null
         settingsPrefs?.unregisterOnSharedPreferenceChangeListener(settingsPreferenceListener)
         settingsPrefs = null
         nativeAaHandshakeManager?.stop()
@@ -2531,6 +2533,32 @@ class AapService : Service(), UsbReceiver.Listener {
                 delay(2000)
                 if (!commManager.isConnected) checkAlreadyConnectedUsb(force = true)
             }
+        }
+    }
+
+    @Volatile private var lastUsbLinkResetMs = 0L
+
+    /**
+     * The handshake failed with the phone still in accessory mode on the cable: its Android Auto
+     * no longer uses that link (after Android Auto was ended from the car, or MG4Link restarted
+     * during a USB session) or still holds the previous session, and only unplugging the phone
+     * started it again. A bus reset does the same: the phone comes back as a new device, is
+     * switched to accessory mode and connects over USB, ahead of wireless. At most once a minute,
+     * so a phone that does not come back this way cannot loop.
+     */
+    private fun resetDeadUsbLink(device: UsbDevice) {
+        if (!UsbDeviceCompat.isInAccessoryMode(device)) return
+        val now = SystemClock.elapsedRealtime()
+        val name = UsbDeviceCompat(device).uniqueName
+        if (!UsbLinkResetPolicy.mayReset(now, lastUsbLinkResetMs)) {
+            AppLog.i("USB handshake failed on $name again, right after a USB reset: left as it is (unplug the phone)")
+            return
+        }
+        lastUsbLinkResetMs = now
+        serviceScope.launch(Dispatchers.IO) {
+            delay(UsbLinkResetPolicy.SETTLE_MS)
+            AppLog.w("USB handshake failed on $name: the phone no longer uses this cable link - resetting it, as unplugging does")
+            resetAccessoryUsbDevice(device)
         }
     }
 
