@@ -57,7 +57,10 @@ object VehicleEnergyModelEncoder {
         val temp = if (model != null) model.tempC else snapshot.outsideTempC
         cos.writeByteArray(1, encodeBattery(snapshot, temp))
         if (model != null) {
-            cos.writeByteArray(2, encodeRoadLoad(model.a, 0f, model.c))
+            // Battery side: Maps is given no drivetrain or battery loss, and with the force at the
+            // wheels it forecast about what the wheels need, 10 to 15 % less than the battery gave
+            // on daily trips (2.2.7-beta17, to be checked against Maps' arrival %).
+            cos.writeByteArray(2, encodeRoadLoad(model.a / Mg4MapsEnergyModel.DRIVETRAIN, 0f, model.c / Mg4MapsEnergyModel.DRIVETRAIN))
         } else {
             // F ≈ Wh/km · 3.6 N at any speed with B = C = 0.
             cos.writeByteArray(2, encodeRoadLoad((derivedWhPerKm(snapshot) * 3.6f).coerceIn(200f, 900f), 0f, 0f))

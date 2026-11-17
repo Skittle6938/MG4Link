@@ -32,6 +32,9 @@ object Mg4MapsEnergyModel {
 
     /** Air drag coefficient at [tempC]. */
     fun c(tempC: Float?): Float = C * airDensityFactor(tempC)
+    /** Battery to wheels, for the model's battery energy and for what Maps is sent. */
+    const val DRIVETRAIN = 0.88f
+
     /** Rolling resistance coefficient, also written in each recorded trip. */
     const val ROLLING = 0.0097f
     private const val G = 9.81f
