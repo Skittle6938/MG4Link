@@ -26,10 +26,10 @@ object SohHistory {
     }
 
     /** The weighted figure each app uses, as a state of health of [netKwh]. */
-    fun summary(label: String, kwh: Float?, count: Int, netKwh: Float?): String {
+    fun summary(label: String, kwh: Float?, count: Int, netKwh: Float?, points: Float = 0f): String {
         if (kwh == null) return "$label: no measurement"
         val soh = netKwh?.takeIf { it > 0f }?.let { " = soh %.1f %%".format(Locale.US, kwh / it * 100f) } ?: ""
-        return "$label: %.2f kWh%s from %d sample(s)".format(Locale.US, kwh, soh, count)
+        return "$label: %.2f kWh%s from %d sample(s) over %.0f points of battery".format(Locale.US, kwh, soh, count, points)
     }
 
     fun log(context: Context, why: String) {
@@ -39,9 +39,9 @@ object SohHistory {
             val dashSamples = dash?.samples.orEmpty()
             val own = BatteryCapacityMeter.samples(context)
             AppLog.i("$TAG SOH history ($why), net ${net ?: "?"} kWh:")
-            AppLog.i("$TAG   " + summary("MG4 Dash (used when there)", dash?.measuredKwh, dashSamples.size, net))
+            AppLog.i("$TAG   " + summary("MG4 Dash (used when there)", dash?.measuredKwh, dashSamples.size, net, dashSamples.sumOf { it.drop.toDouble() }.toFloat()))
             lines(dashSamples, net).forEach { AppLog.i("$TAG     MG4 Dash $it") }
-            AppLog.i("$TAG   " + summary("MG4Link", BatteryCapacityMeter.capacityKwh(context), own.size, net))
+            AppLog.i("$TAG   " + summary("MG4Link", BatteryCapacityMeter.capacityKwh(context), own.size, net, own.sumOf { it.drop.toDouble() }.toFloat()))
             lines(own, net).forEach { AppLog.i("$TAG     MG4Link $it") }
         }.onFailure { AppLog.w("$TAG SOH history not logged: ${it.message}") }
     }
