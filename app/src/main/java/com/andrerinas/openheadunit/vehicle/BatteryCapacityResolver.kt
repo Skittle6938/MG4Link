@@ -124,6 +124,10 @@ object BatteryCapacityResolver {
     @Volatile private var carReadAt = 0L
     @Volatile private var lastLogged: Resolved? = null
 
+    /** Net capacity last resolved, to give each logged measurement as a state of health. */
+    @Volatile var lastNetKwh: Float? = null
+        private set
+
     /** Values in use now, with the stored manual settings. */
     fun current(context: Context): Resolved {
         val settings = App.provide(context).settings
@@ -134,7 +138,11 @@ object BatteryCapacityResolver {
             mg4Dash = Mg4DashBattery.read(context),
             measuredKwh = BatteryCapacityMeter.capacityKwh(context),
             carTypeCode = carBatteryType(),
-        ).also(::logChange)
+        ).also {
+            val changed = it != lastLogged
+            logChange(it)
+            if (changed) SohHistory.log(context, "battery resolved")
+        }
     }
 
     /** Car capacity, read once; retried every minute while the car has not answered. */
@@ -184,5 +192,6 @@ object BatteryCapacityResolver {
             "$TAG battery net=${resolved.netKwh} kWh (${resolved.netSource}) " +
                 "soh=${resolved.sohPercent} % (${resolved.sohSource}) effective=${resolved.effectiveKwh} kWh",
         )
+        lastNetKwh = resolved.netKwh
     }
 }

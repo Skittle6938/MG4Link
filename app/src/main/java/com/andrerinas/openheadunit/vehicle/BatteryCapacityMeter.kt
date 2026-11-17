@@ -22,7 +22,8 @@ object BatteryCapacityMeter {
     /** Readings further apart than this are a gap, not a stretch of driving. */
     private const val MAX_STEP_MS = 5_000L
 
-    data class Sample(val at: Long, val kwh: Float, val drop: Float)
+    /** One measurement: when, usable kWh, over what drop (%), and the odometer then (km, when it reads). */
+    data class Sample(val at: Long, val kwh: Float, val drop: Float, val km: Float? = null)
 
     private var accKwh = 0f
     private var accDrop = 0f
@@ -64,9 +65,11 @@ object BatteryCapacityMeter {
         }
         val kwh = accKwh / accDrop * 100f
         if (accKwh >= 3f && kwh in 30f..100f) {
-            val list = samples(context) + Sample(System.currentTimeMillis(), kwh, accDrop)
+            val odometer = runCatching { com.evsuite.hardware.EVHardware.getOdometerKm() }.getOrNull()
+            val list = samples(context) + Sample(System.currentTimeMillis(), kwh, accDrop, odometer)
             prefs(context).edit().putString("samples", toJson(list.takeLast(MAX_SAMPLES))).apply()
-            AppLog.i("$TAG capacity sample %.1f kWh over %.1f %%".format(kwh, accDrop))
+            AppLog.i("$TAG capacity sample %.1f kWh over %.1f %% at %s km".format(kwh, accDrop, odometer?.let { "%.0f".format(it) } ?: "?"))
+            SohHistory.log(context, "new MG4Link sample")
         } else {
             AppLog.i("$TAG capacity sample rejected: %.2f kWh for %.1f %%".format(accKwh, accDrop))
         }
@@ -109,14 +112,21 @@ object BatteryCapacityMeter {
     fun samples(context: Context): List<Sample> = try {
         val a = JSONArray(prefs(context).getString("samples", "[]"))
         (0 until a.length()).map { i ->
-            a.getJSONObject(i).let { Sample(it.getLong("t"), it.getDouble("k").toFloat(), it.getDouble("d").toFloat()) }
+            a.getJSONObject(i).let {
+                Sample(it.getLong("t"), it.getDouble("k").toFloat(), it.getDouble("d").toFloat(),
+                    if (it.has("o")) it.getDouble("o").toFloat() else null)
+            }
         }
     } catch (_: Exception) {
         emptyList()
     }
 
     private fun toJson(list: List<Sample>): String = JSONArray().also { a ->
-        list.forEach { a.put(JSONObject().put("t", it.at).put("k", it.kwh.toDouble()).put("d", it.drop.toDouble())) }
+        list.forEach { s ->
+            a.put(JSONObject().put("t", s.at).put("k", s.kwh.toDouble()).put("d", s.drop.toDouble()).also { j ->
+                s.km?.let { j.put("o", it.toDouble()) }
+            })
+        }
     }.toString()
 
     /** Forget the measurement (with the battery reset in Settings). */
