@@ -6,12 +6,12 @@ import com.evsuite.hardware.saic.SaicClimate
 /**
  * When the car was switched on, and its temperatures then, for [StartReserve]. Fed every second
  * while the car is on (whether or not Android Auto is connected); a gap longer than [GAP_MS] means
- * the car was off, and the next reading starts a new drive. The climate counts if it is switched on
- * in the first [CLIMATE_WINDOW_MS], as it often is a few seconds after the start.
+ * the car was off, and the next reading starts a new drive. The climate and its setpoint are read
+ * live for as long as the reserve lasts: switched on or off during the first 15 km or 15 minutes,
+ * the reserve follows.
  */
 object DriveStart {
     private const val GAP_MS = 20 * 60_000L
-    private const val CLIMATE_WINDOW_MS = 2 * 60_000L
 
     @Volatile private var startAtMs = 0L
     @Volatile private var lastSeenMs = 0L
@@ -32,9 +32,6 @@ object DriveStart {
             packC = read { EVHardware.getBatteryTemperatureCelsius() }?.takeIf { it in -40f..80f }
             setC = read { EVHardware.getTemperatureSetCelsius() }?.takeIf { it in 10f..35f }
             climateOn = read { SaicClimate.powerOn() } == true
-        } else if (!climateOn && nowMs - startAtMs < CLIMATE_WINDOW_MS && read { SaicClimate.powerOn() } == true) {
-            climateOn = true
-            setC = read { EVHardware.getTemperatureSetCelsius() }?.takeIf { it in 10f..35f } ?: setC
         }
         if (startOdometerKm == null) startOdometerKm = read { EVHardware.getOdometerKm() }
         lastSeenMs = nowMs
@@ -43,6 +40,9 @@ object DriveStart {
     /** The reserve now; 0 before the first reading. */
     fun reserveWh(nowMs: Long): Int {
         if (startAtMs == 0L) return 0
+        // The climate as it is now, the temperatures as they were at the start.
+        read { SaicClimate.powerOn() }?.let { climateOn = it }
+        read { EVHardware.getTemperatureSetCelsius() }?.takeIf { it in 10f..35f }?.let { setC = it }
         val full = StartReserve.fullWh(climateOn, setC, cabinC, outsideC, packC)
         val odometer = read { EVHardware.getOdometerKm() }
         val start = startOdometerKm
