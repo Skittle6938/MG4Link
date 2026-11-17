@@ -132,4 +132,29 @@ object CarNetworkQuirks {
         AppLog.i("$TAG: arp_ignore=${value ?: "unreadable"} -> ARP wake-up ${if (needed) "needed" else "not needed"}.")
         return needed
     }
+
+    /**
+     * Devices the car knows on the hotspot: the kernel's ARP table for [iface] (IP and whether
+     * the entry is complete), and the hotspot's own arp_ignore. When the phone says it joined but
+     * never connects (#30, SWI132), this tells whether it got an address from the car at all.
+     */
+    fun hotspotNeighbours(iface: String = "ap0"): String {
+        val arpIgnore = runCatching { File("/proc/sys/net/ipv4/conf/$iface/arp_ignore").readText().trim() }.getOrNull()
+        val rows = runCatching {
+            File("/proc/net/arp").readLines().drop(1).mapNotNull { HotspotNeighbours.row(it, iface) }
+        }.getOrNull()
+        return "$iface arp_ignore=${arpIgnore ?: "unreadable"}, neighbours=" +
+            (rows?.let { if (it.isEmpty()) "none" else it.joinToString("; ") } ?: "unreadable")
+    }
+}
+
+/** One line of /proc/net/arp for a given interface, as "IP (complete|incomplete)". */
+object HotspotNeighbours {
+    fun row(line: String, iface: String): String? {
+        val cols = line.trim().split(Regex("\\s+"))
+        if (cols.size < 6 || cols[5] != iface) return null
+        // Flags 0x2 = complete (the MAC is known); 0x0 = asked, never answered.
+        val complete = (cols[2].removePrefix("0x").toIntOrNull(16) ?: 0) and 0x2 != 0
+        return "${cols[0]} (${if (complete) "complete" else "incomplete"})"
+    }
 }
