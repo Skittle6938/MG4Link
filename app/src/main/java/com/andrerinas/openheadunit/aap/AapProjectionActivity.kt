@@ -84,15 +84,9 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
      */
     private var kenBurnsAnimator: ObjectAnimator? = null
 
-    private var initialX = 0f
-    private var initialY = 0f
-    private var isPotentialGesture = false
-    private var isPotentialTopGesture = false
-
-    // 3-finger swipe-down → return to DiAuto main screen
-    private var threeFingerInitialX = 0f
-    private var threeFingerInitialY = 0f
-    private var isPotentialThreeFingerSwipe = false
+    // The touch gestures (top, edges, three fingers) are recognised by TopGestureRecognizer.
+    private val topGestures = TopGestureRecognizer()
+    private var mg4DashStripCached = false
 
     // Activity-local override for fullscreen mode. If non-null, setFullscreen() will use this
     // instead of persisting to Settings. This keeps toggles local to the Activity lifecycle.
@@ -1528,11 +1522,6 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
 
     // MG4 Dash's shortcuts menu over the projection: MG4 Dash lets its top strip through here (so the two and three
     // finger gestures below stay whole) and this activity tells it about a one finger slide down from the very top.
-    private var menuPullCandidate = false
-    private var menuPulling = false
-    private var menuPullDownX = 0f
-    private var menuPullDownY = 0f
-
     /** MG4 Dash installed and enabled (read at each onResume): without it, nothing changes here. */
     private var mg4DashPresent = false
 
@@ -1542,7 +1531,7 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
 
     /** MG4 Dash there and its strip (shortcuts menu, full screen) on: it publishes 1 for that. */
     private fun mg4DashStripOn(): Boolean = mg4DashPresent && try {
-        android.provider.Settings.Global.getInt(contentResolver, "mg4dash_shortcuts_strip", 0) == 1
+        android.provider.Settings.Global.getInt(contentResolver, Mg4DashContract.GLOBAL_SHORTCUTS_STRIP, 0) == 1
     } catch (_: Exception) { false }
 
     /**
@@ -1564,7 +1553,7 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
             val mode = activityFullscreenOverride ?: settings.fullscreenMode
             val immersive = mode == Settings.FullscreenMode.IMMERSIVE && at[1] <= 0
             try {
-                sendBroadcast(Intent("app.mg4dash.LINK_IMMERSIVE").setPackage("app.mg4dash").putExtra("immersive", immersive))
+                sendBroadcast(Intent(Mg4DashContract.ACTION_LINK_IMMERSIVE).setPackage(Mg4DashContract.MG4DASH_PACKAGE).putExtra("immersive", immersive))
             } catch (e: Exception) { AppLog.w("MG4 Dash immersive report: ${e.message}") }
             if (immersive != lastImmersiveReported) {
                 lastImmersiveReported = immersive
@@ -1577,148 +1566,75 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
 
     private fun sendMenuPull(phase: String, dy: Float) {
         try {
-            sendBroadcast(Intent("app.mg4dash.SHORTCUTS_PULL").setPackage("app.mg4dash").putExtra("phase", phase).putExtra("dy", dy))
+            sendBroadcast(Intent(Mg4DashContract.ACTION_SHORTCUTS_PULL).setPackage(Mg4DashContract.MG4DASH_PACKAGE).putExtra("phase", phase).putExtra("dy", dy))
         } catch (e: Exception) { AppLog.w("MG4 Dash menu pull: ${e.message}") }
     }
 
-    /**
-     * One finger from the top 20 px, clearly down (over 40 dp, sideways less than half): MG4 Dash's menu, the touch is
-     * taken back from Android Auto. A second finger at any moment gives it up (two finger gesture from the top).
-     */
-    private fun menuPull(ev: MotionEvent): Boolean {
-        when (ev.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                menuPulling = false
-                menuPullDownX = ev.rawX; menuPullDownY = ev.rawY
-                menuPullCandidate = ev.y <= menuPullEdgePx(ev) && mg4DashStripOn()
-            }
-            MotionEvent.ACTION_POINTER_DOWN -> {
-                if (menuPulling) { sendMenuPull("cancel", 0f); menuPulling = false }
-                menuPullCandidate = false
-            }
-            MotionEvent.ACTION_MOVE -> {
-                val dy = ev.rawY - menuPullDownY
-                if (menuPulling) { sendMenuPull("move", dy); return true }
-                val dx = ev.rawX - menuPullDownX
-                if (menuPullCandidate && ev.pointerCount == 1 && dy > MENU_PULL_DP * resources.displayMetrics.density && abs(dx) < dy * 0.5f) {
-                    menuPulling = true; menuPullCandidate = false
-                    super.dispatchTouchEvent(MotionEvent.obtain(ev).apply { action = MotionEvent.ACTION_CANCEL })
-                    AppLog.i("One finger slide from the top: MG4 Dash's shortcuts menu")
-                    sendMenuPull("begin", dy)
-                    return true
-                }
-            }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                menuPullCandidate = false
-                if (menuPulling) { menuPulling = false; sendMenuPull("end", ev.rawY - menuPullDownY); return true }
-            }
+    private fun toggleFullscreenFromGesture() {
+        // Full screen hides the car's top strip too, as MG4 Dash does; the
+        // other way keeps it and hides only the left bar. Kept for next time.
+        val currentEffective = activityFullscreenOverride ?: settings.fullscreenMode
+        activityFullscreenOverride = null
+        settings.fullscreenMode =
+            if (currentEffective == Settings.FullscreenMode.IMMERSIVE) Settings.FullscreenMode.NAV_ONLY
+            else Settings.FullscreenMode.IMMERSIVE
+        AppLog.i("Two-finger swipe: full screen ${settings.fullscreenMode}")
+        setFullscreen()
+        // The phone draws Android Auto for the height it was given when it
+        // connected; only a new connection makes it use the new height.
+        if (commManager.isConnected) {
+            Toast.makeText(this, R.string.fullscreen_reconnecting, Toast.LENGTH_SHORT).show()
+            reconnectToApply("the new screen height")
         }
-        return menuPulling
     }
 
-    /**
-     * Height of the band the slide must start in, from the top of this window. 20 px when the window
-     * starts at the top of the screen. When the car's status bar sits above it (SWI173: an 80 px bar,
-     * the window from y=80), a finger starting at the very top lands in the bar, which the car keeps,
-     * and reaches this window lower than 20 px in: MG4 Dash's menu never opened there (MG4Dash #113).
-     * The band is then wider, so a slide started on the bar's lower edge counts.
-     */
-    private fun menuPullEdgePx(ev: MotionEvent): Float {
-        val windowTop = ev.rawY - ev.y
-        return if (windowTop > 1f) MENU_PULL_EDGE_BELOW_BAR_PX else MENU_PULL_EDGE_PX.toFloat()
-    }
+    /** The top of the screen is MG4Link's, unless the car's pull-down over Android Auto is switched on. */
+    private fun topOfScreenIsOurs() = !settings.carPullDownOverAndroidAuto
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        if (menuPull(ev)) return true
-        // 1. 2-finger swipe detection from the left or right edge (to open exit menu or toggle fullscreen),
-        // or from the top edge (back to the car's launcher, the session stays up)
-        if (ev.pointerCount == 2) {
-            isPotentialThreeFingerSwipe = false
-            when (ev.actionMasked) {
-                MotionEvent.ACTION_POINTER_DOWN -> {
-                    initialX = ev.getX(0)
-                    initialY = ev.getY(0)
-                    isPotentialGesture = initialX < 100 || initialX > HeadUnitScreenConfig.getUsableWidth() - 100
-                    isPotentialTopGesture = initialY < 100 && ev.getY(1) < 100
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    if (isPotentialTopGesture && ev.getY(0) - initialY > 200 && abs(ev.getX(0) - initialX) < 100) {
-                        isPotentialTopGesture = false
-                        isPotentialGesture = false
-                        AppLog.i("Two-finger swipe from the top: back to the launcher")
-                        moveToBackground()
-                        return true // Consume
-                    }
-                    if (isPotentialGesture) {
-                        val deltaX = ev.getX(0) - initialX
-                        val deltaY = abs(ev.getY(0) - initialY)
-                        if (deltaX > 200 && deltaY < 100) {
-                            isPotentialGesture = false
-                            showExitDialog()
-                            return true // Consume
-                        }
-
-                        if (deltaX < -200 && deltaY < 100) {
-                            isPotentialGesture = false
-                            // Full screen hides the car's top strip too, as MG4 Dash does; the
-                            // other way keeps it and hides only the left bar. Kept for next time.
-                            val currentEffective = activityFullscreenOverride ?: settings.fullscreenMode
-                            activityFullscreenOverride = null
-                            settings.fullscreenMode =
-                                if (currentEffective == Settings.FullscreenMode.IMMERSIVE) Settings.FullscreenMode.NAV_ONLY
-                                else Settings.FullscreenMode.IMMERSIVE
-                            AppLog.i("Two-finger swipe: full screen ${settings.fullscreenMode}")
-                            setFullscreen()
-                            // The phone draws Android Auto for the height it was given when it
-                            // connected; only a new connection makes it use the new height.
-                            if (commManager.isConnected) {
-                                Toast.makeText(this, R.string.fullscreen_reconnecting, Toast.LENGTH_SHORT).show()
-                                reconnectToApply("the new screen height")
-                            }
-                            return true // Consume
-                        }
-                    }
-                }
+        if (ev.actionMasked == MotionEvent.ACTION_DOWN) mg4DashStripCached = mg4DashStripOn()
+        val sample = TopGestureRecognizer.Sample(
+            action = when (ev.actionMasked) {
+                MotionEvent.ACTION_DOWN -> TopGestureRecognizer.Action.DOWN
+                MotionEvent.ACTION_POINTER_DOWN -> TopGestureRecognizer.Action.POINTER_DOWN
+                MotionEvent.ACTION_MOVE -> TopGestureRecognizer.Action.MOVE
+                MotionEvent.ACTION_POINTER_UP -> TopGestureRecognizer.Action.POINTER_UP
+                MotionEvent.ACTION_UP -> TopGestureRecognizer.Action.UP
+                MotionEvent.ACTION_CANCEL -> TopGestureRecognizer.Action.CANCEL
+                else -> TopGestureRecognizer.Action.OTHER
+            },
+            pointerCount = ev.pointerCount,
+            x0 = ev.getX(0), y0 = ev.getY(0),
+            y1 = if (ev.pointerCount > 1) ev.getY(1) else Float.NaN,
+            rawX = ev.rawX, rawY = ev.rawY,
+        )
+        val result = topGestures.onTouch(
+            sample,
+            TopGestureRecognizer.Env(
+                usableWidth = HeadUnitScreenConfig.getUsableWidth(),
+                density = resources.displayMetrics.density,
+                mg4DashStrip = mg4DashStripCached,
+                topGestures = topOfScreenIsOurs(),
+            )
+        )
+        for (event in result.events) when (event.kind) {
+            TopGestureRecognizer.Kind.MENU_PULL_BEGIN -> {
+                super.dispatchTouchEvent(MotionEvent.obtain(ev).apply { action = MotionEvent.ACTION_CANCEL })
+                AppLog.i("One finger slide from the top: MG4 Dash's shortcuts menu")
+                sendMenuPull("begin", event.dy)
             }
+            TopGestureRecognizer.Kind.MENU_PULL_MOVE -> sendMenuPull("move", event.dy)
+            TopGestureRecognizer.Kind.MENU_PULL_END -> sendMenuPull("end", event.dy)
+            TopGestureRecognizer.Kind.MENU_PULL_CANCEL -> sendMenuPull("cancel", 0f)
+            TopGestureRecognizer.Kind.HOME -> {
+                AppLog.i("Two-finger swipe from the top: back to the launcher")
+                moveToBackground()
+            }
+            TopGestureRecognizer.Kind.EXIT_DIALOG -> showExitDialog()
+            TopGestureRecognizer.Kind.TOGGLE_FULLSCREEN -> toggleFullscreenFromGesture()
+            TopGestureRecognizer.Kind.DISCONNECT -> returnToMainScreen()
         }
-
-        // 2. 3-finger swipe down → disconnect and return to DiAuto main screen
-        if (ev.pointerCount >= 3) {
-            isPotentialGesture = false
-            isPotentialTopGesture = false
-            when (ev.actionMasked) {
-                MotionEvent.ACTION_POINTER_DOWN -> {
-                    if (ev.pointerCount == 3) {
-                        threeFingerInitialX = ev.getX(0)
-                        threeFingerInitialY = ev.getY(0)
-                        isPotentialThreeFingerSwipe = true
-                    }
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    if (isPotentialThreeFingerSwipe) {
-                        val deltaY = ev.getY(0) - threeFingerInitialY
-                        val deltaX = abs(ev.getX(0) - threeFingerInitialX)
-                        if (deltaY > 200 && deltaX < 150) {
-                            isPotentialThreeFingerSwipe = false
-                            returnToMainScreen()
-                            return true
-                        }
-                    }
-                }
-                MotionEvent.ACTION_UP,
-                MotionEvent.ACTION_CANCEL -> {
-                    isPotentialThreeFingerSwipe = false
-                }
-            }
-        } else if (ev.pointerCount < 3) {
-            when (ev.actionMasked) {
-                MotionEvent.ACTION_UP,
-                MotionEvent.ACTION_CANCEL,
-                MotionEvent.ACTION_POINTER_UP -> {
-                    isPotentialThreeFingerSwipe = false
-                }
-            }
-        }
+        if (result.consumed) return true
 
         // 3. Legacy Touch handling for older devices (API < 19)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
@@ -2046,10 +1962,7 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
     }
 
     companion object {
-        private const val MENU_PULL_EDGE_PX = 20
-        private const val MENU_PULL_EDGE_BELOW_BAR_PX = 60f
         private const val IMMERSIVE_REPORT_DELAY_MS = 300L
-        private const val MENU_PULL_DP = 40
         /** After the bye-bye, so the service has stopped and re-armed wireless before the call. */
         private const val RECONNECT_POKE_DELAY_MS = 2_500L
         // Settings changes the open projection applies at once (sent by the settings screens).
