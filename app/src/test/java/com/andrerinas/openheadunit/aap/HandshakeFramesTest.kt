@@ -24,11 +24,12 @@ class HandshakeFramesTest {
     }
 
     @Test
-    fun `a frame of the previous session is skipped whole`() {
-        // Encrypted video: the two bytes after the length are the record's own (0x17 0x03).
-        val h = header(3, 0x0b, 5000, 0x1703)
+    fun `a frame of the previous session is told apart`() {
+        // As read on the car after a restart with the phone plugged in: encrypted video.
+        val h = header(6, 0x0b, 8231, 0x1703)
         assertFalse(HandshakeFrames.isTlsHandshake(h))
-        assertEquals(4998, HandshakeFrames.bytesLeft(h))
+        assertTrue(HandshakeFrames.isEncrypted(h))
+        assertFalse(HandshakeFrames.isEncrypted(header(0, 3, 8, 2)))
     }
 
     @Test
