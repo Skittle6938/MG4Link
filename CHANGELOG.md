@@ -1,3 +1,7 @@
+# MG4Link 2.2.7-beta17
+
+- Google Maps battery forecast (#14, #19): the road load sent to Maps is now the one seen from the battery, with the drivetrain losses (rolling and air terms divided by 0.88, +14 %). Maps is given no loss of its own, and with the force at the wheels it forecast about what the wheels need: 10 to 15 % less than the battery really gave on daily trips (16 % for a 50 km motorway trip where 20 % is used). MG4Link's own model, which matches the measured energy, is unchanged. Test build: compare Maps' arrival % with the real one.
+
 # MG4Link 2.2.7-beta16
 
 - Google Maps consumption model (#14): rolling and air resistance raised 2 % (rolling 0.0097 instead of 0.0095, air 0.424 instead of 0.415). On trips of 30 km or more, the battery gave 2 % more energy than the model; short trips, dominated by the climate and electronics starting up, were left aside.

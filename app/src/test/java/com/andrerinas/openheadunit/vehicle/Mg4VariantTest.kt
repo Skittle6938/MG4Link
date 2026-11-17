@@ -57,6 +57,23 @@ class Mg4VariantTest {
         assertEquals(21_680.0 / 47_858.0, 0.453, 0.001)
     }
 
+    @Test
+    fun `Maps gets the road load seen from the battery`() {
+        val model = Mg4MapsEnergyModel.build(Mg4Variant.STANDARD, 8f, true)
+        val bytes = VehicleEnergyModelEncoder.encode(
+            VehicleEnergyModelEncoder.Snapshot(
+                capacityWh = 47_858, currentWh = 21_680, rangeMeters = 136_000,
+                variant = Mg4Variant.STANDARD, outsideTempC = 8f, energyModel = model,
+            ),
+        )
+        val road = fields(fields(bytes).first { it.first == 2 }.second!!)
+        fun value(term: Int): Float = com.google.protobuf.CodedInputStream.newInstance(road.first { it.first == term }.second!!)
+            .let { it.readTag(); it.readFloat() }
+        assertEquals(model.a / Mg4MapsEnergyModel.DRIVETRAIN, value(1), 0.01f)
+        assertEquals(0f, value(2), 0f)
+        assertEquals(model.c / Mg4MapsEnergyModel.DRIVETRAIN, value(3), 0.0001f)
+    }
+
     /** Top-level fields of a protobuf message: number and, for length-delimited ones, their bytes. */
     private fun fields(bytes: ByteArray): List<Pair<Int, ByteArray?>> {
         val input = com.google.protobuf.CodedInputStream.newInstance(bytes)

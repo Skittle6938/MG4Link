@@ -10,7 +10,7 @@ import kotlin.math.roundToInt
  * servers. Battery to wheels is assumed at [DRIVETRAIN].
  */
 object MapsModelTrip {
-    private const val DRIVETRAIN = 0.88f
+    private const val DRIVETRAIN = Mg4MapsEnergyModel.DRIVETRAIN
     private const val MAX_STEP_S = 5f
 
     private var lastAtMs = 0L
