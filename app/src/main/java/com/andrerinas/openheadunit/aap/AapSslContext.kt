@@ -108,26 +108,35 @@ class AapSslContext(keyManager: SingleKeyKeyManager): AapSsl {
      */
     private fun readAapMessage(connection: AccessoryConnection): ByteArray? {
         val header = ByteArray(6)
-        var skipped = 0
+        var skippedFrames = 0
+        var skippedBytes = 0
+        var firstSkipped = ""
         while (true) {
             // Read exactly 6 bytes for the AAP header
             if (connection.recvBlocking(header, 6, 2000, true) != 6) {
                 AppLog.e("SSL Handshake: Failed to read AAP header")
                 return null
             }
-            if (!HandshakeFrames.isLateVersionResponse(header) || skipped >= MAX_LATE_VERSION_RESPONSES) break
-            // The phone answered a repeated version request too: its second answer is not a TLS
-            // record, and handing it to the TLS engine ended the USB handshake with an exception
-            // (the phone, still closing a wireless session, took over 2 s to answer the first).
-            val length = HandshakeFrames.payloadLength(header)
-            if (length < 0 || length > Messages.DEF_BUFFER_LENGTH) break
-            val rest = ByteArray(length)
-            if (length > 0 && connection.recvBlocking(rest, length, 2000, true) != length) {
-                AppLog.e("SSL Handshake: Failed to read a late VERSION_RESPONSE")
+            if (HandshakeFrames.isTlsHandshake(header)) break
+            // Not a TLS handshake frame: the phone's answer to a repeated version request (it took
+            // over 2 s to answer the first while closing a wireless session), or what was still
+            // on its way from the previous USB session. Handing either to the TLS engine ended
+            // the USB handshake, and Android Auto came back wirelessly with the cable plugged in.
+            val left = HandshakeFrames.bytesLeft(header)
+            if (left < 0 || skippedBytes + left > MAX_SKIPPED_BYTES) {
+                AppLog.e("SSL Handshake: no TLS handshake frame after skipping $skippedFrames frame(s), $skippedBytes bytes (${HandshakeFrames.describe(header)})")
                 return null
             }
-            skipped++
-            AppLog.i("SSL Handshake: dropped a second VERSION_RESPONSE (answer to the repeated version request)")
+            if (skippedFrames == 0) firstSkipped = HandshakeFrames.describe(header)
+            if (!skip(connection, left)) {
+                AppLog.e("SSL Handshake: Failed to skip a frame that is not TLS handshake (${HandshakeFrames.describe(header)})")
+                return null
+            }
+            skippedFrames++
+            skippedBytes += 6 + left
+        }
+        if (skippedFrames > 0) {
+            AppLog.i("SSL Handshake: skipped $skippedFrames frame(s), $skippedBytes bytes, that were not TLS handshake (first: $firstSkipped)")
         }
 
         // AAP Header: [0]=Channel, [1]=Flags, [2..3]=Length (Big Endian), [4..5]=Type
@@ -149,6 +158,17 @@ class AapSslContext(keyManager: SingleKeyKeyManager): AapSsl {
         }
 
         return payload
+    }
+
+    private fun skip(connection: AccessoryConnection, count: Int): Boolean {
+        val scratch = ByteArray(minOf(count, Messages.DEF_BUFFER_LENGTH).coerceAtLeast(1))
+        var left = count
+        while (left > 0) {
+            val n = minOf(left, scratch.size)
+            if (connection.recvBlocking(scratch, n, 2000, true) != n) return false
+            left -= n
+        }
+        return true
     }
 
     private fun prepare(): Int {
@@ -356,7 +376,7 @@ class AapSslContext(keyManager: SingleKeyKeyManager): AapSsl {
         // Maximum wall-clock time for the entire SSL handshake loop. Caps worst-case stall at
         // 15 s regardless of how many round-trips remain when the phone stops responding.
         private const val SSL_HANDSHAKE_TIMEOUT_MS = 15_000L
-        private const val MAX_LATE_VERSION_RESPONSES = 2
+        private const val MAX_SKIPPED_BYTES = 4 * 1024 * 1024
 
         private fun createSslContext(keyManager: SingleKeyKeyManager): SSLContext {
             val providerName = ConscryptInitializer.getProviderName()
