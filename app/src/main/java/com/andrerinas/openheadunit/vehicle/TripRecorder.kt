@@ -63,10 +63,13 @@ object TripRecorder {
     /** The slow readings, with the GPS altitude of this second (no position is kept). */
     @android.annotation.SuppressLint("MissingPermission")
     private fun extras(context: Context): TripLog.Extras? {
-        val altitude = runCatching {
+        // The fixes MG4Link already receives for Android Auto; the last known location of the
+        // provider was too old on the car to be used (climb stayed 0, #19).
+        val fresh = android.os.SystemClock.elapsedRealtime() - com.andrerinas.openheadunit.location.GpsAltitude.lastAltitudeAtMs < 10_000
+        val altitude = if (fresh) com.andrerinas.openheadunit.location.GpsAltitude.lastAltitudeM else runCatching {
             val lm = context.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
             lm.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
-                ?.takeIf { it.hasAltitude() && System.currentTimeMillis() - it.time < 5_000 }?.altitude
+                ?.takeIf { it.hasAltitude() && System.currentTimeMillis() - it.time < 10_000 }?.altitude
         }.getOrNull()
         val s = slow ?: return altitude?.let { TripLog.Extras(altitudeM = it) }
         return TripLog.Extras(altitude, s.packTempC, s.cabinTempC, s.setTempC, s.fanStep, s.acOn, s.regenLevel)

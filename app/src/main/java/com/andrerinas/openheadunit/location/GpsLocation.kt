@@ -105,6 +105,10 @@ class GpsLocation constructor(private val context: Context): LocationListener {
         if (!requested) {
             return
         }
+        if (location.hasAltitude()) {
+            GpsAltitude.lastAltitudeM = location.altitude
+            GpsAltitude.lastAltitudeAtMs = SystemClock.elapsedRealtime()
+        }
         // Once per subscription, and carrying no position: without it a head unit whose antenna is
         // not connected is indistinguishable from a working one in a log. It passes every gate in
         // start() - the provider exists and is enabled - and then simply never locks, so the only
@@ -161,4 +165,11 @@ class GpsLocation constructor(private val context: Context): LocationListener {
         /** How stale the last real fix may be before a resend stops standing in for it. */
         const val RESEND_MAX_AGE_MS = 60_000L
     }
+
+}
+
+/** Altitude of the last GPS fix, for the trip recordings' climb (no position is kept). */
+object GpsAltitude {
+    @Volatile var lastAltitudeM: Double? = null
+    @Volatile var lastAltitudeAtMs = 0L
 }
