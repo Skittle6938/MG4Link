@@ -1,3 +1,7 @@
+# MG4Link 2.2.7-beta8
+
+- USB connection when MG4Link restarts while the phone stays plugged in (after an update, for instance): what was still on its way from the previous session ended the new connection, and Android Auto came back wirelessly. It is now set aside, as the extra answer of 2.2.7-beta7.
+
 # MG4Link 2.2.7-beta7
 
 - Plugging the phone in while Android Auto runs wirelessly: when the phone took more than 2 s to answer (it was still closing the wireless session), MG4Link asked again and the phone answered twice. The second answer ended the USB connection, and Android Auto came back wirelessly with the cable plugged in. The extra answer is now ignored.
