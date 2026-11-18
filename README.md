@@ -124,9 +124,10 @@ internet over Bluetooth is not possible on the MG4: its Bluetooth stack has no n
 <p align="center"><img src="docs/screenshots/settings_display.png" width="800" alt="Settings, Display tab"></p>
 
 ### Privacy
-MG4Link sends no data anywhere: its only Internet access is checking this repository for updates.
-Wireless Android Auto only accepts a phone on the car's own hotspot. Logs stay on the car unless you
-export them, and contain no destinations, road names, GPS position, or phone and Wi-Fi names.
+No account, no advertising, no analytics. MG4Link goes online for update checks, for ABRP if you
+turn it on (it sends the car's position and charge), and for a crash report only when you tap
+*Send*; [PRIVACY.md](PRIVACY.md) lists exactly what goes where. Wireless Android Auto only accepts a
+phone on the car's own hotspot. Logs stay on the car unless you export or send them.
 
 ## Gestures over Android Auto
 
