@@ -1,11 +1,13 @@
 package com.andrerinas.openheadunit.decoder
 
-import android.util.SparseArray
+import java.util.concurrent.ConcurrentHashMap
 import com.andrerinas.openheadunit.utils.AppLog
 
 class AudioDecoder {
 
-    private val audioTracks = SparseArray<AudioTrackWrapper>(3)
+    // Read on the AAP poll thread, written from it, from disconnect and from the service:
+    // SparseArray is not safe for that, and a concurrent insert can hand back another channel's track.
+    private val audioTracks = ConcurrentHashMap<Int, AudioTrackWrapper>(4)
 
     fun getTrack(channel: Int): AudioTrackWrapper? {
         return audioTracks.get(channel)
@@ -26,15 +28,13 @@ class AudioDecoder {
     }
 
     fun stop() {
-        for (i in 0 until audioTracks.size()) {
-            stop(audioTracks.keyAt(i))
+        for (chan in audioTracks.keys.toList()) {
+            stop(chan)
         }
     }
 
     fun stop(chan: Int) {
-        val audioTrack = audioTracks.get(chan)
-        audioTrack?.stopPlayback()
-        audioTracks.put(chan, null)
+        audioTracks.remove(chan)?.stopPlayback()
     }
 
     fun start(

@@ -23,8 +23,8 @@ object LogExporter {
         SILENT("", Int.MAX_VALUE)
     }
 
-    private var captureProcess: Process? = null
-    private var captureThread: Thread? = null
+    @Volatile private var captureProcess: Process? = null
+    @Volatile private var captureThread: Thread? = null
     private var captureFile: File? = null
     private var captureVerbosity: LogLevel = LogLevel.DEBUG
     private var captureRestarts = 0
@@ -132,7 +132,9 @@ object LogExporter {
                     captureRestarts++
                     AppLog.w("Log capture process exited, restarting (attempt $captureRestarts/$MAX_RESTARTS)")
                     try { Thread.sleep(2000) } catch (_: InterruptedException) { return@Thread }
-                    launchLogcatPipe(file, verbosity)
+                    // stopCapture() may have run during the sleep: a restart then would leave a
+                    // logcat running that nothing stops.
+                    if (captureProcess === process) launchLogcatPipe(file, verbosity)
                 }
             }.also { it.isDaemon = true; it.start() }
         } catch (e: IOException) {
@@ -143,8 +145,12 @@ object LogExporter {
 
     /** Stops the continuous capture process. */
     fun stopCapture() {
-        captureProcess?.destroy()
+        // Cleared before destroy(): the reader thread restarts a capture whose process is still
+        // the current one, and destroy() ends its read loop at once.
+        val process = captureProcess
         captureProcess = null
+        process?.destroy()
+        captureThread?.interrupt()
         captureThread?.join(2000)
         captureThread = null
     }
