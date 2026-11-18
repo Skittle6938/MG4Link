@@ -19,12 +19,6 @@ object WirelessPeerPolicy {
         // Phone builds are desk tests over any network.
         if (BuildConfig.FLAVOR != "car") return true
         val local = socket.localAddress ?: return false
-        // Over IPv6 only the hotspot's link-local address is listened on (#30, HotspotIpv6).
-        if (local is java.net.Inet6Address && local.isLinkLocalAddress && socket.inetAddress is java.net.Inet6Address) {
-            val v6iface = local.scopedInterface?.name
-                ?: try { NetworkInterface.getByInetAddress(local)?.name } catch (_: Exception) { null } ?: return false
-            return AP_PREFIXES.any { v6iface.startsWith(it) }
-        }
         if (local !is Inet4Address || socket.inetAddress !is Inet4Address) return false
         val iface = try { NetworkInterface.getByInetAddress(local)?.name } catch (_: Exception) { null } ?: return false
         return AP_PREFIXES.any { iface.startsWith(it) }

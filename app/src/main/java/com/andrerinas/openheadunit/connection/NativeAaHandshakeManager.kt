@@ -1021,7 +1021,6 @@ class NativeAaHandshakeManager(
         handshakeStartedAt = SystemClock.elapsedRealtime()
         if (previousSocket != null && previousSocket !== socket) {
             AppLog.i("NativeAA: A new handshake arrived while one was still settling — closing the previous session.")
-            HotspotIpv6.attemptFailed(context)
             AppLog.i("NativeAA: hotspot now: ${CarNetworkQuirks.hotspotNeighbours()}")
             handoffSettlingSince = 0L
             // Cancel *and* close, in that order: see activeHandshakeJob. Cancelling first means
@@ -1102,10 +1101,8 @@ class NativeAaHandshakeManager(
                         spokeToPhone = true
                     }
                     WppAction.SendStartRequest -> {
-                        val advertised = HotspotIpv6.advertisedHost(context, credIp)
-                        AppLog.i("NativeAA: [TX] Sending WifiStartRequest (Type 1)" +
-                            if (advertised != credIp) " with the hotspot's IPv6 address $advertised (#30)" else "")
-                        sendWifiStartRequest(output, advertised, context.wirelessPort)
+                        AppLog.i("NativeAA: [TX] Sending WifiStartRequest (Type 1)")
+                        sendWifiStartRequest(output, credIp, context.wirelessPort)
                         spokeToPhone = true
                     }
                     WppAction.SendInfoResponse -> {
@@ -1259,7 +1256,6 @@ class NativeAaHandshakeManager(
                     // until AapService stopped and restarted the manager), and restart the poke,
                     // which was cancelled once the credentials went out.
                     AppLog.w("NativeAA: No WiFi session within ${limit / 1000}s of delivering credentials — keeping the AA listener open and resuming the wake poke.")
-                    HotspotIpv6.attemptFailed(context)
                     AppLog.i("NativeAA: hotspot now: ${CarNetworkQuirks.hotspotNeighbours()}")
                     feed(WppEvent.SettleTimeout)
                 } else {
