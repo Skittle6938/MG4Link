@@ -3366,38 +3366,17 @@ class AapService : Service(), UsbReceiver.Listener {
                     )
                     logLocalNetworkInterfaces()
 
-                    while (isActive) {
-                        AppLog.d("WirelessServer: Waiting for TCP connection on $hostLabel:${wirelessPort}...")
-                        val clientSocket = serverSocket?.accept() ?: break
-                        AppLog.i("WirelessServer: Incoming connection detected from ${clientSocket.inetAddress}")
-                        com.andrerinas.openheadunit.connection.ArpNudger.stop()
-                        if (!com.andrerinas.openheadunit.connection.WirelessPeerPolicy.allowed(clientSocket)) {
-                            AppLog.w("WirelessServer: refusing a connection that did not come through the car's access point (interface " +
-                                com.andrerinas.openheadunit.connection.WirelessPeerPolicy.interfaceOf(clientSocket) + ")")
-                            try { clientSocket.close() } catch (e: Exception) {}
-                            continue
+                    // The same port on the hotspot's IPv6 link-local address, for cars that answer
+                    // no ARP (#30): the phone is then given that address (HotspotIpv6).
+                    val ipv6Server = if (bindHost != null) startIpv6Listener(listenPort, this) else null
+                    try {
+                        while (isActive) {
+                            AppLog.d("WirelessServer: Waiting for TCP connection on $hostLabel:${wirelessPort}...")
+                            val clientSocket = serverSocket?.accept() ?: break
+                            handleClient(clientSocket)
                         }
-                        serviceScope.launch {
-                            if (commManager.isBusy || isSwitchingToAccessory.get() || preemptingWirelessForUsb) {
-                                AppLog.w(
-                                    "WirelessServer: Busy/USB-preempt, dropping client from " +
-                                        "${clientSocket.inetAddress} (state=${commManager.connectionState.value})"
-                                )
-                                withContext(Dispatchers.IO) {
-                                    try { clientSocket.close() } catch (e: Exception) {}
-                                }
-                            } else if (android.os.SystemClock.elapsedRealtime() < userExitCooldownUntil) {
-                                // [FIX] User just exited AA — reject the instant reconnection.
-                                AppLog.w("WirelessServer: Rejecting connection from ${clientSocket.inetAddress} — user exit cooldown active (${userExitCooldownUntil - android.os.SystemClock.elapsedRealtime()}ms remaining)")
-                                withContext(Dispatchers.IO) {
-                                    try { clientSocket.close() } catch (e: Exception) {}
-                                }
-                            } else {
-                                AppLog.i("WirelessServer: Accepted client connection from ${clientSocket.inetAddress}. Passing to CommManager...")
-                                userExitedAA = false // Clear flag on genuine new connection
-                                commManager.connect(clientSocket)
-                            }
-                        }
+                    } finally {
+                        try { ipv6Server?.close() } catch (_: Exception) {}
                     }
                 } catch (e: Exception) {
                     // The cancelled branch used to be silent, which made a server that was torn
@@ -3411,6 +3390,70 @@ class AapService : Service(), UsbReceiver.Listener {
                     try { serverSocket?.close() } catch (e: Exception) {}
                 }
             }
+        }
+
+        private fun startIpv6Listener(port: Int, scope: CoroutineScope): ServerSocket? {
+            if (!com.andrerinas.openheadunit.connection.HotspotIpv6.enabled(this@AapService)) return null
+            val addr = com.andrerinas.openheadunit.connection.HotspotIpv6.listenAddress() ?: run {
+                AppLog.w("WirelessServer: the hotspot has no IPv6 link-local address, IPv4 only")
+                return null
+            }
+            val server = try {
+                ServerSocket().apply {
+                    reuseAddress = true
+                    bind(java.net.InetSocketAddress(addr, port))
+                }
+            } catch (e: Exception) {
+                AppLog.w("WirelessServer: [${addr.hostAddress}]:$port did not bind (${e.javaClass.simpleName}: ${e.message}), IPv4 only")
+                return null
+            }
+            AppLog.i("WirelessServer: also listening on [${addr.hostAddress}]:$port (#30)")
+            scope.launch {
+                try {
+                    while (isActive) {
+                        val clientSocket = server.accept()
+                        AppLog.i("WirelessServer: connection over IPv6 from ${clientSocket.inetAddress}")
+                        handleClient(clientSocket)
+                    }
+                } catch (e: Exception) {
+                    if (isActive) AppLog.w("WirelessServer: IPv6 listener stopped (${e.javaClass.simpleName}: ${e.message})")
+                }
+            }
+            return server
+        }
+
+        private fun handleClient(clientSocket: java.net.Socket) {
+                AppLog.i("WirelessServer: Incoming connection detected from ${clientSocket.inetAddress}")
+                com.andrerinas.openheadunit.connection.ArpNudger.stop()
+                if (!com.andrerinas.openheadunit.connection.WirelessPeerPolicy.allowed(clientSocket)) {
+                    AppLog.w("WirelessServer: refusing a connection that did not come through the car's access point (interface " +
+                        com.andrerinas.openheadunit.connection.WirelessPeerPolicy.interfaceOf(clientSocket) + ")")
+                    try { clientSocket.close() } catch (e: Exception) {}
+                    return
+                }
+                serviceScope.launch {
+                    if (commManager.isBusy || isSwitchingToAccessory.get() || preemptingWirelessForUsb) {
+                        AppLog.w(
+                            "WirelessServer: Busy/USB-preempt, dropping client from " +
+                                "${clientSocket.inetAddress} (state=${commManager.connectionState.value})"
+                        )
+                        withContext(Dispatchers.IO) {
+                            try { clientSocket.close() } catch (e: Exception) {}
+                        }
+                    } else if (android.os.SystemClock.elapsedRealtime() < userExitCooldownUntil) {
+                        // [FIX] User just exited AA — reject the instant reconnection.
+                        AppLog.w("WirelessServer: Rejecting connection from ${clientSocket.inetAddress} — user exit cooldown active (${userExitCooldownUntil - android.os.SystemClock.elapsedRealtime()}ms remaining)")
+                        withContext(Dispatchers.IO) {
+                            try { clientSocket.close() } catch (e: Exception) {}
+                        }
+                    } else {
+                        AppLog.i("WirelessServer: Accepted client connection from ${clientSocket.inetAddress}. Passing to CommManager...")
+                        com.andrerinas.openheadunit.connection.HotspotIpv6.connected(
+                            this@AapService, clientSocket.localAddress is java.net.Inet6Address)
+                        userExitedAA = false // Clear flag on genuine new connection
+                        commManager.connect(clientSocket)
+                    }
+                }
         }
 
         /** Logs all non-loopback IPv4 addresses; useful for debugging connectivity issues. */

@@ -1,3 +1,7 @@
+# MG4Link 2.2.7-beta23
+
+- Wireless on cars whose head unit answers no ARP request (#30: the phone's connection fails with "No route to host"): MG4Link also listens on the hotspot's IPv6 link-local address, which the car's ARP setting and firewall leave alone. On those cars, when the phone gives up on an attempt, the next one gives it the IPv6 address instead (and the other way round), and the one that connects is used first from then on. Other cars are unchanged.
+
 # MG4Link 2.2.7-beta22
 
 - USB with phones or tablets that take the 1080p picture and never send it (#31: "Communication error 7" on the phone): when no picture comes within 10 seconds of the video being set up, MG4Link remembers the device, ends the session and reconnects asking it for 720p, and asks that device for 720p from then on.
