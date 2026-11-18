@@ -252,6 +252,11 @@ class CommManager(
 
         lastAttemptedEndpoint = null
         usbDevice = device
+        com.andrerinas.openheadunit.aap.UsbVideoFallback.sessionStarting(
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP)
+                com.andrerinas.openheadunit.aap.UsbVideoFallback.key(device.manufacturerName, device.productName)
+            else null
+        )
 
         val usbManager = context.getSystemService(Context.USB_SERVICE) as UsbManager
         if (!usbManager.hasPermission(device)) {
@@ -293,6 +298,7 @@ class CommManager(
      * sets up the AAP framing layer.
      */
     suspend fun connect(socket: Socket) = withContext(Dispatchers.IO) {
+        com.andrerinas.openheadunit.aap.UsbVideoFallback.sessionStarting(null)
         // Another caller already started the connection — do nothing.
         if (_connectionState.value is ConnectionState.Connecting) {
             // [BUG_FIX] But close what we are refusing. A socket handed to connect() has no

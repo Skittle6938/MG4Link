@@ -72,6 +72,11 @@ class Settings(private val context: Context) {
         get() = prefs.getInt("resolutionId", Resolution._1920x1080.id)
         set(value) = prefs.edit().putInt("resolutionId", value).apply()
 
+    /** USB devices that sent no picture at 1080p and are asked for 720p (#31), by "Manufacturer Product". */
+    var usb720pDevices: Set<String>
+        get() = prefs.getStringSet("usb-720p-devices", emptySet())?.toSet() ?: emptySet()
+        set(value) = prefs.edit().putStringSet("usb-720p-devices", HashSet(value)).apply()
+
     // Flag to determine if the projection should stretch and ignore aspect ratio to fill the screen.
     // Key renamed so upgrades reset to off (letterbox) instead of keeping the old default-on.
     var stretchToFill: Boolean

@@ -309,6 +309,14 @@ object HeadUnitScreenConfig {
         if (pixelsOf(negotiatedResolutionType) > pixelsOf(panelCeiling)) {
             negotiatedResolutionType = panelCeiling
         }
+        // A USB device that sent no picture at a higher size is asked for 720p (#31).
+        if (!isResolutionLocked && com.andrerinas.openheadunit.aap.UsbVideoFallback.capActive(currentSettings.usb720pDevices)) {
+            val cap720 = protoForResolution(Settings.Resolution._1280x720, isPortraitDisplay)
+            if (pixelsOf(negotiatedResolutionType) > pixelsOf(cap720)) {
+                AppLog.i("[RES_CAP] ${com.andrerinas.openheadunit.aap.UsbVideoFallback.currentDevice} sent no picture at a higher size before: asking for 720p")
+                negotiatedResolutionType = cap720
+            }
+        }
         AppLog.i(
             "[RES_CAP] resolutionId=${currentSettings.resolutionId} " +
                 "realScreen=${realScreenWidthPx}x${realScreenHeightPx} usable=${screenWidthPx}x${screenHeightPx} " +
@@ -515,6 +523,7 @@ object HeadUnitScreenConfig {
     fun computeSettingsHash(settings: Settings): Int {
         var hash = 17
         hash = 31 * hash + settings.resolutionId
+        hash = 31 * hash + if (com.andrerinas.openheadunit.aap.UsbVideoFallback.capActive(settings.usb720pDevices)) 1 else 0
         hash = 31 * hash + settings.dpiPixelDensity
         hash = 31 * hash + settings.pixelAspectRatioE4
         hash = 31 * hash + settings.insetLeft
