@@ -769,8 +769,9 @@ class DaSettingsActivity : BaseActivity() {
     }
 
     /**
-     * The current log file, copied to Download/ and, when a USB stick is plugged in, onto the
-     * stick, which is where it has to end up to leave the car.
+     * Onto a USB stick when one is plugged in (the last five logs: the one of a failed attempt is
+     * often not the current one), which is where they have to end up to leave the car. Without a
+     * stick, the current log is copied to Download/, keeping only the last few exported copies.
      */
     private fun exportLogs() {
         val source = AppLog.currentLogFile ?: AppLog.lastLogFile
@@ -778,19 +779,26 @@ class DaSettingsActivity : BaseActivity() {
             Toast.makeText(this, R.string.dset_logs_none, Toast.LENGTH_LONG).show()
             return
         }
-        val name = "MG4Link-" + source.name
-        val target = runCatching {
-            @Suppress("DEPRECATION")
-            val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            File(dir, name).also { source.copyTo(it, overwrite = true) }
-        }.getOrNull()
-        // On the stick, the last few logs: the one of a failed attempt is often not the current one.
         val recent = (source.parentFile?.listFiles { f -> f.isFile && f.name.endsWith(".txt") }.orEmpty().toList() + source)
             .distinct().sortedByDescending { it.lastModified() }.take(5)
         val onStick = com.andrerinas.openheadunit.utils.UsbStickExport.copyToStick(
-            this, recent.map { "MG4Link-" + it.name to it })
+            this, recent.map { EXPORT_PREFIX + it.name to it })
+        val target = onStick ?: runCatching {
+            @Suppress("DEPRECATION")
+            val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            File(dir, EXPORT_PREFIX + source.name).also {
+                source.copyTo(it, overwrite = true)
+                pruneExports(dir)
+            }
+        }.getOrNull()
         Toast.makeText(this,
-            getString(R.string.dset_logs_saved, (onStick ?: target ?: source).absolutePath), Toast.LENGTH_LONG).show()
+            getString(R.string.dset_logs_saved, (target ?: source).absolutePath), Toast.LENGTH_LONG).show()
+    }
+
+    /** Exported copies in [dir] beyond the newest [KEEP_EXPORTS] are deleted. */
+    private fun pruneExports(dir: File) {
+        dir.listFiles { f -> f.isFile && f.name.startsWith(EXPORT_PREFIX) }.orEmpty()
+            .sortedByDescending { it.lastModified() }.drop(KEEP_EXPORTS).forEach { it.delete() }
     }
 
     // --- Rows and controls --------------------------------------------------------------------
@@ -969,6 +977,8 @@ class DaSettingsActivity : BaseActivity() {
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
     companion object {
+        private const val EXPORT_PREFIX = "MG4Link-"
+        private const val KEEP_EXPORTS = 3
         private const val BATTERY_RECHECK_MS = 3_000L
         private const val MG4DASH = "app.mg4dash"
 
