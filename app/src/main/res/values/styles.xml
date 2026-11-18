@@ -16,11 +16,10 @@
         <item name="materialAlertDialogTheme">@style/DarkAlertDialog</item>
     </style>
 
-    <!-- The Android Auto screen: no window animation. Coming back from the car's home screen shows it
-         twice in 250 ms, and the car's opening animation then ran twice over (#23). -->
-    <style name="AppTheme.Projection" parent="AppTheme">
-        <item name="android:windowAnimationStyle">@null</item>
-    </style>
+    <!-- The Android Auto screen keeps the system window animation (#23: removed in 2.2.7-beta16, it
+         made the return from the car's 360° camera an abrupt cut; the squished frames it was meant to
+         hide are handled by the decoder since 2.2.7-beta23). -->
+    <style name="AppTheme.Projection" parent="AppTheme" />
 
     <style name="AppTheme.Translucent" parent="android:Theme.Translucent.NoTitleBar" />
 
