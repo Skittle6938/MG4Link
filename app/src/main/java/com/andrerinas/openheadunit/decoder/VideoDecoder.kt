@@ -37,6 +37,8 @@ class VideoDecoder(
     ),
 ) {
     companion object {
+        /** Longest the frames of an unpark wait for the view's new scale (#23). */
+        private const val RESCALE_HOLD_MAX_MS = 300L
         private const val TIMEOUT_US = 10000L
         private const val MAX_RESTARTS_WITHOUT_FRAME = 3
 
@@ -209,6 +211,14 @@ class VideoDecoder(
      * the old scale and half at the new one (#23). Dropped if a newer frame comes first.
      */
     @Volatile private var deferredFrame: Pair<MediaCodec, Int>? = null
+    /**
+     * Set from an unpark until [showDeferredFrame]: the frames the phone keeps sending in the
+     * meantime are held too, the newest replacing the previous one, or they reach the surface
+     * before its new scale and show squished (#23, beta20). Given up after [RESCALE_HOLD_MAX_MS]
+     * so a lost callback cannot freeze the picture.
+     */
+    @Volatile private var holdingForRescale = false
+    @Volatile private var holdingSinceMs = 0L
     // Set when an unpark had no frame to show, so the log says how long the screen stayed empty.
     @Volatile private var unparkedWithoutFrameAtMs = 0L
     private var outputThread: Thread? = null
@@ -552,9 +562,11 @@ class VideoDecoder(
                     val shown = synchronized(parkHoldLock) {
                         val held = heldParkedFrame
                         heldParkedFrame = null
-                        val ok = if (deferHeldFrame && held != null && held.first === current) {
-                            deferredFrame = held
-                            true
+                        val ok = if (deferHeldFrame) {
+                            holdingForRescale = true
+                            holdingSinceMs = SystemClock.elapsedRealtime()
+                            deferredFrame = held?.takeIf { it.first === current }
+                            deferredFrame != null
                         } else {
                             held != null && held.first === current &&
                                 runCatching { current.releaseOutputBuffer(held.second, true) }.isSuccess
@@ -572,8 +584,9 @@ class VideoDecoder(
                     unparkedWithoutFrameAtMs = if (shown) 0L else SystemClock.elapsedRealtime()
                     AppLog.i(
                         "Decoder unparked onto the new surface: " + when {
+                            deferHeldFrame -> "frames held until the view is rescaled" +
+                                if (shown) "" else " (no frame yet)"
                             !shown -> "no held frame, waiting for the next one"
-                            deferredFrame != null -> "last frame shown once the view is rescaled"
                             else -> "last frame shown at once"
                         }
                     )
@@ -602,6 +615,7 @@ class VideoDecoder(
     /** Shows the frame kept back by [setSurface], unless a newer one was shown meanwhile. */
     fun showDeferredFrame() {
         synchronized(parkHoldLock) {
+            holdingForRescale = false
             val frame = deferredFrame ?: return
             deferredFrame = null
             if (frame.first === codec) runCatching { frame.first.releaseOutputBuffer(frame.second, true) }
@@ -652,7 +666,7 @@ class VideoDecoder(
             // surface goes with it, or every restart configures onto a released surface and fails
             // (error -19 twenty times a second, each asking the phone for a keyframe; 2026-10-28).
             val parkedSurface = if (parked) mSurface else null
-            synchronized(parkHoldLock) { heldParkedFrame = null; deferredFrame = null }
+            synchronized(parkHoldLock) { heldParkedFrame = null; deferredFrame = null; holdingForRescale = false }
             try {
                 // If calling from output thread, don't join itself to avoid deadlock
                 if (outputThread != null && outputThread != Thread.currentThread()) {
@@ -1845,6 +1859,22 @@ class VideoDecoder(
                             codec.releaseOutputBuffer(previous.second, false)
                         }
                         return true
+                    }
+                }
+            }
+            // Just unparked: until the view has its new scale, the newest frame waits (#23).
+            if (holdingForRescale) {
+                synchronized(parkHoldLock) {
+                    if (holdingForRescale) {
+                        if (SystemClock.elapsedRealtime() - holdingSinceMs < RESCALE_HOLD_MAX_MS) {
+                            val previous = deferredFrame
+                            deferredFrame = codec to index
+                            if (previous != null && previous.first === codec) {
+                                runCatching { codec.releaseOutputBuffer(previous.second, false) }
+                            }
+                            return true
+                        }
+                        holdingForRescale = false
                     }
                 }
             }
