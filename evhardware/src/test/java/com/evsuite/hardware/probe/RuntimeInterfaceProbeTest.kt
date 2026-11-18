@@ -91,4 +91,35 @@ class RuntimeInterfaceProbeTest {
         val calls = RuntimeInterfaceProbe.CONFIG_CALLS
         assertEquals(calls.size, calls.values.map { it.code }.toSet().size)
     }
+
+    @Test
+    fun `the component map keeps the manifest's words and says when it stopped listing`() {
+        val rows = (0 until RuntimeInterfaceProbe.MAX_COMPONENT_SERVICES + 3).map {
+            RuntimeInterfaceProbe.ServiceRow("com.saicmotor.x.Service$it", it == 0, null)
+        }
+        val entry = RuntimeInterfaceProbe.componentEntry("com.saicmotor.x", rows)
+        assertEquals("componentMap:com.saicmotor.x", entry.name)
+        assertEquals(BindVerdict.ANSWERED, entry.verdict)
+        assertEquals((rows.size).toString(), entry.values["services"])
+        assertEquals("exported=true permission=null", entry.values["com.saicmotor.x.Service0"])
+        assertEquals("3", entry.values["truncated"])
+        assertEquals(RuntimeInterfaceProbe.MAX_COMPONENT_SERVICES + 2, entry.values.size)
+    }
+
+    @Test
+    fun `a package that declares no service was still read`() {
+        val entry = RuntimeInterfaceProbe.componentEntry("com.saicmotor.y", emptyList())
+        assertEquals(BindVerdict.ANSWERED, entry.verdict)
+        assertEquals(mapOf("services" to "0"), entry.values)
+    }
+
+    @Test
+    fun `the head unit serial leaves the car as a length, never as its value`() {
+        assertEquals(
+            "redacted (15 chars)",
+            RuntimeInterfaceProbe.redactSerial("getProductSerialNum", " 7XXXXXXXXXXXXXX"),
+        )
+        assertEquals(null, RuntimeInterfaceProbe.redactSerial("getProductSerialNum", null))
+        assertEquals("11-95-8-58-1", RuntimeInterfaceProbe.redactSerial("getSoftwarePartNum", "11-95-8-58-1"))
+    }
 }

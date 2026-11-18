@@ -526,17 +526,15 @@ object EVHardware {
     private const val PROP_ODOMETER = 0x11600204                     // km
     private const val PROP_CABIN_TEMP = 0x15600502                   // °C, zoned
     private const val PROP_TIRE_PRESSURE = 0x17600309                // kPa, per wheel
+    // Vendor int kPa, one id per wheel from FL: MG4Dash reads it on every generation. The block
+    // is the car's own: its voice service listens to the tyre states at 0x21401557 onwards.
+    private const val PROP_TPMS_PRESSURE_FL = 0x21401553
+    private const val MIN_TPMS_KPA = 50
+    private const val MAX_TPMS_KPA = 600
     private const val PROP_EV_BATTERY_PCT_SWI68 = 0x2160F404         // vendor float %
     private const val PROP_EV_RANGE_KM_SWI68 = 0x2140F41C            // vendor int km
     private const val PROP_BMS_PACK_VOLT_SWI68 = 0x2160F406          // vendor float V
     private const val PROP_BMS_PACK_CURRENT_SWI68 = 0x2160F407       // vendor float A
-    // Vendor publishes one integer per wheel on the global area; the generic per-wheel
-    // PROP_TIRE_PRESSURE is declared and never publishes on this vehicle.
-    private const val PROP_VENDOR_TIRE_FL = 0x21401553
-    private const val PROP_VENDOR_TIRE_FR = 0x21401554
-    private const val PROP_VENDOR_TIRE_RL = 0x21401555
-    private const val PROP_VENDOR_TIRE_RR = 0x21401556
-
     /** Total mileage, the vendor's own integer — `PERF_ODOMETER` never publishes here. */
     private const val PROP_VENDOR_TOTAL_MILEAGE = 0x21401566
 
@@ -546,6 +544,12 @@ object EVHardware {
      * 8 = stopped. Anything else is not a session.
      */
     private const val PROP_VENDOR_CHARGE_STATUS = 0x2140F409
+
+    // Probe-only, ids from MG4Control's SWI133 readings; unproven on SWI68.
+    private const val PROP_BMS_CHRG_STS = 0x2140F409                 // vendor int
+    private const val PROP_CCU_ONBD_PLUG = 0x2140F43E                // vendor int, AC socket
+    private const val PROP_CCU_OFFBD_PLUG = 0x2140F43F               // vendor int, DC socket
+    private const val PROP_ENERGY_SINCE_CHARGE = 0x2160A1BB          // vendor float kWh
 
     /**
      * `HVAC_AMBIENT_TEMPERATURE`, the one in-car candidate left on this firmware.
@@ -676,6 +680,24 @@ object EVHardware {
             ?.takeIf { it.isFinite() && it >= 0f }
     }
 
+    /**
+     * Probe-only vendor charge properties, read raw. MG4Control (a system-signed app) reads them
+     * on SWI133: `BMS_CHRG_STS` 1 while charging, the AC and DC plug states 0 off a charge and
+     * non-zero on the active socket, and a kWh counter that resets at plug-in. Whether this app
+     * may read them on SWI68, and what they say there, is what the capture is for.
+     */
+    internal fun probeVendorChargeStatus(): Int? = probeVendorInt(PROP_BMS_CHRG_STS)
+    internal fun probeVendorPlugAc(): Int? = probeVendorInt(PROP_CCU_ONBD_PLUG)
+    internal fun probeVendorPlugDc(): Int? = probeVendorInt(PROP_CCU_OFFBD_PLUG)
+    internal fun probeVendorEnergySinceChargeKwh(): Float? = supportedTelemetryRead {
+        getFloatPropertyCPM(PROP_ENERGY_SINCE_CHARGE, AREA_GLOBAL)?.takeIf { it.isFinite() }
+    }
+
+    /** Null when unreadable, never the -1 [getIntPropertyCPM] stands in for a failure with. */
+    private fun probeVendorInt(propId: Int): Int? = supportedTelemetryRead {
+        readPropertyCPM(propId, AREA_GLOBAL, Int::class.javaObjectType) { sCpmGetIntMethod } as? Int
+    }
+
     fun getStandardRangeKm(): Float? = supportedTelemetryRead {
         getFloatPropertyCPM(PROP_RANGE_REMAINING, AREA_GLOBAL)
             ?.takeIf { it.isFinite() && it >= 0f }
@@ -724,29 +746,15 @@ object EVHardware {
         FRONT_LEFT(0x01), FRONT_RIGHT(0x02), REAR_LEFT(0x04), REAR_RIGHT(0x08)
     }
 
-    /**
-     * Tyre pressure in kPa, or null when the signal is unavailable.
-     *
-     * Tries the vendor's per-wheel integer on the global area first — that is the one this
-     * vehicle publishes on — then falls back to the generic zoned property for runtimes that
-     * keep it.
-     */
-    fun getTirePressureKpa(wheel: Wheel): Float? {
-        val vendorId = vendorTirePropertyId(wheel)
-        if (vendorId != null) {
-            val raw = getIntPropertyCPM(vendorId, AREA_GLOBAL)
-            if (raw > 0) return raw.toFloat()
-        }
-        return getFloatPropertyCPM(PROP_TIRE_PRESSURE, wheel.area)
+    /** The standard property first; SWI68 does not publish it, so the vendor one after it. */
+    fun getTirePressureKpa(wheel: Wheel): Float? = supportedTelemetryRead {
+        getFloatPropertyCPM(PROP_TIRE_PRESSURE, wheel.area)
             ?.takeIf { it.isFinite() && it in 0f..1_000f }
+            ?: probeVendorInt(PROP_TPMS_PRESSURE_FL + wheel.ordinal)
+                // Zero is a sensor not yet heard from, not a flat tyre: the same bounds as MG4Dash.
+                ?.takeIf { it in MIN_TPMS_KPA..MAX_TPMS_KPA }?.toFloat()
     }
 
-    private fun vendorTirePropertyId(wheel: Wheel): Int? = when (wheel) {
-        Wheel.FRONT_LEFT -> PROP_VENDOR_TIRE_FL
-        Wheel.FRONT_RIGHT -> PROP_VENDOR_TIRE_FR
-        Wheel.REAR_LEFT -> PROP_VENDOR_TIRE_RL
-        Wheel.REAR_RIGHT -> PROP_VENDOR_TIRE_RR
-    }
 
     /**
      * Vendor CPM SOC only (`0x2160F404`). Prefer [getBatterySocPercent] from app code —
@@ -908,6 +916,15 @@ object EVHardware {
     @Volatile var lastVehicleConfigFailure: String? = null
         private set
 
+    /**
+     * The six exterior-light properties (CR-046), read raw whatever [ExteriorLights.PROVEN] says:
+     * this is the evidence that fills it. EVTasker's Diagnostic shows and exports it — read once
+     * with a light off and once with it on; a generation is proven when the state follows.
+     */
+    fun probeExteriorLights(): List<PropertyReport> = ExteriorLights.NAMES.map { (id, name) ->
+        probeProperty(name, id, AREA_GLOBAL, Int::class.javaObjectType)
+    }
+
     private fun probeProperty(name: String, propId: Int, areaId: Int, boxed: Class<*>): PropertyReport {
         val cpm = sCarPropertyManager
             ?: return PropertyReport(name, propId, areaId, "CarPropertyManager not connected")
@@ -925,6 +942,118 @@ object EVHardware {
         } catch (e: Exception) {
             PropertyReport(name, propId, areaId, e.readFailureReason())
         }
+    }
+
+    /**
+     * The vendor setting objects this library already holds, by the name a report prints.
+     * Probe use only ([com.evsuite.hardware.probe.VendorSurfaceProbe]); no production path
+     * reads this, and the probe calls nothing on them but value getters.
+     */
+    internal fun vendorSettingHandles(): Map<String, Any> = listOfNotNull(
+        sVsm?.let { "VehicleSetting" to it },          // SWI68/165 manager, A9 CarVehicleSettingClient
+        sVsm133?.let { "VehicleSetting133" to it },
+        sVcontrol?.let { "VehicleControl" to it },
+        sGeneral?.let { "General" to it },
+        sCarGeneral?.let { "CarGeneral" to it },
+        sCarState?.let { "CarState" to it },
+    ).toMap()
+
+    /**
+     * Every property the CarPropertyManager lists, read once per area, keyed `CPM 0x…/area`.
+     * Probe use only. Stops at [deadlineMs] and says so rather than blocking a diagnostic on a
+     * VHAL that answers slowly.
+     */
+    internal fun readAllCarProperties(deadlineMs: Long): Map<String, String> {
+        val cpm = sCarPropertyManager ?: return mapOf("CPM" to "not connected")
+        cacheCarPropertyMethods(cpm)
+        val getProperty = sCpmGetPropertyMethod ?: return mapOf("CPM" to "no getProperty")
+        val configs = try {
+            cpm.javaClass.getMethod("getPropertyList").invoke(cpm) as? List<*>
+        } catch (e: Exception) {
+            return mapOf("CPM" to "getPropertyList: ${e.readFailureReason()}")
+        } ?: return mapOf("CPM" to "getPropertyList: null")
+        val out = sortedMapOf<String, String>()
+        for (config in configs) {
+            if (config == null) continue
+            if (System.currentTimeMillis() > deadlineMs) {
+                out["CPM ~"] = "time budget spent after ${out.size} values"
+                break
+            }
+            val type = config.javaClass
+            val id = runCatching { type.getMethod("getPropertyId").invoke(config) as Int }.getOrNull() ?: continue
+            val valueType = runCatching { type.getMethod("getPropertyType").invoke(config) as Class<*> }
+                .getOrNull() ?: Any::class.java
+            val areas = runCatching { type.getMethod("getAreaIds").invoke(config) as IntArray }
+                .getOrNull()?.takeIf { it.isNotEmpty() } ?: intArrayOf(AREA_GLOBAL)
+            for (area in areas) {
+                val key = "CPM 0x%08X/%d".format(id, area)
+                out[key] = try {
+                    val holder = getProperty.invoke(cpm, valueType, id, area)
+                    if (holder == null) "no value" else {
+                        val status = (holder.javaClass.getMethod("getStatus").invoke(holder) as? Int)
+                            ?.let(CarPropertyEvidence::describe) ?: "no status"
+                        "$status ${com.evsuite.hardware.probe.VendorSurfaceRules.render(
+                            holder.javaClass.getMethod("getValue").invoke(holder))}"
+                    }
+                } catch (e: Exception) {
+                    e.readFailureReason()
+                }
+            }
+        }
+        return out
+    }
+
+    // -------------------------------------------------------------------------
+    // Exterior lights (CR-046) — standard AAOS ids and policy in [ExteriorLights]
+    // -------------------------------------------------------------------------
+
+    /** Status-checked read, only on a proven generation: an unpublished 0 would read as OFF. */
+    private fun lightRead(propId: Int): Int? =
+        if (ExteriorLights.isProven(FirmwareInfo.getGeneration()))
+            readPropertyCPM(propId, AREA_GLOBAL, Int::class.javaObjectType) { sCpmGetIntMethod } as? Int
+        else null
+
+    /** Low beams as VehicleLightState (0 off, 1 on, 2 daytime running); null when unreadable. */
+    fun headlightsStateOrNull(): Int? = lightRead(ExteriorLights.PROP_HEADLIGHTS_STATE)
+
+    fun highBeamOnOrNull(): Boolean? =
+        ExteriorLights.isOn(lightRead(ExteriorLights.PROP_HIGH_BEAM_LIGHTS_STATE))
+
+    fun fogLightsOnOrNull(): Boolean? =
+        ExteriorLights.isOn(lightRead(ExteriorLights.PROP_FOG_LIGHTS_STATE))
+
+    /** Switch positions, for the action editor's current value. */
+    fun headlightsSwitchOrNull(): Int? = lightRead(ExteriorLights.PROP_HEADLIGHTS_SWITCH)
+
+    fun highBeamSwitchOrNull(): Int? = lightRead(ExteriorLights.PROP_HIGH_BEAM_LIGHTS_SWITCH)
+
+    fun fogLightsSwitchOnOrNull(): Boolean? =
+        lightRead(ExteriorLights.PROP_FOG_LIGHTS_SWITCH)?.let { it == ExteriorLights.SWITCH_ON }
+
+    /** Low beams ON or AUTOMATIC — never OFF ([ExteriorLights.HEADLIGHT_SWITCH_ALLOWED]). */
+    @RequiresStandstill
+    fun setHeadlightsSwitch(mode: Int): Boolean =
+        lightWrite(ExteriorLights.PROP_HEADLIGHTS_SWITCH, mode, ExteriorLights.HEADLIGHT_SWITCH_ALLOWED)
+
+    /** High beam OFF or AUTOMATIC — never forced ON. */
+    @RequiresStandstill
+    fun setHighBeamSwitch(mode: Int): Boolean =
+        lightWrite(ExteriorLights.PROP_HIGH_BEAM_LIGHTS_SWITCH, mode, ExteriorLights.HIGH_BEAM_SWITCH_ALLOWED)
+
+    @RequiresStandstill
+    fun setFogLights(on: Boolean): Boolean = lightWrite(
+        ExteriorLights.PROP_FOG_LIGHTS_SWITCH,
+        if (on) ExteriorLights.SWITCH_ON else ExteriorLights.SWITCH_OFF,
+        ExteriorLights.FOG_SWITCH_ALLOWED,
+    )
+
+    /** Policy, then proven generation, then the 0 km/h gate inside [setIntPropertyCPM]. */
+    private fun lightWrite(propId: Int, value: Int, allowed: Set<Int>): Boolean {
+        ExteriorLights.writeRefusal(FirmwareInfo.getGeneration(), allowed, value)?.let {
+            AppLogger.w(TAG, "  light 0x${Integer.toHexString(propId)} refused: $it")
+            return false
+        }
+        return setIntPropertyCPM(propId, AREA_GLOBAL, value)
     }
 
     private inline fun <T> supportedTelemetryRead(read: () -> T?): T? =
@@ -1730,7 +1859,7 @@ object EVHardware {
         return try {
             val native = (g.javaClass.getMethod("getBrightness").invoke(g) as? Int) ?: return -1
             if (native < 0) return -1
-            val pct = (native * 100 / BRIGHTNESS_NATIVE_MAX).coerceIn(0, 100)
+            val pct = ((native * 100 + BRIGHTNESS_NATIVE_MAX / 2) / BRIGHTNESS_NATIVE_MAX).coerceIn(0, 100)
             AppLogger.d(TAG, "  getBrightness native=$native → $pct%")
             pct
         } catch (e: Exception) {
@@ -1741,7 +1870,7 @@ object EVHardware {
 
     private fun setBrightnessOldSdk(clampedPct: Int): Boolean {
         val g = sGeneral ?: return false
-        val native = (clampedPct * BRIGHTNESS_NATIVE_MAX / 100).coerceIn(0, BRIGHTNESS_NATIVE_MAX)
+        val native = ((clampedPct * BRIGHTNESS_NATIVE_MAX + 50) / 100).coerceIn(0, BRIGHTNESS_NATIVE_MAX)
         if (logEnabled) AppLogger.i(TAG, "setBrightness → $clampedPct% (native=$native/255)")
         return try {
             g.javaClass.getMethod("setBrightness", Int::class.javaPrimitiveType).invoke(g, native)
@@ -1768,12 +1897,12 @@ object EVHardware {
             AppLogger.w(TAG, "  A9 getBrightness Settings.System exc: ${e.message}"); return -1
         }
         if (native < 0) return -1
-        return (native * 100 / A9_BRIGHTNESS_NATIVE_MAX).coerceIn(0, 100)
+        return ((native * 100 + A9_BRIGHTNESS_NATIVE_MAX / 2) / A9_BRIGHTNESS_NATIVE_MAX).coerceIn(0, 100)
     }
 
     private fun setBrightnessA9(clampedPct: Int): Boolean {
         val resolver = sAppContext?.contentResolver ?: return false
-        val native = (clampedPct.coerceIn(0, 100) * A9_BRIGHTNESS_NATIVE_MAX / 100).coerceIn(1, A9_BRIGHTNESS_NATIVE_MAX)
+        val native = ((clampedPct.coerceIn(0, 100) * A9_BRIGHTNESS_NATIVE_MAX + 50) / 100).coerceIn(1, A9_BRIGHTNESS_NATIVE_MAX)
         return try {
             // Manual mode, otherwise auto-brightness overwrites the value at once
             android.provider.Settings.System.putInt(resolver,
@@ -2620,23 +2749,22 @@ object EVHardware {
     fun getSeatHeatRight(): Int = seatHeatRightOrNull() ?: 0
     fun isSteeringHeatOn(): Boolean = steeringHeatOnOrNull() ?: false
 
-    fun getDriveMode(): DriveMode? {
-        val cpm = sCarPropertyManager ?: return null
-        return try {
-            val raw = (cpm.javaClass
-                .getMethod("getIntProperty", Int::class.java, Int::class.java)
-                .invoke(cpm, PROP_DRIVE_MODE, AREA_GLOBAL) as? Int) ?: return null
-            DriveMode.fromValue(raw)
-        } catch (_: Exception) { null }
-    }
+    fun getDriveMode(): DriveMode? = getDriveModeRaw()?.let(DriveMode::fromValue)
 
-    fun getRegenLevel(): RegenLevel? {
+    /** The drive mode code as the car sends it; null when it could not be read. */
+    fun getDriveModeRaw(): Int? = readIntGlobal(PROP_DRIVE_MODE)
+
+    fun getRegenLevel(): RegenLevel? = getRegenLevelRaw()?.let(RegenLevel::fromValue)
+
+    /** The regen code as the car sends it: 6 is one-pedal on SWI68 (EVTasker CR-045 diff). */
+    fun getRegenLevelRaw(): Int? = readIntGlobal(PROP_REGEN_LEVEL)
+
+    private fun readIntGlobal(prop: Int): Int? {
         val cpm = sCarPropertyManager ?: return null
         return try {
-            val raw = (cpm.javaClass
+            cpm.javaClass
                 .getMethod("getIntProperty", Int::class.java, Int::class.java)
-                .invoke(cpm, PROP_REGEN_LEVEL, AREA_GLOBAL) as? Int) ?: return null
-            RegenLevel.fromValue(raw)
+                .invoke(cpm, prop, AREA_GLOBAL) as? Int
         } catch (_: Exception) { null }
     }
 
@@ -2755,8 +2883,9 @@ object EVHardware {
     fun getAccTjaMode(): Int {
         val useNewApi = FirmwareInfo.isNewGenVsm() || FirmwareInfo.getGeneration() == FirmwareInfo.Gen.SWI132
         val method = if (useNewApi) "getAccTjaState" else "getAccTjaMode"
-        if (logEnabled) AppLogger.i(TAG, "$method →")
-        return (callVsm(method) as? Int) ?: -1
+        val value = (callVsm(method) as? Int) ?: -1
+        if (logEnabled) AppLogger.i(TAG, "$method → $value")
+        return value
     }
 
     /** SWI68/SWI165 : setAccTjaMode(I)V   SWI69/SWI131/SWI132 : setAccTjaState(I)V — void */
@@ -2782,8 +2911,9 @@ object EVHardware {
     /** Lit le mode du limiteur de speed. Returns 0/2/3, ou -1 si unavailable. */
     fun getSpeedLimiterMode(): Int {
         val method = if (useSasApi()) "getSasMode" else "getSpeedAsstMode"
-        if (logEnabled) AppLogger.i(TAG, "$method →")
-        return (callVsm(method) as? Int) ?: -1
+        val value = (callVsm(method) as? Int) ?: -1
+        if (logEnabled) AppLogger.i(TAG, "$method → $value")
+        return value
     }
 
     /** Configure le mode du limiteur de speed. 0=Disabled, 2=Manual, 3=Intelligent. */
@@ -4605,6 +4735,30 @@ object EVHardware {
             if (value == 1) open = true
         }
         return if (answered) open else null
+    }
+
+    /**
+     * Front-door evidence for a firmware the door feature does not claim yet, for EVTasker's
+     * Diagnostic.
+     *
+     * MG4Control reads DLOCK_DOOR_OPEN_STS on SWI68/69/131/165 through the change
+     * subscription, because the on-demand read throws there. Nothing here has seen a car
+     * confirm that, so [frontDoorOpenOrNull] stays gated. This connects and subscribes
+     * regardless of [hasDoorVolumeFeature] — the first call starts the connection, which is
+     * asynchronous — and reports what came back: export with the front doors shut, open
+     * one, export again. Proven when the event value follows the door.
+     */
+    fun probeFrontDoors(): String {
+        connectCarProperty()
+        registerDoorCallback()
+        val reads = DOOR_FRONT_AREAS.joinToString(" ") { area ->
+            "read[0x${area.toString(16)}]=${readDoorOpen(area) ?: "?"}"
+        }
+        val events = synchronized(this) {
+            DOOR_FRONT_AREAS.joinToString(" ") { area -> "event[0x${area.toString(16)}]=${sDoorReadLast[area] ?: "?"}" }
+        }
+        return "managers property=${sCarPropMgr != null} doorlock=${sCarDoorMgr != null} " +
+            "subscribed property=$sDoorSubProperty doorlock=$sDoorSubDoorlock $reads $events"
     }
 
     /** Diagnostic button probe: logs the volume + door states at click time. */

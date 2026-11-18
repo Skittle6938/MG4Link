@@ -22,6 +22,7 @@ enum class ActionGroup(@StringRes val labelRes: Int) {
     ENERGY(R.string.group_energy),
     AUDIO(R.string.group_audio),
     ADAS(R.string.group_adas),
+    LIGHTS(R.string.group_lights),
     SYSTEM(R.string.group_system)
 }
 
@@ -165,6 +166,32 @@ enum class ActionType(
         "SET_SCREEN_BRIGHTNESS", currentKey = SnapshotKeys.KEY_BRIGHTNESS
     ),
 
+    // ── Exterior lights (CR-046, gated) ──────────────────────────────────────
+    // Owner decisions: 0 km/h only, never low beams OFF, never high beam forced ON — the
+    // options below cannot express either, and ExteriorLights refuses them again at the write.
+    // Unproven everywhere: empty @SupportedOn and writeProven = false until a capture and an
+    // observed effect prove a generation.
+    @SupportedOn
+    SET_HEADLIGHTS(
+        R.string.act_headlights, ActionGroup.LIGHTS,
+        ValueSpec(ValueKind.ENUM, options = VehicleEnums.HEADLIGHT_SWITCH_CHOICES),
+        "SET_HEADLIGHTS", gated = true, currentKey = SnapshotKeys.KEY_HEADLIGHTS_SWITCH,
+        writeProven = false
+    ),
+    @SupportedOn
+    SET_HIGH_BEAM(
+        R.string.act_high_beam, ActionGroup.LIGHTS,
+        ValueSpec(ValueKind.ENUM, options = VehicleEnums.HIGH_BEAM_SWITCH_CHOICES),
+        "SET_HIGH_BEAM", gated = true, currentKey = SnapshotKeys.KEY_HIGH_BEAM_SWITCH,
+        writeProven = false
+    ),
+    @SupportedOn
+    SET_FOG_LIGHTS(
+        R.string.act_fog_lights, ActionGroup.LIGHTS,
+        ValueSpec.BOOL, "SET_FOG_LIGHTS", gated = true,
+        currentKey = SnapshotKeys.KEY_FOG_LIGHTS_SWITCH, writeProven = false
+    ),
+
     // ── Climate (vendor service — com.evsuite.hardware.saic.SaicClimate) ─────────
     // These are the calls the car's own HVAC screen makes, so what they do is not in doubt.
     // Not gated: changing the cabin temperature does not alter road behaviour, and a rule
@@ -191,8 +218,13 @@ enum class ActionType(
      * A second action rather than a zone argument on the first: the driver's target is the
      * one every existing rule sets, and giving it a zone would have made every saved rule
      * carry a value it never chose.
+     *
+     * Not SWI68: the passenger target reads -1 there, the converter's answer for a zone
+     * the car does not have, so nothing shows the write lands anywhere. EVTasker's
+     * Diagnostic prints that raw read (`CLIMATE_ZONES`); a SWI68 that answers a real
+     * target there is what would bring the action back.
      */
-    @SupportedOn(SWI68, SWI165)
+    @SupportedOn(SWI165)
     SET_PASSENGER_TEMP(
         R.string.act_passenger_temp, ActionGroup.CLIMATE,
         number(VehicleEnums.CABIN_TEMP_MIN, VehicleEnums.CABIN_TEMP_MAX, R.string.unit_celsius),
@@ -296,11 +328,15 @@ enum class ActionType(
     ),
 
     // ── Energy (vendor service — com.evsuite.hardware.saic.SaicCharging) ─────────
+    // Unproven: the write sends a percent, but SWI68 reads the limit back as `5` (2026-10-13),
+    // a code from a table nobody has read. Writing 80 into a coded field is a guess, so the
+    // action is held back until one write is seen to set the limit shown on the car's screen.
     @SupportedOn(SWI68, SWI165)
     SET_CHARGE_LIMIT(
         R.string.act_charge_limit, ActionGroup.ENERGY,
         number(VehicleEnums.CHARGE_LIMIT_MIN, VehicleEnums.CHARGE_LIMIT_MAX, R.string.unit_percent),
-        "SET_CHARGE_LIMIT", currentKey = SnapshotKeys.KEY_CHARGE_LIMIT
+        "SET_CHARGE_LIMIT", currentKey = SnapshotKeys.KEY_CHARGE_LIMIT,
+        writeProven = false
     ),
     @SupportedOn(SWI68, SWI165)
     SET_CHARGING_ENABLED(
@@ -735,6 +771,20 @@ enum class ActionType(
     DISABLE_RULE(
         R.string.act_disable_rule, ActionGroup.SYSTEM,
         ValueSpec(ValueKind.RULE), bridgeAction = null
+    ),
+    /**
+     * Sets a named variable that later conditions can read — in this cycle, and in later
+     * ones until it is set again or, for one not kept, until the next ignition.
+     *
+     * Nothing leaves the app: the value is the rule's own memory, not a vehicle setting.
+     */
+    SET_VARIABLE_FLAG(
+        R.string.act_set_variable_flag, ActionGroup.SYSTEM,
+        ValueSpec(ValueKind.VARIABLE_FLAG), bridgeAction = null
+    ),
+    SET_VARIABLE_NUMBER(
+        R.string.act_set_variable_number, ActionGroup.SYSTEM,
+        ValueSpec(ValueKind.VARIABLE_NUMBER), bridgeAction = null
     ),
     /**
      * Play/pause, next or previous — sent to the source that is actually playing.

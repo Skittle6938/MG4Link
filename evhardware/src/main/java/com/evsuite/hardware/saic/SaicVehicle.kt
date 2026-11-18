@@ -5,6 +5,7 @@ import android.os.IBinder
 import com.evsuite.hardware.A9Climate
 import com.evsuite.hardware.GlassProbe
 import com.evsuite.hardware.VsmGlass
+import com.evsuite.hardware.catalog.VehicleEnums
 
 /**
  * The vendor vehicle service the head unit's HVAC and charging screens talk to.
@@ -176,6 +177,15 @@ object SaicClimate {
     fun fanLevelMax(): Int? = if (a9) null else level(TX_GET_MAX_AIR_VOLUME)
     fun driverTemp(): Int? = if (a9) A9Climate.driverTemp() else level(TX_GET_DRV_TEMP)
     fun passengerTemp(): Int? = if (a9) null else level(TX_GET_PSG_TEMP)
+
+    /**
+     * The passenger target exactly as the service answers it, for the diagnostic only.
+     *
+     * [passengerTemp] drops -1, which is also what the service's converter returns for a
+     * zone the car does not have: the raw number is what tells "single zone" from "the
+     * read did not answer" (null).
+     */
+    fun passengerTempState(): Int? = if (a9) null else SaicAidl.callInt(binder(), DESCRIPTOR, TX_GET_PSG_TEMP)
     fun frontDefrostOn(): Boolean? = if (a9) A9Climate.frontDefrostOn() else flag(TX_GET_FRONT_DEFROST)
     fun rearDefrostOn(): Boolean? = if (a9) A9Climate.rearDefrostOn() else flag(TX_GET_BACK_DEFROST)
     /** The service answers [TEMP_ERROR] for a reading it holds no value for, not an error. */
@@ -258,8 +268,18 @@ object SaicCharging {
 
     fun chargingStatus(): Int? = read(TX_GET_CHARGING_STATUS)
 
-    /** Charge limit in percent — charging stops here. */
-    fun chargeLimitPercent(): Int? = read(TX_GET_CLOSE_SOC)
+    /**
+     * Charge limit in percent — charging stops here.
+     *
+     * Null outside the range the car accepts: SWI68 answered `5` on 2026-10-13, a code from a
+     * table nobody has read, not a percent. Null sends every caller down its "limit
+     * unreadable" path instead of planning a charge to 5 %.
+     */
+    fun chargeLimitPercent(): Int? = chargeLimitOrNull(read(TX_GET_CLOSE_SOC))
+
+    internal fun chargeLimitOrNull(raw: Int?): Int? =
+        raw?.takeIf { it in VehicleEnums.CHARGE_LIMIT_MIN..VehicleEnums.CHARGE_LIMIT_MAX }
+
     fun setChargeLimitPercent(percent: Int): Boolean =
         SaicAidl.callVoid(binder(), DESCRIPTOR, TX_SET_CLOSE_SOC, percent.coerceIn(0, 100))
 

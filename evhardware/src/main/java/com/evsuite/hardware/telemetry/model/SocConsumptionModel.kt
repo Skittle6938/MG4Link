@@ -6,6 +6,7 @@ import com.evsuite.hardware.telemetry.Provenanced
 import com.evsuite.hardware.telemetry.StoredTrip
 import com.evsuite.hardware.telemetry.TripSample
 import com.evsuite.hardware.telemetry.UnavailableReason
+import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -31,9 +32,13 @@ import kotlin.math.sqrt
  * generations that publish power too; [EnergyModel] remains for the energy breakdown, which
  * genuinely needs to split kWh and has nothing to split without power.
  *
- * Same shape as [EnergyModel]: `rolling + aero × speed² + thermal × |outside − 20 °C|`, every
+ * Shape: `rolling + aero × speed² + aux ÷ speed + thermal × |outside − 20 °C|`, every
  * prediction structurally [Provenanced] as estimated, and nothing predicted outside the
- * envelope the fit actually saw.
+ * envelope the fit actually saw. The `aux ÷ speed` term is what [EnergyModel] lacks and this
+ * car needed: heating, cooling and electronics draw a power whatever the speed, so in town
+ * they cost more per kilometre. Without it the fit explained that cost by making speed look
+ * free — a negative aero coefficient — and refused every model the car's own history offered
+ * (2026-10-22 bundle: 143 segments over 77 km/h of span, `fit=refused(aero)`).
  */
 data class SocConsumptionModel(
     val schemaVersion: Int = SCHEMA_VERSION,
@@ -42,6 +47,8 @@ data class SocConsumptionModel(
     val rollingPercentPer100Km: Double,
     val aeroPercentPer100KmPerSpeedSquared: Double,
     val thermalPercentPer100KmPerDegree: Double,
+    /** Percent per 100 km at 1 km/h from the speed-independent load; 0 when not fitted. */
+    val auxPercentPer100KmTimesKmh: Double = 0.0,
     val residualRmsePercentPer100Km: Double,
     val segmentCount: Int,
     val envelope: EnergyModelEnvelope,
@@ -53,6 +60,7 @@ data class SocConsumptionModel(
         }
         val value = rollingPercentPer100Km +
             aeroPercentPer100KmPerSpeedSquared * speedKmh * speedKmh +
+            auxPercentPer100KmTimesKmh / speedKmh +
             thermalPercentPer100KmPerDegree * abs(outsideTempCelsius - EnergyModel.COMFORT_TEMP_CELSIUS)
         if (!value.isFinite() || value <= 0.0) {
             return Provenanced.unavailable(UnavailableReason.MODEL_NOT_TRAINED)
@@ -71,6 +79,7 @@ data class SocConsumptionModel(
             aeroPercentPer100KmPerSpeedSquared >= 0.0 &&
             thermalPercentPer100KmPerDegree.isFinite() &&
             thermalPercentPer100KmPerDegree >= 0.0 &&
+            auxPercentPer100KmTimesKmh.isFinite() && auxPercentPer100KmTimesKmh >= 0.0 &&
             residualRmsePercentPer100Km.isFinite() && residualRmsePercentPer100Km >= 0.0 &&
             segmentCount >= SocConsumptionFitter.MIN_SEGMENTS && envelope.isValid()
 
@@ -108,11 +117,13 @@ class SocConsumptionFitter(
     private val maxResidualRmse: Double = MAX_RESIDUAL_RMSE_PERCENT_PER_100_KM,
 ) {
     /** One training point: what a stretch of road cost, and the conditions it cost it in. */
-    internal data class Segment(
+    data class Segment(
         val distanceKm: Double,
         val meanSpeedKmh: Double,
         val meanOutsideTempCelsius: Double,
         val socDropPercent: Double,
+        /** Which collected trip it came from: [windowRmse] never joins two trips. */
+        val trip: Int = 0,
     ) {
         val percentPer100Km: Double get() = socDropPercent * 100.0 / distanceKm
     }
@@ -130,9 +141,12 @@ class SocConsumptionFitter(
     /** The training points a history yields, in one pass, capped at [maxSegments]. */
     private fun collectAll(trips: List<StoredTrip>, generation: FirmwareInfo.Gen): List<Segment> {
         val segments = ArrayList<Segment>()
-        for (trip in trips) {
+        val track = ArrayList<Segment>()
+        for ((index, trip) in trips.withIndex()) {
             if (!usable(trip, generation)) continue
-            collect(trip.samples.orEmpty(), segments)
+            track.clear()
+            collect(trip.samples.orEmpty(), track)
+            track.mapTo(segments) { it.copy(trip = index) }
             if (segments.size >= maxSegments) break
         }
         return segments
@@ -148,8 +162,8 @@ class SocConsumptionFitter(
      * altogether — a trip skipped for a speed conversion that is no longer believed leaves no
      * trace at all, and a history of them looks exactly like a history of short drives.
      *
-     * Diagnostic only: it runs the same collection pass as [fit] a second time, so call it
-     * from a probe and not from a screen.
+     * Diagnostic only: it runs the same collection pass and solve as [fit] a second time, so
+     * call it from a probe and not from a screen.
      */
     fun describe(
         trips: List<StoredTrip>,
@@ -161,8 +175,40 @@ class SocConsumptionFitter(
             "segments=${segments.size}/$MIN_SEGMENTS"
         if (segments.isEmpty()) return head
         val span = segments.maxOf { it.meanSpeedKmh } - segments.minOf { it.meanSpeedKmh }
-        return "$head span=${span.roundToInt()}/${MIN_SPEED_SPAN_KMH.roundToInt()} km/h"
+        val line = "$head span=${span.roundToInt()}/${MIN_SPEED_SPAN_KMH.roundToInt()} km/h"
+        if (segments.size < MIN_SEGMENTS || span < MIN_SPEED_SPAN_KMH) return line
+        // Past both gates the line used to stop, and a bundle could not say whether a model
+        // came out of the solve. Appended, so a parser of the prefix above still matches.
+        val evidence = VehicleSpeedEvidence(generation, VehicleSpeedEvidence.CURRENT)
+        val solved = solve(segments, evidence)
+        val model = solved.model ?: return "$line fit=refused(${solved.refusal})"
+        val rmse = model.residualRmsePercentPer100Km
+        return line + String.format(
+            Locale.ROOT,
+            " fit=ready rmse=%.2f rolling=%.2f aero=%.6f aux=%.1f thermal=%.3f",
+            rmse,
+            model.rollingPercentPer100Km,
+            model.aeroPercentPer100KmPerSpeedSquared,
+            model.auxPercentPer100KmTimesKmh,
+            model.thermalPercentPer100KmPerDegree,
+        ) + (solved.windowRmse?.let { String.format(Locale.ROOT, " window_rmse=%.2f", it) } ?: "")
     }
+
+    /**
+     * The training points [fit] would use, for a diagnostic bundle: the 2026-10-22 refusal could
+     * not be replayed off the car because only trip totals left it.
+     */
+    fun segments(
+        trips: List<StoredTrip>,
+        generation: FirmwareInfo.Gen = FirmwareInfo.getGeneration(),
+    ): List<Segment> = if (generation == FirmwareInfo.Gen.UNKNOWN) emptyList() else collectAll(trips, generation)
+
+    /** What [solve] produced: a model, or the name of the guard that refused one. */
+    private class Solved(
+        val model: SocConsumptionModel?,
+        val refusal: String? = null,
+        val windowRmse: Double? = null,
+    )
 
     fun fit(
         trips: List<StoredTrip>,
@@ -180,64 +226,152 @@ class SocConsumptionFitter(
             return SocConsumptionFitResult.Unavailable(UnavailableReason.INSUFFICIENT_SAMPLES)
         }
 
+        if (segments.maxOf { it.meanSpeedKmh } - segments.minOf { it.meanSpeedKmh } <
+            MIN_SPEED_SPAN_KMH
+        ) {
+            return SocConsumptionFitResult.Unavailable(UnavailableReason.INSUFFICIENT_SAMPLES)
+        }
+        return solve(segments, evidence).model?.let { SocConsumptionFitResult.Ready(it) }
+            ?: SocConsumptionFitResult.Unavailable(UnavailableReason.MODEL_NOT_TRAINED)
+    }
+
+    /**
+     * The least-squares solve behind [fit], shared with [describe] so both report one answer.
+     *
+     * Every coefficient is a physical quantity that cannot be negative, so the fit is bounded:
+     * the constant and speed² are always in, and the auxiliary and thermal terms are each tried
+     * in and out — the least-error model whose every coefficient is physical wins. A term that
+     * would only fit with a negative sign is left out rather than believed; speed² is never left
+     * out, because a model in which speed costs nothing cannot answer "what if I drove slower".
+     */
+    private fun solve(segments: List<Segment>, evidence: VehicleSpeedEvidence): Solved {
         val minSpeed = segments.minOf { it.meanSpeedKmh }
         val maxSpeed = segments.maxOf { it.meanSpeedKmh }
         val minTemp = segments.minOf { it.meanOutsideTempCelsius }
         val maxTemp = segments.maxOf { it.meanOutsideTempCelsius }
-        if (maxSpeed - minSpeed < MIN_SPEED_SPAN_KMH) {
-            return SocConsumptionFitResult.Unavailable(UnavailableReason.INSUFFICIENT_SAMPLES)
-        }
+        // A driver who has only recorded one kind of weather has no evidence about weather; the
+        // envelope keeps the narrow range, so the model refuses the cold instead of guessing.
+        val weather = maxTemp - minTemp >= MIN_TEMPERATURE_SPAN_CELSIUS
+        val base = listOf(LeastSquares.Term.CONSTANT, LeastSquares.Term.SPEED_SQUARED)
+        val optional = listOfNotNull(
+            LeastSquares.Term.INVERSE_SPEED,
+            LeastSquares.Term.TEMPERATURE.takeIf { weather },
+        )
+        val candidates = optional.indices.fold(listOf(emptyList<LeastSquares.Term>())) { sets, at ->
+            sets + sets.map { it + optional[at] }
+        }.sortedByDescending { it.size }
 
-        // A driver who has only recorded one kind of weather has no evidence about weather.
-        // Fitting two coefficients is the honest answer there; the envelope keeps the narrow
-        // temperature range, so this model refuses the cold instead of guessing at it.
-        val features = if (maxTemp - minTemp >= MIN_TEMPERATURE_SPAN_CELSIUS) 3 else 2
-        val equations = LeastSquares3(features)
-        for (segment in segments) {
-            equations.add(
-                segment.meanSpeedKmh,
-                segment.meanOutsideTempCelsius,
-                segment.percentPer100Km,
-            )
+        var best: Pair<DoubleArray, List<LeastSquares.Term>>? = null
+        var bestError = Double.POSITIVE_INFINITY
+        // Candidates run fullest first, so the one left here is the base model's: the refusal a
+        // reader can act on ("aero" — speed looked free), not a degenerate richer fit's.
+        var baseRefusal: String? = null
+        for (extra in candidates) {
+            val terms = base + extra
+            val equations = LeastSquares(terms)
+            for (segment in segments) {
+                equations.add(segment.meanSpeedKmh, segment.meanOutsideTempCelsius, segment.percentPer100Km)
+            }
+            val coefficients = equations.solve()
+            val refusal = when {
+                coefficients == null -> "singular"
+                coefficients.any { !it.isFinite() } -> "nonfinite"
+                coefficients[0] <= 0.0 -> "rolling"
+                else -> terms.indices.drop(1).firstOrNull { coefficients[it] < 0.0 }?.let { name(terms[it]) }
+            }
+            if (refusal != null) {
+                baseRefusal = refusal
+                continue
+            }
+            val error = squaredError(segments, terms, checkNotNull(coefficients))
+            if (error < bestError) {
+                bestError = error
+                best = coefficients to terms
+            }
         }
-        val coefficients = equations.solve()
-            ?: return SocConsumptionFitResult.Unavailable(UnavailableReason.MODEL_NOT_TRAINED)
-        val rolling = coefficients[0]
-        val aero = coefficients[1]
-        val thermal = if (features == 3) coefficients[2] else 0.0
-        if (rolling <= 0.0 || aero < 0.0 || thermal < 0.0 || coefficients.any { !it.isFinite() }) {
-            return SocConsumptionFitResult.Unavailable(UnavailableReason.MODEL_NOT_TRAINED)
-        }
+        val (coefficients, terms) = best ?: return Solved(null, baseRefusal)
+        fun coefficient(term: LeastSquares.Term) = terms.indexOf(term).let { if (it < 0) 0.0 else coefficients[it] }
 
-        var squaredError = 0.0
-        for (segment in segments) {
-            val prediction = rolling +
-                aero * segment.meanSpeedKmh * segment.meanSpeedKmh +
-                thermal * abs(
-                    segment.meanOutsideTempCelsius - EnergyModel.COMFORT_TEMP_CELSIUS
-                )
-            val error = segment.percentPer100Km - prediction
-            squaredError += error * error
+        val rmse = sqrt(bestError / segments.size)
+        // The gate reads the error at the scale a prediction is used at. A 2 km segment is a few
+        // tenths of a gauge point and one climb or descent; grade is not in the model and only
+        // averages out over a drive. On 2026-10-29 the car's 318 segments read 13,03 and were
+        // refused, while the same fit judged on ten-kilometre windows read 7,24 (CP-095).
+        // The band the model carries stays the per-segment figure: wider, never narrower.
+        val window = windowRmse(segments) { predict(it, terms, coefficients) }
+        if (!rmse.isFinite()) return Solved(null, "rmse=nonfinite")
+        if (window != null) {
+            if (!window.isFinite() || window > maxResidualRmse) {
+                return Solved(null, String.format(Locale.ROOT, "window_rmse=%.2f rmse=%.2f", window, rmse))
+            }
+        } else if (rmse > maxResidualRmse) {
+            return Solved(null, String.format(Locale.ROOT, "rmse=%.2f", rmse))
         }
-        val rmse = sqrt(squaredError / segments.size)
-        if (!rmse.isFinite() || rmse > maxResidualRmse) {
-            return SocConsumptionFitResult.Unavailable(UnavailableReason.MODEL_NOT_TRAINED)
-        }
-
         val model = SocConsumptionModel(
             speedEvidence = evidence,
-            rollingPercentPer100Km = rolling,
-            aeroPercentPer100KmPerSpeedSquared = aero,
-            thermalPercentPer100KmPerDegree = thermal,
+            rollingPercentPer100Km = coefficients[0],
+            aeroPercentPer100KmPerSpeedSquared = coefficient(LeastSquares.Term.SPEED_SQUARED),
+            thermalPercentPer100KmPerDegree = coefficient(LeastSquares.Term.TEMPERATURE),
+            auxPercentPer100KmTimesKmh = coefficient(LeastSquares.Term.INVERSE_SPEED),
             residualRmsePercentPer100Km = rmse,
             segmentCount = segments.size,
             envelope = EnergyModelEnvelope(minSpeed, maxSpeed, minTemp, maxTemp),
         )
-        return if (model.isValid()) {
-            SocConsumptionFitResult.Ready(model)
-        } else {
-            SocConsumptionFitResult.Unavailable(UnavailableReason.MODEL_NOT_TRAINED)
+        return if (model.isValid()) Solved(model, windowRmse = window) else Solved(null, "invalid")
+    }
+
+    /**
+     * RMSE over consecutive segments of one trip summed to [WINDOW_KM], distance-weighted; a
+     * trip's remainder shorter than that is dropped. Null when fewer than [MIN_SEGMENTS] windows
+     * exist, and the caller then judges the segments themselves, as before.
+     */
+    internal fun windowRmse(segments: List<Segment>, predict: (Segment) -> Double): Double? {
+        var squared = 0.0
+        var windows = 0
+        var trip = Int.MIN_VALUE
+        var km = 0.0
+        var drop = 0.0
+        var predictedKm = 0.0
+        for (segment in segments) {
+            if (segment.trip != trip) {
+                trip = segment.trip
+                km = 0.0
+                drop = 0.0
+                predictedKm = 0.0
+            }
+            km += segment.distanceKm
+            drop += segment.socDropPercent
+            predictedKm += predict(segment) * segment.distanceKm
+            if (km < WINDOW_KM) continue
+            val error = drop * 100.0 / km - predictedKm / km
+            squared += error * error
+            windows++
+            km = 0.0
+            drop = 0.0
+            predictedKm = 0.0
         }
+        return if (windows < MIN_SEGMENTS) null else sqrt(squared / windows)
+    }
+
+    private fun predict(segment: Segment, terms: List<LeastSquares.Term>, coefficients: DoubleArray): Double =
+        terms.indices.sumOf {
+            coefficients[it] * LeastSquares.value(terms[it], segment.meanSpeedKmh, segment.meanOutsideTempCelsius)
+        }
+
+    private fun squaredError(
+        segments: List<Segment>,
+        terms: List<LeastSquares.Term>,
+        coefficients: DoubleArray,
+    ): Double = segments.sumOf { segment ->
+        val error = segment.percentPer100Km - predict(segment, terms, coefficients)
+        error * error
+    }
+
+    private fun name(term: LeastSquares.Term) = when (term) {
+        LeastSquares.Term.CONSTANT -> "rolling"
+        LeastSquares.Term.SPEED_SQUARED -> "aero"
+        LeastSquares.Term.INVERSE_SPEED -> "aux"
+        LeastSquares.Term.TEMPERATURE -> "thermal"
     }
 
     /**
@@ -247,6 +381,11 @@ class SocConsumptionFitter(
      * refuses to build a segment from is most of what makes the fit trustworthy.
      */
     internal fun collect(samples: List<TripSample>, out: MutableList<Segment>) {
+        // Two steps of this track's own gauge, never more than [minSocDropPercent]. SWI68
+        // publishes tenths of a percent, and waiting for two whole points there threw away
+        // every town drive shorter than ten kilometres — most of what the car is used for.
+        val minDrop = gaugeStep(samples)?.let { minOf(minSocDropPercent, 2.0 * it) }
+            ?: minSocDropPercent
         var startSoc: Double? = null
         var distanceKm = 0.0
         var hours = 0.0
@@ -302,11 +441,27 @@ class SocConsumptionFitter(
                 continue
             }
             val drop = start - soc
-            if (drop < minSocDropPercent) continue
+            // A short stretch keeps accumulating rather than being thrown away: on a fine gauge
+            // the drop arrives before the distance does.
+            if (drop < minDrop || distanceKm < MIN_SEGMENT_KM) continue
             emit(distanceKm, hours, tempSum, tempCount, drop)?.let(out::add)
             reset(soc)
             if (out.size >= maxSegments) return
         }
+    }
+
+    /** The smallest move this track's gauge made, or null when it never moved. */
+    private fun gaugeStep(samples: List<TripSample>): Double? {
+        var step: Double? = null
+        var previous: Double? = null
+        for (sample in samples) {
+            val soc = sample.socPercent?.toDouble()?.takeIf { it.isFinite() } ?: continue
+            val move = previous?.let { abs(soc - it) }
+            // Float storage turns 0.1 into 0.0999…; anything below a hundredth is that noise.
+            if (move != null && move >= 0.01) step = minOf(step ?: move, move)
+            previous = soc
+        }
+        return step
     }
 
     private fun emit(
@@ -335,6 +490,9 @@ class SocConsumptionFitter(
         const val MAX_SEGMENTS = 5_000
         const val MAX_RESIDUAL_RMSE_PERCENT_PER_100_KM = 12.0
         const val MIN_SEGMENT_KM = 2.0
+
+        /** The distance [windowRmse] judges a fit over: shorter than most drives, longer than a hill. */
+        const val WINDOW_KM = 10.0
 
         private const val MIN_SPEED_KMH = 10.0
         private const val MAX_SPEED_KMH = 180.0

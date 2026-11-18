@@ -23,7 +23,8 @@ enum class ConditionGroup(@StringRes val labelRes: Int) {
     CLIMATE(R.string.group_climate),
     COMFORT(R.string.group_comfort),
     AUDIO(R.string.group_audio),
-    ADAS(R.string.group_adas)
+    ADAS(R.string.group_adas),
+    LIGHTS(R.string.group_lights)
 }
 
 /**
@@ -101,6 +102,30 @@ enum class ConditionType(
     DATE(
         R.string.cond_date, ConditionGroup.CONTEXT,
         ValueSpec(ValueKind.DATE), snapshotKey = null
+    ),
+    /**
+     * The clock, compared as one time of day rather than tested against a range.
+     *
+     * [TIME_OF_DAY] answers "between 22:00 and 06:00"; this answers "after sunset", once the
+     * other side of the comparison is a variable rather than a fixed time.
+     */
+    CURRENT_TIME(
+        R.string.cond_current_time, ConditionGroup.CONTEXT,
+        ValueSpec(ValueKind.TIME), snapshotKey = null, comparable = true
+    ),
+    /**
+     * A variable: one a rule set, or one computed for every cycle (night, sunrise…).
+     *
+     * A variable nothing has set is unavailable, never false — same rule as a reading the
+     * car does not answer.
+     */
+    VARIABLE_FLAG(
+        R.string.cond_variable_flag, ConditionGroup.CONTEXT,
+        ValueSpec(ValueKind.VARIABLE_FLAG), snapshotKey = null
+    ),
+    VARIABLE_NUMBER(
+        R.string.cond_variable_number, ConditionGroup.CONTEXT,
+        ValueSpec(ValueKind.VARIABLE_NUMBER), snapshotKey = null, comparable = true
     ),
     FIRMWARE_GEN(
         R.string.cond_firmware, ConditionGroup.CONTEXT,
@@ -362,8 +387,12 @@ enum class ConditionType(
      * The two are the same number until dual zone is on, which is exactly when a rule needs
      * to tell them apart — and there is no readable "dual zone" flag, so the honest way to
      * ask is to compare the two targets.
+     *
+     * Not SWI68: the service reads the passenger zone (area 68) and answers -1, which is what
+     * its converter returns for a value out of range — a single-zone car has no such zone.
+     * Seen on a SWI68 MG4 that read the driver's target fine in the same pass.
      */
-    @SupportedOn(SWI68, SWI165)
+    @SupportedOn(SWI165)
     PASSENGER_TEMP(
         R.string.cond_passenger_temp, ConditionGroup.CLIMATE,
         number(VehicleEnums.CABIN_TEMP_MIN, VehicleEnums.CABIN_TEMP_MAX, R.string.unit_celsius),
@@ -431,7 +460,12 @@ enum class ConditionType(
         number(0, 100, R.string.unit_percent),
         SnapshotKeys.KEY_WINDOW_REAR_RIGHT, comparable = true
     ),
-    @SupportedOn(SWI68, SWI165)
+    /**
+     * Not SWI68: `getDoorLock` reads back the property `setDoorLock` writes, a lock request
+     * rather than a lock state. A SWI68 MG4 in use answered 0, which is neither of the two
+     * named values, so the condition never had anything to say there.
+     */
+    @SupportedOn(SWI165)
     DOORS_LOCKED(
         R.string.cond_doors_locked, ConditionGroup.CONTEXT,
         ValueSpec.BOOL, SnapshotKeys.KEY_DOORS_LOCKED
@@ -471,6 +505,26 @@ enum class ConditionType(
         R.string.cond_brightness, ConditionGroup.COMFORT,
         number(VehicleEnums.BRIGHTNESS_MIN, VehicleEnums.BRIGHTNESS_MAX, R.string.unit_percent),
         SnapshotKeys.KEY_BRIGHTNESS, comparable = true
+    ),
+
+    // ── Exterior lights (CR-046) ─────────────────────────────────────────────
+    // Standard AAOS ids (ExteriorLights). Proven on no generation yet: @SupportedOn stays empty
+    // until a capture shows the state follow the stalk, in the commit that fills
+    // ExteriorLights.PROVEN.
+    @SupportedOn
+    HEADLIGHTS(
+        R.string.cond_headlights, ConditionGroup.LIGHTS,
+        ValueSpec(ValueKind.ENUM, options = VehicleEnums.HEADLIGHT_STATES), SnapshotKeys.KEY_HEADLIGHTS
+    ),
+    @SupportedOn
+    HIGH_BEAM_ON(
+        R.string.cond_high_beam, ConditionGroup.LIGHTS,
+        ValueSpec.BOOL, SnapshotKeys.KEY_HIGH_BEAM
+    ),
+    @SupportedOn
+    FOG_LIGHTS_ON(
+        R.string.cond_fog_lights, ConditionGroup.LIGHTS,
+        ValueSpec.BOOL, SnapshotKeys.KEY_FOG_LIGHTS
     ),
 
     // ── Audio ────────────────────────────────────────────────────────────────

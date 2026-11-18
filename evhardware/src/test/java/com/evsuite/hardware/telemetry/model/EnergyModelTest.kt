@@ -46,6 +46,41 @@ class EnergyModelTest {
         )
     }
 
+    @Test fun `the bundle line names the gate that refused`() {
+        val swi68 = BatteryPowerEvidence(FirmwareInfo.Gen.SWI68, BatteryPowerEvidence.PACK_PAIR_DERIVED_V2)
+        val full = storedTrip(syntheticTrip().samples, swi68)
+        val sparse = storedTrip(syntheticTrip().samples?.take(10), swi68)
+
+        val ready = trainer.describe(listOf(full), FirmwareInfo.Gen.SWI68)
+        assertTrue(ready, ready.startsWith("used=1/1 windows="))
+        assertTrue(ready, ready.contains(" fit=ready rmse="))
+        val refused = trainer.describe(listOf(sparse), FirmwareInfo.Gen.SWI68)
+        assertTrue(refused, refused.matches(Regex("used=1/1 windows=\\d+/12 span=\\d+/20 km/h")))
+        assertEquals("firmware=unvalidated", trainer.describe(listOf(full), FirmwareInfo.Gen.SWI69))
+    }
+
+    @Test fun `town kilometres costing more than open road ones land in the aux term, not a negative aero`() {
+        // Gross consumption with an aux of 300 kWh/100 km × km/h (3 kW): the 2026-11-01 car fit
+        // without that term read the slow kilometres' extra cost as aero=-0,000289 and refused.
+        val trip = syntheticTrip { speed, temp -> consumption(speed, temp) + 300.0 / speed }
+        val model = ready(trainer.fit(listOf(trip), evidence))
+
+        assertEquals(10.0, model.rollingKwhPer100Km, 1e-4)
+        assertEquals(0.0005, model.aeroKwhPer100KmPerSpeedSquared, 1e-8)
+        assertEquals(300.0, model.auxKwhPer100KmTimesKmh, 1e-2)
+        assertEquals(0.10, model.thermalKwhPer100KmPerDegree, 1e-5)
+        assertEquals(SYNTHETIC_WINDOWS, trainer.windows(listOf(storedTrip(trip.samples, swi68())), FirmwareInfo.Gen.SWI68).size)
+    }
+
+    @Test fun `a term that only fits with a negative sign is left out rather than believed`() {
+        // Colder days were the cheaper ones: no thermal term, instead of no model.
+        val trip = syntheticTrip { speed, temp -> 10.0 + 0.0005 * speed * speed - 0.1 * kotlin.math.abs(temp - 20.0) + 0.5 }
+        val model = ready(trainer.fit(listOf(trip), evidence))
+
+        assertEquals(0.0, model.thermalKwhPer100KmPerDegree, 0.0)
+        assertTrue(model.aeroKwhPer100KmPerSpeedSquared > 0.0)
+    }
+
     @Test fun `SWI68 trains on the pack pair rather than refusing`() {
         // The car this project runs on has no validated power conversion and will not get one
         // from a desk. Refusing to train left the speed comparison permanently empty; the model
@@ -91,12 +126,11 @@ class EnergyModelTest {
     }
 
     @Test fun `bounded month-sized fit completes inside host budget`() {
-        val base = syntheticTrip().samples.orEmpty()
-        val samples = List(EnergyModelTrainer.MAX_TRAINING_SAMPLES) { base[it % base.size] }
-        val trip = storedTrip(samples)
+        val trip = syntheticTrip()
+        val trips = List(EnergyModelTrainer.MAX_TRAINING_SAMPLES / SYNTHETIC_WINDOWS + 1) { trip }
         lateinit var result: EnergyModelTrainingResult
 
-        val elapsedMs = measureTimeMillis { result = trainer.fit(listOf(trip), evidence) }
+        val elapsedMs = measureTimeMillis { result = trainer.fit(trips, evidence) }
 
         assertNotNull((result as EnergyModelTrainingResult.Ready).model)
         assertEquals(
@@ -106,13 +140,78 @@ class EnergyModelTest {
         assertTrue("fit took ${elapsedMs}ms", elapsedMs < HOST_TRAINING_BUDGET_MS)
     }
 
-    private fun syntheticTrip(): StoredTrip {
+    @Test fun `stop-and-go town driving trains once a dozen kilometres are recorded`() {
+        // Every sample of an acceleration costs several times what a cruise does, and a fit
+        // made per sample judged that spread as model error and refused the town for good.
+        // Two afternoons two degrees apart: no evidence about weather, which must not stop it.
+        val trips = listOf(24.0, 26.0).map { temp ->
+            storedTrip(urbanTrack(listOf(25.0, 35.0, 45.0, 55.0), temp))
+        }
+        val model = ready(trainer.fit(trips, evidence))
+
+        assertEquals(0.0, model.thermalKwhPer100KmPerDegree, 0.0)
+        assertTrue(model.envelope.minSpeedKmh < 30.0 && model.envelope.maxSpeedKmh > 50.0)
+        // Town consumption carries the accelerations: above the cruise-only truth, still sane.
+        val town = model.predict(40.0, 25.0).value!!
+        assertTrue("predicted $town", town in consumption(40.0, 25.0)..40.0)
+    }
+
+    /**
+     * Stop, accelerate for 15 s, cruise for a minute, brake for 15 s, repeated at each speed,
+     * sampled every 5 s as the recorder does. Acceleration pays the kinetic energy of a
+     * 1700 kg car at 90 % efficiency; braking returns 60 % of it.
+     */
+    private fun urbanTrack(speeds: List<Double>, tempCelsius: Double): List<TripSample> {
+        val out = ArrayList<TripSample>()
+        var atMs = 0L
+        fun add(speedKmh: Double, powerKw: Double) {
+            out += TripSample(
+                atMs, speedKmh.toFloat(), powerKw.toFloat(), 80f, tempCelsius.toFloat(),
+                null, null, null, null, null,
+            )
+            atMs += 5_000L
+        }
+        for (cruise in speeds) {
+            val cruiseMs = cruise / 3.6
+            val accel = cruiseMs / 15.0
+            val cruisePower = consumption(cruise, tempCelsius) * cruise / 100.0
+            // Enough cycles for five kilometres at this speed.
+            val cycleKm = cruise * (60.0 + 15.0) / 3600.0
+            repeat(kotlin.math.ceil(5.0 / cycleKm).toInt()) {
+                repeat(4) { add(0.0, 1.0) }
+                for (step in 1..3) {
+                    val v = cruiseMs * step / 3.0
+                    add(v * 3.6, cruisePower * step / 3.0 + MASS_KG * accel * v / 900.0)
+                }
+                repeat(12) { add(cruise, cruisePower) }
+                for (step in 2 downTo 0) {
+                    val v = cruiseMs * step / 3.0
+                    add(v * 3.6, -0.6 * MASS_KG * accel * v / 1000.0)
+                }
+            }
+        }
+        return out
+    }
+
+    /** One steady kilometre per speed and temperature, each after a hole that ends a window. */
+    private fun swi68() = BatteryPowerEvidence(FirmwareInfo.Gen.SWI68, BatteryPowerEvidence.PACK_PAIR_DERIVED_V2)
+
+    private fun syntheticTrip(
+        consumption: (Double, Double) -> Double = ::consumption,
+    ): StoredTrip {
+        var atMs = 0L
         val samples = buildList {
             repeat(2) { repetition ->
                 for (temp in listOf(-5.0, 5.0, 15.0, 25.0, 35.0)) {
                     for (speed in 30..130 step 10) {
                         val shiftedSpeed = speed + repetition * 0.1
-                        add(sample(shiftedSpeed, temp))
+                        val intervals = kotlin.math.ceil(3_600.0 / (5.0 * shiftedSpeed)).toInt()
+                        // One interval spare, so float rounding cannot leave the window short.
+                        repeat(intervals + 2) {
+                            add(sample(atMs, shiftedSpeed, temp, consumption))
+                            atMs += 5_000L
+                        }
+                        atMs += 600_000L
                     }
                 }
             }
@@ -139,10 +238,15 @@ class EnergyModelTest {
         samples = samples,
     )
 
-    private fun sample(speedKmh: Double, tempCelsius: Double): TripSample {
+    private fun sample(
+        atMs: Long,
+        speedKmh: Double,
+        tempCelsius: Double,
+        consumption: (Double, Double) -> Double = ::consumption,
+    ): TripSample {
         val powerKw = consumption(speedKmh, tempCelsius) * speedKmh / 100.0
         return TripSample(
-            atMs = speedKmh.toLong(),
+            atMs = atMs,
             speedKmh = speedKmh.toFloat(),
             batteryPowerKw = powerKw.toFloat(),
             socPercent = 80f,
@@ -164,5 +268,9 @@ class EnergyModelTest {
 
     companion object {
         private const val HOST_TRAINING_BUDGET_MS = 2_000L
+        private const val MASS_KG = 1_700.0
+
+        /** Two passes over five temperatures and eleven speeds. */
+        private const val SYNTHETIC_WINDOWS = 110
     }
 }

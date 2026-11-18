@@ -88,6 +88,25 @@ class TripHistoryStoreTest {
         assertNull(restored.batteryTempCelsius)
         assertNull(restored.climateAcOn)
         assertNull(restored.climateFanLevel)
+        assertNull(restored.widestWindowPercent)
+    }
+
+    @Test fun `a sample stored before the window field reads it as unknown`() {
+        val directory = tempDirectory()
+        val target = File(directory, "trips.json")
+        val store = EnergyTripHistoryStore(target)
+        val sample = TripSample(
+            atMs = 10L, speedKmh = 42f, batteryPowerKw = null, socPercent = null,
+            outsideTempCelsius = null, cabinTempCelsius = null, batteryTempCelsius = null,
+            climatePowerOn = null, climateAcOn = null, climateFanLevel = null,
+            widestWindowPercent = 30,
+        )
+        assertTrue(store.append(summary(1L), listOf(sample)))
+        target.writeText(target.readText().replace(",\"widestWindowPercent\":30", ""))
+
+        val restored = EnergyTripHistoryStore(target).read().single().samples!!.single()
+        assertEquals(42f, restored.speedKmh)
+        assertNull(restored.widestWindowPercent)
     }
 
     @Test fun `battery power evidence survives a history round trip`() {
@@ -133,6 +152,20 @@ class TripHistoryStoreTest {
         val remaining = store.read()
         assertEquals(listOf(3L, 1L), remaining.map { it.summary.startedAtMs })
         assertEquals(listOf(3L, 1L), remaining.map { it.samples!!.single().atMs })
+    }
+
+    @Test fun `a save and a delete from two stores on the same file both land`() {
+        val target = File(tempDirectory(), "trips.json")
+        val saver = EnergyTripHistoryStore(target)
+        val deleter = EnergyTripHistoryStore(target)
+        (1L..40L).forEach { assertTrue(saver.append(summary(it))) }
+
+        val saving = Thread { (41L..80L).forEach { saver.append(summary(it)) } }
+        val deleting = Thread { (1L..40L).forEach { deleter.deleteTrip(it) } }
+        saving.start(); deleting.start()
+        saving.join(); deleting.join()
+
+        assertEquals((80L downTo 41L).toList(), saver.read().map { it.summary.startedAtMs })
     }
 
     @Test fun `deleting an unknown trip leaves the file unchanged`() {
@@ -211,6 +244,17 @@ class TripHistoryStoreTest {
         assertNotNull(recorded)
         assertTrue(recorded!!.samples.isNotEmpty())
         assertEquals(0L, recorded.summary.startedAtMs)
+    }
+
+    @Test fun `the drive in progress carries its track so far`() {
+        EnergyTripSession.stop(0L)
+        EnergyTripSession.start(snapshot(at = 0L))
+        repeat(20) { second -> EnergyTripSession.add(snapshot(at = second * 1_000L)) }
+
+        val live = EnergyTripSession.currentTrip(20_000L)
+        EnergyTripSession.stop(20_000L)
+        assertTrue(live!!.samples!!.isNotEmpty())
+        assertNull(EnergyTripSession.currentTrip(21_000L))
     }
 
     private fun tempDirectory(): File =

@@ -43,7 +43,7 @@ data class TripHistoryFile(
 class EnergyTripHistoryStore(
     private val target: File,
     private val maxTrips: Int = 200,
-    private val maxBytes: Int = 512 * 1024,
+    private val maxBytes: Int = 2 * 1024 * 1024,
     private val gson: Gson = Gson(),
 ) {
     /** Trips with whatever tracks survived eviction, newest first. */
@@ -60,21 +60,64 @@ class EnergyTripHistoryStore(
 
     fun append(summary: EnergyTripSummary, samples: List<TripSample> = emptyList()): Boolean {
         val entry = StoredTrip(summary, samples.takeIf { it.isNotEmpty() })
-        val updated = bound(listOf(entry) + read())
-        return write(TripHistoryFile(trips = updated))
+        return synchronized(WRITE_LOCK) { write(TripHistoryFile(trips = bound(listOf(entry) + read()))) }
+    }
+
+    /**
+     * Saves a finished trip, joined onto the newest stored one when [TripJoin.shouldAutoJoin]
+     * says the stop between them was a pause. Returns the start of the trip as stored — the
+     * earlier one's when joined — or null when nothing could be written. A trip started before
+     * [noJoinBeforeMs], a count the driver reset, is never joined onto: the join would carry the
+     * new drive back across the reset and out of the count.
+     */
+    fun appendOrJoin(
+        summary: EnergyTripSummary,
+        samples: List<TripSample> = emptyList(),
+        noJoinBeforeMs: Long = 0L,
+    ): Long? =
+        synchronized(WRITE_LOCK) {
+            val entry = StoredTrip(summary, samples.takeIf { it.isNotEmpty() })
+            val trips = read()
+            val newest = trips.firstOrNull()
+            val updated = if (newest != null && newest.summary.startedAtMs >= noJoinBeforeMs &&
+                TripJoin.shouldAutoJoin(newest.summary, summary)
+            ) {
+                listOf(TripJoin.join(newest, entry)) + trips.drop(1)
+            } else {
+                listOf(entry) + trips
+            }
+            if (write(TripHistoryFile(trips = bound(updated)))) updated.first().summary.startedAtMs else null
+        }
+
+    /**
+     * Joins the trip that started at [startedAtMs] onto the one recorded just before it — the
+     * driver's own call, so any stop length is accepted; [TripJoin.canJoin] still refuses a
+     * charge in between. Returns the joined trip's start, or null when nothing changed.
+     */
+    fun joinWithPrevious(startedAtMs: Long): Long? = synchronized(WRITE_LOCK) {
+        val trips = read()
+        val index = trips.indexOfFirst { it.summary.startedAtMs == startedAtMs }
+        val earlier = trips.getOrNull(index + 1) ?: return null
+        if (index < 0 || !TripJoin.canJoin(earlier.summary, trips[index].summary)) return null
+        val joined = TripJoin.join(earlier, trips[index])
+        val updated = trips.toMutableList().apply {
+            removeAt(index + 1)
+            set(index, joined)
+        }
+        if (write(TripHistoryFile(trips = bound(updated)))) joined.summary.startedAtMs else null
     }
 
     /** Removes exactly one trip identified by its recording start, preserving every other entry. */
-    fun deleteTrip(startedAtMs: Long): Boolean {
+    fun deleteTrip(startedAtMs: Long): Boolean = synchronized(WRITE_LOCK) {
         val trips = read()
         val index = trips.indexOfFirst { it.summary.startedAtMs == startedAtMs }
         if (index < 0) return false
         val updated = trips.toMutableList().also { it.removeAt(index) }
-        return write(TripHistoryFile(trips = updated))
+        write(TripHistoryFile(trips = updated))
     }
 
     /** Atomically replaces the history with a valid empty v2 envelope. */
-    fun clear(): Boolean = write(TripHistoryFile(trips = emptyList()))
+    fun clear(): Boolean = synchronized(WRITE_LOCK) { write(TripHistoryFile(trips = emptyList())) }
 
     /**
      * Reads both shapes: the v2 envelope, and the v1 bare array that shipped before it.
@@ -161,6 +204,15 @@ class EnergyTripHistoryStore(
 
     private fun sizeOf(trip: StoredTrip): Int =
         gson.toJson(trip).toByteArray(Charsets.UTF_8).size
+
+    private companion object {
+        /**
+         * Every read-modify-write of every instance. The service saves a trip on its sampler
+         * thread while the history screens delete on their own, each with its own store on the
+         * same file: without one lock, the last writer silently undid the other.
+         */
+        val WRITE_LOCK = Any()
+    }
 
     private fun write(file: TripHistoryFile): Boolean {
         val bytes = gson.toJson(file).toByteArray(Charsets.UTF_8)
