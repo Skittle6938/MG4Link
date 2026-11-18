@@ -2,12 +2,13 @@ package com.andrerinas.openheadunit.aap
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.w3c.dom.Element
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
-/** The Android Auto screen has no window animation (#23): the theme and both screens that use it. */
+/** The Android Auto screen keeps the system window animation (#23, back since 2.2.7-beta24). */
 class ProjectionThemeTest {
     private fun parse(name: String): Element {
         val file = listOf("src/main/$name", "app/src/main/$name").map(::File).first { it.exists() }
@@ -18,12 +19,11 @@ class ProjectionThemeTest {
         (0 until getElementsByTagName(tag).length).map { getElementsByTagName(tag).item(it) as Element }
 
     @Test
-    fun `the projection theme turns the window animation off`() {
+    fun `the projection theme leaves the window animation on`() {
         val style = parse("res/values/styles.xml").all("style").firstOrNull { it.getAttribute("name") == "AppTheme.Projection" }
         assertNotNull("theme missing", style)
         val item = style!!.all("item").firstOrNull { it.getAttribute("name") == "android:windowAnimationStyle" }
-        assertNotNull("no windowAnimationStyle", item)
-        assertEquals("@null", item!!.textContent.trim())
+        assertNull("windowAnimationStyle overridden", item)
     }
 
     @Test
