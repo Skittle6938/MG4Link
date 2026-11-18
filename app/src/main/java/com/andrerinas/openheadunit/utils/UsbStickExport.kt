@@ -7,24 +7,27 @@ import android.os.storage.StorageManager
 import java.io.File
 
 /**
- * Puts an exported log on a USB stick plugged into the car, when there is one. Exporting only to
+ * Puts exported logs on a USB stick plugged into the car, when there is one. Exporting only to
  * Download/ left nothing on the stick, and the car has no file manager to move it there.
  *
- * The stick's root first (MG4Link runs as the system user, which may write there), then the
- * app's own folder on the stick, which any app may write to without a permission.
+ * Tried in order: an MG4Link-logs folder at the stick's root (the system user may write there with
+ * WRITE_MEDIA_STORAGE), the same through /mnt/media_rw, then the app's own folder on the stick,
+ * which any app may write to without a permission.
  */
 object UsbStickExport {
     private const val TAG = "UsbStickExport"
+    const val FOLDER = "MG4Link-logs"
 
     /** Mounted removable volumes, as directories. */
     fun stickRoots(context: Context): List<File> {
         if (Build.VERSION.SDK_INT < 24) return emptyList()
         val sm = context.getSystemService(StorageManager::class.java) ?: return emptyList()
         return runCatching {
-            sm.storageVolumes.filter { it.isRemovable && it.state == Environment.MEDIA_MOUNTED }.mapNotNull { v ->
-                if (Build.VERSION.SDK_INT >= 30) v.directory
+            sm.storageVolumes.filter { it.isRemovable && it.state == Environment.MEDIA_MOUNTED }.flatMap { v ->
+                val path = if (Build.VERSION.SDK_INT >= 30) v.directory
                 else runCatching { v.javaClass.getMethod("getPathFile").invoke(v) as? File }.getOrNull()
                     ?: runCatching { (v.javaClass.getMethod("getPath").invoke(v) as? String)?.let(::File) }.getOrNull()
+                listOfNotNull(path, v.uuid?.let { File("/mnt/media_rw/$it") })
             }
         }.getOrElse { emptyList() }
     }
@@ -35,19 +38,28 @@ object UsbStickExport {
             runCatching { Environment.isExternalStorageRemovable(dir) }.getOrDefault(false)
         }
 
-    /** Copies [source] to the first stick that takes it; null when there is no stick or none can. */
-    fun copyToStick(context: Context, source: File, name: String): File? {
-        val candidates = stickRoots(context) + appFoldersOnSticks(context)
-        for (dir in candidates) {
-            val target = File(dir, name)
-            val ok = runCatching { source.copyTo(target, overwrite = true) }
-            if (ok.isSuccess) {
-                AppLog.i("$TAG: log copied to ${target.absolutePath}")
-                return target
-            }
-            AppLog.w("$TAG: ${dir.absolutePath} refused the log (${ok.exceptionOrNull()?.message})")
+    /**
+     * Copies [files] (name on the stick to source) into the first stick folder that takes them.
+     * Returns that folder, or null when there is no stick or none could be written.
+     */
+    fun copyToStick(context: Context, files: List<Pair<String, File>>): File? {
+        val roots = stickRoots(context)
+        val candidates = roots.map { File(it, FOLDER) } + appFoldersOnSticks(context)
+        if (candidates.isEmpty()) {
+            AppLog.i("$TAG: no USB stick mounted")
+            return null
         }
-        if (candidates.isEmpty()) AppLog.i("$TAG: no USB stick mounted")
+        for (dir in candidates) {
+            val ok = runCatching {
+                if (!dir.isDirectory && !dir.mkdirs()) error("cannot create the folder")
+                for ((name, source) in files) source.copyTo(File(dir, name), overwrite = true)
+            }
+            if (ok.isSuccess) {
+                AppLog.i("$TAG: ${files.size} log(s) copied to ${dir.absolutePath}")
+                return dir
+            }
+            AppLog.w("$TAG: ${dir.absolutePath} refused the logs (${ok.exceptionOrNull()?.message})")
+        }
         return null
     }
 }
