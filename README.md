@@ -186,7 +186,10 @@ Open an [issue](https://github.com/Skittle6938/MG4Link/issues) and add:
 ## Build
 
 The car build is signed with the head unit's platform key (`android.uid.system`, needed for the
-car's battery and climate data). The keys are not in this repository.
+car's battery and climate data). The keys are not in this repository: the MG4 firmware trusts
+the public AOSP test platform key, `platform.pk8` and `platform.x509.pem` from
+[build/target/product/security](https://android.googlesource.com/platform/build/+/refs/heads/main/target/product/security/)
+in AOSP. Keep them in `tools/` (ignored by git) or point `MG4_PLATFORM_KEYS_DIR` at them.
 
 ```powershell
 $env:MG4_PLATFORM_KEYS_DIR = "C:\path\to\platform-keys"  # platform.pk8 + platform.x509.pem

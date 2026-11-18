@@ -28,8 +28,11 @@ for /f "delims=" %%F in ('dir /b /o-d "%APK_DIR%\*.apk" 2^>nul') do (
 )
 
 set APK_OUT=%APK_DIR%\DiAuto-MG4-signed.apk
-set PLATFORM_PK8=%SCRIPT_DIR%platform.pk8
-set PLATFORM_PEM=%SCRIPT_DIR%platform.x509.pem
+set KEYS_DIR=%SCRIPT_DIR%
+:: MG4_PLATFORM_KEYS_DIR wins; the keys are not committed (copy them to tools\ or point at them).
+if defined MG4_PLATFORM_KEYS_DIR set KEYS_DIR=%MG4_PLATFORM_KEYS_DIR%\
+set PLATFORM_PK8=%KEYS_DIR%platform.pk8
+set PLATFORM_PEM=%KEYS_DIR%platform.x509.pem
 
 set VERSION_NAME=unknown
 for /f "tokens=2 delims==" %%v in ('findstr /C:"versionName =" "%PROJECT_DIR%\app\build.gradle.kts"') do (
