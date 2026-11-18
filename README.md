@@ -155,6 +155,17 @@ export them, and contain no destinations, road names, GPS position, or phone and
 3. Select the USB stick and install the APK. It installs on top of the car's Android Auto.
 4. Pair your phone with the car over Bluetooth if it is not already, then open MG4Link.
 
+**Checking a download.** Releases built by the [Release workflow](.github/workflows/release.yml)
+come straight from the tagged source on GitHub's servers and carry a signed build provenance.
+With the [GitHub CLI](https://cli.github.com/):
+
+```sh
+gh attestation verify MG4Link_<version>.apk --repo Skittle6938/MG4Link
+```
+
+A passing check names the commit the APK was built from. The `.sha256` file next to the APK
+only shows that the download is complete.
+
 **Coming from 2.0.x** (`com.drivehub.diauto.mg4`): install the new APK once by hand. At first start
 it takes over the old settings, then removes the old app.
 
