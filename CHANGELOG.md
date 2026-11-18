@@ -1,5 +1,6 @@
 # MG4Link 2.2.7-beta23
 
+- Music that Android Auto starts by itself no longer plays on the phone's speaker (#36): when the phone had to be woken over Bluetooth, MG4Link asked for the car's hands-free link back 5 s into the session, right when the music started, and the phone kept the sound. It now waits until the music plays in the car (or 20 s when nothing plays).
 - Exporting the log (Settings › About › Logs) puts the last five logs onto a USB stick plugged into the car, and says where: an MG4Link-logs folder at the root when the car allows it, otherwise Android/data/com.allgo.app.androidauto/files on the stick. Without a stick it still goes to the car's Download folder, which now keeps only the last three exported copies (they used to pile up).
 - Coming back to Android Auto (#23): 2.2.7-beta20 kept the last picture back until the screen had its new scale, but the pictures the phone kept sending in the meantime still went on at once and showed squished. They now wait too (the newest one only, at most 0.3 s), also when the screen is left and resumed in quick succession.
 
