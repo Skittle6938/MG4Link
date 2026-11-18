@@ -784,7 +784,11 @@ class DaSettingsActivity : BaseActivity() {
             val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             File(dir, name).also { source.copyTo(it, overwrite = true) }
         }.getOrNull()
-        val onStick = com.andrerinas.openheadunit.utils.UsbStickExport.copyToStick(this, source, name)
+        // On the stick, the last few logs: the one of a failed attempt is often not the current one.
+        val recent = (source.parentFile?.listFiles { f -> f.isFile && f.name.endsWith(".txt") }.orEmpty().toList() + source)
+            .distinct().sortedByDescending { it.lastModified() }.take(5)
+        val onStick = com.andrerinas.openheadunit.utils.UsbStickExport.copyToStick(
+            this, recent.map { "MG4Link-" + it.name to it })
         Toast.makeText(this,
             getString(R.string.dset_logs_saved, (onStick ?: target ?: source).absolutePath), Toast.LENGTH_LONG).show()
     }
