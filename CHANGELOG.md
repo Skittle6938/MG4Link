@@ -1,3 +1,7 @@
+# MG4Link 2.2.7-beta24
+
+- The Android Auto screen has its window animation back (#23): removed in 2.2.7-beta16 to hide the squished picture on return, it made coming back from the car's 360° camera an abrupt cut. The squished picture is handled by 2.2.7-beta23 now, and the animation also covers the short black moment while the screen is set up.
+
 # MG4Link 2.2.7-beta23
 
 - Music that Android Auto starts by itself no longer plays on the phone's speaker (#36): when the phone had to be woken over Bluetooth, MG4Link asked for the car's hands-free link back 5 s into the session, right when the music started, and the phone kept the sound. It now waits until the music plays in the car (or 20 s when nothing plays).
