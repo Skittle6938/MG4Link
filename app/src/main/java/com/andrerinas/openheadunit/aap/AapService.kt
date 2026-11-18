@@ -406,6 +406,27 @@ class AapService : Service(), UsbReceiver.Listener {
         scheduleApplyAaMediaMetadata(meta)
     }
 
+    /** See [MusicAudioRecovery]: once per session, a pause then play when the music plays on the phone (#36). */
+    private fun scheduleMusicAudioRecovery() {
+        val start = sessionTransportStartedAtMs
+        if (!commManager.isWirelessSession || musicRecoveryJob?.isActive == true || musicRecoveryDone) return
+        if (!MusicAudioRecovery.shouldRecover(start, MusicAudioRecovery.musicSinkSetupAtMs, aaMusicStartedAtMs, true, false)) return
+        musicRecoveryJob = serviceScope.launch(Dispatchers.IO) {
+            delay(MusicAudioRecovery.WAIT_MS)
+            if (start != sessionTransportStartedAtMs) return@launch
+            if (!MusicAudioRecovery.shouldRecover(start, MusicAudioRecovery.musicSinkSetupAtMs, aaMusicStartedAtMs,
+                    lastAaPlaybackIsPlaying == true, musicRecoveryDone)) return@launch
+            musicRecoveryDone = true
+            AppLog.w("AapService: the phone says its music plays but sent no audio to the car for " +
+                "${MusicAudioRecovery.WAIT_MS / 1000}s - pause then play to bring it over (#36)")
+            commManager.sendKey(android.view.KeyEvent.KEYCODE_MEDIA_PAUSE, true, null, "audio-recovery")
+            commManager.sendKey(android.view.KeyEvent.KEYCODE_MEDIA_PAUSE, false, null, "audio-recovery")
+            delay(MusicAudioRecovery.PAUSE_TO_PLAY_MS)
+            commManager.sendKey(android.view.KeyEvent.KEYCODE_MEDIA_PLAY, true, null, "audio-recovery")
+            commManager.sendKey(android.view.KeyEvent.KEYCODE_MEDIA_PLAY, false, null, "audio-recovery")
+        }
+    }
+
     private fun onAaPlaybackStatusFromPhone(status: MediaPlayback.MediaPlaybackStatus) {
         if (isDestroying) return
         if (status.hasPlaybackSeconds()) {
@@ -413,6 +434,7 @@ class AapService : Service(), UsbReceiver.Listener {
         }
         val isPlayingFromStatus = resolveIsPlayingFromStatus(status)
         lastAaPlaybackIsPlaying = isPlayingFromStatus
+        if (isPlayingFromStatus == true) scheduleMusicAudioRecovery()
         mediaSessionIsPlaying = isPlayingFromStatus
 
         if (!App.provide(this).settings.syncMediaSessionWithAaMetadata) return
@@ -953,6 +975,9 @@ class AapService : Service(), UsbReceiver.Listener {
                         }
                     }
                     is CommManager.ConnectionState.TransportStarted -> {
+                        sessionTransportStartedAtMs = SystemClock.elapsedRealtime()
+                        musicRecoveryDone = false
+                        musicRecoveryJob?.cancel()
                         hasEverConnected = true
                         notifyAllgoRelay()
                         announceMediaCardPlaceholder()
@@ -2603,6 +2628,9 @@ class AapService : Service(), UsbReceiver.Listener {
     @Volatile private var lastSessionOverUsb = false
     /** When the phone's music last started over Wi-Fi (elapsedRealtime), for [restoreCarHandsFreeSoon]. */
     @Volatile private var aaMusicStartedAtMs = 0L
+    @Volatile private var sessionTransportStartedAtMs = 0L
+    @Volatile private var musicRecoveryDone = false
+    private var musicRecoveryJob: Job? = null
     private var usbPictureWatchJob: Job? = null
     private var usbReconnectFallbackJob: Job? = null
 
