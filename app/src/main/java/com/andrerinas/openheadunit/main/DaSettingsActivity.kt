@@ -768,20 +768,25 @@ class DaSettingsActivity : BaseActivity() {
         }.start()
     }
 
-    /** The current log file, copied to Download/ where a USB stick or a file manager can reach it. */
+    /**
+     * The current log file, copied to Download/ and, when a USB stick is plugged in, onto the
+     * stick, which is where it has to end up to leave the car.
+     */
     private fun exportLogs() {
         val source = AppLog.currentLogFile ?: AppLog.lastLogFile
         if (source == null || !source.exists()) {
             Toast.makeText(this, R.string.dset_logs_none, Toast.LENGTH_LONG).show()
             return
         }
+        val name = "MG4Link-" + source.name
         val target = runCatching {
             @Suppress("DEPRECATION")
             val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            File(dir, "MG4Link-" + source.name).also { source.copyTo(it, overwrite = true) }
+            File(dir, name).also { source.copyTo(it, overwrite = true) }
         }.getOrNull()
+        val onStick = com.andrerinas.openheadunit.utils.UsbStickExport.copyToStick(this, source, name)
         Toast.makeText(this,
-            getString(R.string.dset_logs_saved, (target ?: source).absolutePath), Toast.LENGTH_LONG).show()
+            getString(R.string.dset_logs_saved, (onStick ?: target ?: source).absolutePath), Toast.LENGTH_LONG).show()
     }
 
     // --- Rows and controls --------------------------------------------------------------------
