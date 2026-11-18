@@ -7,7 +7,8 @@ can plan your charging stops.
 > Community fork of [DiAuto](https://github.com/shihabal3amri/DiAuto) (AGPL-3.0), via
 > [merthankaraman/DiAuto-MG4](https://github.com/merthankaraman/DiAuto-MG4), maintained separately
 > for the MG4 (SWI69 head unit) with its own version line. MG4 data comes from the vendored
-> [EVHardware](https://github.com/fatihdonmezdev/MG4ABRP) library. For Apple CarPlay, use
+> [EVHardware](https://github.com/malys/EVHardware) library (PolyForm Noncommercial 1.0.0,
+> copied through [fatihdonmezdev/MG4ABRP](https://github.com/fatihdonmezdev/MG4ABRP)). For Apple CarPlay, use
 > **DiPlay-MG4** instead (do not run both at once).
 
 > [!WARNING]
