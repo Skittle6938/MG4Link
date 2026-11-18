@@ -9,5 +9,5 @@ The rest of the MG4ABRP monorepo is intentionally not vendored.
 
 See the upstream repository for its LICENSE terms. DiAuto-MG4 remains AGPL-3.0.
 
-Last synced with malys/EVHardware 65e9453 (2026-11-18), keeping the MG4Link
+Last synced with malys/EVHardware 8050f3e (2026-11-18), keeping the MG4Link
 changes made to this copy since malys/EVHardware b595ccb.

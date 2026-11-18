@@ -3,6 +3,7 @@ package com.andrerinas.openheadunit.utils
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.evsuite.hardware.AppLogger
 
 import java.io.BufferedWriter
 import java.io.Closeable
@@ -275,8 +276,27 @@ object AppLog {
     }
 
     private fun log(priority: Int, msg: String) {
-        DiagnosticJournal.record(priority, maskPrivate(msg))
-        LOGGER.println(priority, TAG, if (LOGGER is Logger.Android) msg else maskPrivate(msg))
+        val masked = maskPrivate(msg)
+        DiagnosticJournal.record(priority, masked)
+        mirror(priority, masked)
+        LOGGER.println(priority, TAG, if (LOGGER is Logger.Android) msg else masked)
+    }
+
+    /**
+     * EVHardware's crash report ends with the last lines of its AppLogger ring. This app logs only
+     * here, so without a copy that section held none of the connection, video or audio context.
+     * INFO and above, already masked, into the ring only: logcat already has the line.
+     */
+    private val mirrorReady: Boolean by lazy { runCatching { AppLogger.totalCount; true }.getOrDefault(false) }
+
+    private fun mirror(priority: Int, masked: String) {
+        if (priority < Log.INFO || !mirrorReady) return
+        val level = when {
+            priority >= Log.ERROR -> AppLogger.Level.ERROR
+            priority >= Log.WARN -> AppLogger.Level.WARN
+            else -> AppLogger.Level.INFO
+        }
+        AppLogger.record(TAG, level, masked)
     }
 
     private val macAddress = Regex("(?i)\\b((?:[0-9a-f]{2}:){2}[0-9a-f]{2}):(?:[0-9a-f]{2}:){2}[0-9a-f]{2}\\b")
@@ -315,8 +335,10 @@ object AppLog {
         // Files keep the exception's name and message (they are posted on GitHub, so masked); the
         // stack goes to logcat only. Without them the file showed an empty line under the error.
         val trace = if (LOGGER is Logger.Android) Log.getStackTraceString(tr) else maskPrivate(describe(tr))
-        DiagnosticJournal.record(Log.ERROR, maskPrivate(message))
-        LOGGER.println(Log.ERROR, TAG, (if (LOGGER is Logger.Android) message else maskPrivate(message)) + '\n' + trace)
+        val masked = maskPrivate(message)
+        DiagnosticJournal.record(Log.ERROR, masked)
+        mirror(Log.ERROR, if (tr == null) masked else masked + " (" + maskPrivate(describe(tr)) + ")")
+        LOGGER.println(Log.ERROR, TAG, (if (LOGGER is Logger.Android) message else masked) + '\n' + trace)
     }
 
     internal fun describe(tr: Throwable?): String {
