@@ -88,6 +88,7 @@ internal class AapControlMedia(
     private fun mediaSinkSetupRequest(request: Media.MediaSetupRequest, channel: Int): Int {
 
         AppLog.i("Media Sink Setup Request: %d on channel %s", request.type, Channel.name(channel))
+        if (channel == Channel.ID_VID) UsbVideoFallback.onVideoSetup()
 
         val maxUnacked = maxUnackedFor(channel)
         val configResponse = Media.Config.newBuilder().apply {

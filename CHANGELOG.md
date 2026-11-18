@@ -1,3 +1,7 @@
+# MG4Link 2.2.7-beta22
+
+- USB with phones or tablets that take the 1080p picture and never send it (#31: "Communication error 7" on the phone): when no picture comes within 10 seconds of the video being set up, MG4Link remembers the device, ends the session and reconnects asking it for 720p, and asks that device for 720p from then on.
+
 # MG4Link 2.2.7-beta21
 
 - Wireless on cars whose head unit answers no ARP request (#30): besides the broadcast requests it already makes the car send, MG4Link now also sends a byte every second to each phone on the hotspot, so that the car asks the phone itself for its address: a phone that did not learn the car's address from the broadcast learns it then.

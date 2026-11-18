@@ -929,6 +929,7 @@ class AapService : Service(), UsbReceiver.Listener {
                     }
                     is CommManager.ConnectionState.HandshakeComplete -> {
                         automaticReconnectAttempts = 0
+                        watchUsbPicture()
                         val open = ProjectionOpenPolicy.shouldOpen(
                             settings.openProjectionOnConnect,
                             AapProjectionActivity.isForeground,
@@ -1437,7 +1438,39 @@ class AapService : Service(), UsbReceiver.Listener {
      * 3. Stopping audio/video decoders on the IO thread
      * 4. Scheduling a reconnect attempt if applicable (see [scheduleReconnectIfNeeded])
      */
+    /**
+     * Over USB, a device that never sends a picture after the video setup is asked for 720p from
+     * then on, and the session is ended so the reconnection gets it at once (#31).
+     */
+    private fun watchUsbPicture() {
+        usbPictureWatchJob?.cancel()
+        val device = UsbVideoFallback.currentDevice ?: return
+        usbPictureWatchJob = serviceScope.launch(Dispatchers.IO) {
+            while (true) {
+                delay(1_000L)
+                if (UsbVideoFallback.currentDevice != device || !commManager.isConnected) return@launch
+                if (UsbVideoFallback.pictureArrived) return@launch
+                if (!AapProjectionActivity.isForeground) {
+                    UsbVideoFallback.holdClock()
+                    continue
+                }
+                if (!UsbVideoFallback.pictureMissing()) continue
+                val known = settings.usb720pDevices
+                if (device in known) {
+                    AppLog.w("AapService: $device sent no picture at 720p either - leaving the session as it is")
+                    return@launch
+                }
+                settings.usb720pDevices = known + device
+                AppLog.w("AapService: $device sent no picture ${UsbVideoFallback.NO_VIDEO_MS / 1000}s after the video setup - asking it for 720p from now on and reconnecting")
+                commManager.disconnectForLinkLoss(2_000L)
+                return@launch
+            }
+        }
+    }
+
     private fun onDisconnected(state: CommManager.ConnectionState.Disconnected) {
+        usbPictureWatchJob?.cancel()
+        usbPictureWatchJob = null
         val endedOverUsb = lastSessionOverUsb
         lastSessionOverUsb = false
         relayAnnounceJob?.cancel()
@@ -2557,6 +2590,7 @@ class AapService : Service(), UsbReceiver.Listener {
 
     /** The last session that started carried Android Auto over the cable. */
     @Volatile private var lastSessionOverUsb = false
+    private var usbPictureWatchJob: Job? = null
     private var usbReconnectFallbackJob: Job? = null
 
     /** A phone on the car's USB socket (in accessory mode or not), when USB is in use. */
