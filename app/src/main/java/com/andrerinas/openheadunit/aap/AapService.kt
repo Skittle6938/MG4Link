@@ -484,12 +484,20 @@ class AapService : Service(), UsbReceiver.Listener {
     /**
      * A poke takes the phone's hands-free slot, and the car then only gets it back about two minutes
      * later: calls stay off the car meanwhile. Once the session is up, the slot is free, so ask for it.
+     *
+     * Not in the first seconds, though: asked 5 s in, it landed right when Android Auto started the
+     * music by itself, and the phone then played it on its own speaker with no audio sent to the car
+     * (#36). So first wait for the music to start on the car, or [HANDS_FREE_RESTORE_MAX_WAIT_MS].
      */
     private fun restoreCarHandsFreeSoon() {
         handsFreeRestoreJob?.cancel()
         if (!commManager.isWirelessSession) return
         val mac = preferredLinkedPhone() ?: settings.autoStartBluetoothDeviceMacs.firstOrNull() ?: return
+        val sessionStartMs = SystemClock.elapsedRealtime()
         handsFreeRestoreJob = serviceScope.launch(Dispatchers.IO) {
+            while (aaMusicStartedAtMs < sessionStartMs &&
+                SystemClock.elapsedRealtime() - sessionStartMs < HANDS_FREE_RESTORE_MAX_WAIT_MS
+            ) delay(500L)
             repeat(HANDS_FREE_RESTORE_TRIES) { attempt ->
                 delay(HANDS_FREE_RESTORE_DELAY_MS)
                 if (BluetoothHelper.handsFreeLinkState(this@AapService) != false) return@launch
@@ -1032,7 +1040,10 @@ class AapService : Service(), UsbReceiver.Listener {
         maybeSwitchCarToBtMusic()
         // Wi‑Fi music: the car's media source is taken when the phone starts playing, not here —
         // a connection alone (or a probe that never becomes a session) must not stop the radio.
-        commManager.onMediaPlaybackStarted = { claimCarMediaSourceForAndroidAuto("music started") }
+        commManager.onMediaPlaybackStarted = {
+            aaMusicStartedAtMs = SystemClock.elapsedRealtime()
+            claimCarMediaSourceForAndroidAuto("music started")
+        }
         commManager.onSpeechEndedDuringMedia = { checkCarSourceAfterPrompt() }
         com.evsuite.hardware.saic.SaicCarAudioSource.onFocusChange = { change ->
             commManager.onCarSourceFocusChange(change)
@@ -2590,6 +2601,8 @@ class AapService : Service(), UsbReceiver.Listener {
 
     /** The last session that started carried Android Auto over the cable. */
     @Volatile private var lastSessionOverUsb = false
+    /** When the phone's music last started over Wi-Fi (elapsedRealtime), for [restoreCarHandsFreeSoon]. */
+    @Volatile private var aaMusicStartedAtMs = 0L
     private var usbPictureWatchJob: Job? = null
     private var usbReconnectFallbackJob: Job? = null
 
@@ -3634,6 +3647,7 @@ class AapService : Service(), UsbReceiver.Listener {
         private const val RELAY_ANNOUNCE_MS = 30_000L
         private const val HANDS_FREE_RESTORE_DELAY_MS = 5_000L
         private const val HANDS_FREE_RESTORE_TRIES = 3
+        private const val HANDS_FREE_RESTORE_MAX_WAIT_MS = 20_000L
 
         /** Delay before AapService tries to handle a normal-mode USB attach as a fallback
          *  when UsbAttachedActivity doesn't fire (common on Chinese MediaTek headunits). */
