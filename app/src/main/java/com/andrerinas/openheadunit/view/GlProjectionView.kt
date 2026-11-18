@@ -589,12 +589,14 @@ class GlProjectionView(context: Context) : GLSurfaceView(context), IProjectionVi
             // Create Surface
             surfaceTexture = SurfaceTexture(textureId)
             surfaceTexture!!.setOnFrameAvailableListener(this)
-            surface = Surface(surfaceTexture)
-            
-            // Notify Activity on Main Thread
+            val created = Surface(surfaceTexture)
+            surface = created
+
+            // Notify Activity on Main Thread. The local, not the field: release() can clear the
+            // field before this runs, and its own post (queued after this one) reports the destroy.
             Handler(Looper.getMainLooper()).post {
                 AppLog.i("GlProjectionView: Reporting Surface Created")
-                callbacks.forEach { it.onSurfaceCreated(surface!!) }
+                callbacks.forEach { it.onSurfaceCreated(created) }
             }
         }
 
