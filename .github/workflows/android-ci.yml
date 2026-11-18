@@ -42,7 +42,7 @@ jobs:
       - name: Install pinned NDK and CMake
         run: |
           for attempt in 1 2 3; do
-            sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865" "cmake;3.22.1" && exit 0
+            sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1" && exit 0
             echo "sdkmanager attempt $attempt failed; retrying in 15s..." >&2
             sleep 15
           done
@@ -91,7 +91,7 @@ jobs:
       - name: Install pinned NDK and CMake
         run: |
           for attempt in 1 2 3; do
-            sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865" "cmake;3.22.1" && exit 0
+            sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1" && exit 0
             echo "sdkmanager attempt $attempt failed; retrying in 15s..." >&2
             sleep 15
           done
