@@ -3,8 +3,6 @@ package com.andrerinas.openheadunit.ota;
 import android.content.Context;
 import android.util.Log;
 
-import com.andrerinas.openheadunit.BuildConfig;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -25,7 +23,6 @@ final class OtaDownloader {
     private static final String TAG = "DiAuto_OTA";
     static final String OTA_DIR = "ota";
     private static final String APK_NAME = "update.apk";
-    private static final int MAX_REDIRECTS = 5;
 
     interface Progress {
         void onProgress(long done, long total);
@@ -92,33 +89,15 @@ final class OtaDownloader {
         return apk;
     }
 
-    /** GitHub answers with a redirect to its file host; followed by hand, as MG4Dash does. */
+    /** GitHub answers with a redirect to its file host; every hop is checked by OtaUrls. */
     private static HttpURLConnection open(android.net.Network network, String url) throws Exception {
-        URL current = new URL(url);
-        for (int hops = 0; ; hops++) {
-            // HTTPS only, redirects included: an update must never come over plain HTTP.
-            if (!"https".equalsIgnoreCase(current.getProtocol())) {
-                throw new IllegalStateException("refusing non-HTTPS URL " + current.getProtocol());
-            }
-            HttpURLConnection connection = OtaNetwork.open(network, current);
-            connection.setInstanceFollowRedirects(false);
-            connection.setConnectTimeout(8000);
-            connection.setReadTimeout(30000);
-            connection.setRequestProperty("User-Agent", "MG4Link/" + BuildConfig.VERSION_NAME);
-            int code = connection.getResponseCode();
-            if (code >= 300 && code < 400 && hops < MAX_REDIRECTS) {
-                String location = connection.getHeaderField("Location");
-                connection.disconnect();
-                if (location == null) throw new IllegalStateException("HTTP " + code + " without Location");
-                current = new URL(current, location);
-                continue;
-            }
-            if (code != HttpURLConnection.HTTP_OK) {
-                connection.disconnect();
-                throw new IllegalStateException("HTTP " + code);
-            }
-            return connection;
+        HttpURLConnection connection = OtaNetwork.get(network, new URL(url), 8000, 30000, null);
+        int code = connection.getResponseCode();
+        if (code != HttpURLConnection.HTTP_OK) {
+            connection.disconnect();
+            throw new IllegalStateException("HTTP " + code);
         }
+        return connection;
     }
 
     static File stagedApk(Context context) {
