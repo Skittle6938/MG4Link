@@ -1,5 +1,6 @@
 # MG4Link 2.2.7-beta24
 
+- Music that Android Auto starts by itself on the phone's speaker after a Bluetooth wake-up (#36, beta23 was not enough): when the phone says its music plays but sends no sound to the car for 3 s, MG4Link sends a pause then a play, as you would on the steering wheel, once per session. The log also says when the Bluetooth link used to wake the phone closes.
 - The Android Auto screen has its window animation back (#23): removed in 2.2.7-beta16 to hide the squished picture on return, it made coming back from the car's 360° camera an abrupt cut. The squished picture is handled by 2.2.7-beta23 now, and the animation also covers the short black moment while the screen is set up.
 
 # MG4Link 2.2.7-beta23

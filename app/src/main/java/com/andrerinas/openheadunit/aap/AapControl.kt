@@ -89,6 +89,7 @@ internal class AapControlMedia(
 
         AppLog.i("Media Sink Setup Request: %d on channel %s", request.type, Channel.name(channel))
         if (channel == Channel.ID_VID) UsbVideoFallback.onVideoSetup()
+        if (channel == Channel.ID_AUD) MusicAudioRecovery.musicSinkSetupAtMs = android.os.SystemClock.elapsedRealtime()
 
         val maxUnacked = maxUnackedFor(channel)
         val configResponse = Media.Config.newBuilder().apply {

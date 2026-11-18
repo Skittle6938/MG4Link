@@ -709,6 +709,7 @@ class NativeAaHandshakeManager(
             for (uuid in BluetoothWakePolicy.POKE_TARGETS) {
                 val profile = BluetoothWakePolicy.profileName(uuid)
                 var socket: BluetoothSocket? = null
+                var connectedAtMs = 0L
                 try {
                     socket = device.createRfcommSocketToServiceRecord(uuid)
                     AppLog.i("NativeAA: Calling socket.connect() for ${device.name} via $profile ($uuid)...")
@@ -716,6 +717,7 @@ class NativeAaHandshakeManager(
                     // Named, not just the UUID: which record we ended up on is the first thing to
                     // check when a reporter's calls come out of the phone instead of the car.
                     AppLog.i("NativeAA: Successfully poked ${device.name} via $profile. Holding ${holdMs}ms...")
+                    connectedAtMs = SystemClock.elapsedRealtime()
                     // Counted before the hold, so a poke that is cancelled mid-hold still counts:
                     // the phone answered, which is the whole point of the count.
                     pokesSinceLastAccept++
@@ -733,6 +735,9 @@ class NativeAaHandshakeManager(
                     AppLog.d("NativeAA: Poke via $profile to ${device.name ?: "unnamed"} (${device.address}) failed: ${e.message}")
                 } finally {
                     try { socket?.close() } catch (e: Exception) {}
+                    // When the phone loses this link matters (#36): say exactly when it went.
+                    if (connectedAtMs > 0L) AppLog.i("NativeAA: poke link via $profile closed after " +
+                        "${SystemClock.elapsedRealtime() - connectedAtMs}ms")
                 }
             }
             return false
