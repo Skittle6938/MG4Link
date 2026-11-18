@@ -63,7 +63,8 @@ class DaSettingsActivity : BaseActivity() {
         list = findViewById(R.id.settings_list)
         findViewById<View>(R.id.settings_back).setOnClickListener { finish() }
         selectedTab = savedInstanceState?.getInt(KEY_TAB) ?: intent.getIntExtra(EXTRA_TAB, lastTab)
-        ota = OtaController(this).also { controller ->
+        // A stable build never updates itself: no update check, no update rows.
+        if (BuildConfig.OTA_ENABLED) ota = OtaController(this).also { controller ->
             controller.setStateListener { status ->
                 otaStatus = status
                 if (Tab.values()[selectedTab] == Tab.ABOUT) showTab(selectedTab)
@@ -379,11 +380,15 @@ class DaSettingsActivity : BaseActivity() {
             OtaController.State.FAILED -> getString(R.string.dset_update_failed)
             else -> ""
         }
-        rowText(getString(R.string.dset_version, getString(R.string.da_brand), version), summary,
-            button(getString(if (available) R.string.dset_install else R.string.da_update)) { ota?.checkOrDownload() })
-        row(R.string.dset_betas, R.string.dset_betas_summary, yesNo(ota?.isAllowBeta == true) {
-            ota?.setAllowBeta(it)
-        })
+        if (BuildConfig.OTA_ENABLED) {
+            rowText(getString(R.string.dset_version, getString(R.string.da_brand), version), summary,
+                button(getString(if (available) R.string.dset_install else R.string.da_update)) { ota?.checkOrDownload() })
+            row(R.string.dset_betas, R.string.dset_betas_summary, yesNo(ota?.isAllowBeta == true) {
+                ota?.setAllowBeta(it)
+            })
+        } else {
+            rowText(getString(R.string.dset_version, getString(R.string.da_brand), version), "", value("", null))
+        }
         row(R.string.tuto_settings_title, R.string.tuto_settings_summary,
             button(getString(R.string.tuto_settings_button)) { startActivity(DaTutorialActivity.intent(this)) })
         // MG4Dash is not in the SAIC app list: the way back to it after its Maintenance mode (MG4Dash Discussion #111)

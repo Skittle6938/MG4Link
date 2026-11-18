@@ -118,6 +118,8 @@ internet over Bluetooth is not possible on the MG4: its Bluetooth stack has no n
 - Night mode follows the car's lights and sunset to sunrise, or the sun only.
 - Updates from this repository, from the app (*Settings → About*, betas optional). The update window
   shows how much data will be downloaded, and advises using a Wi-Fi network or USB if you can.
+  Two channels: a **pre-release** (`2.2.8-beta1`) updates itself this way; a **stable release**
+  (`2.2.8`) never installs anything by itself, so the next version is installed by hand.
 - **Test mode** (*Settings → About*, off by default) shows the features still being tested, such as
   live figures for the consumption model.
 

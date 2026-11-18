@@ -8,6 +8,8 @@ plugins {
     kotlin("kapt")
 }
 
+val stableChannel = (project.findProperty("mg4link.channel") as String?) == "stable"
+
 android {
     compileSdk = 36
     ndkVersion = "27.2.12479018"
@@ -53,6 +55,12 @@ android {
         getByName("main") {
             assets.srcDirs("${project.layout.buildDirectory.get().asFile}/generated/assets/root")
         }
+        if (stableChannel) {
+            // Highest-priority manifest of a release build: strips the install permissions.
+            getByName("release") {
+                manifest.srcFile("src/stable/AndroidManifest.xml")
+            }
+        }
     }
 
     tasks.withType<com.android.build.gradle.tasks.MergeSourceSetFolders>().configureEach {
@@ -82,6 +90,12 @@ android {
         // Store available locales in BuildConfig for runtime access
         // This is scanned at build time from values-XX directories
         buildConfigField("String", "AVAILABLE_LOCALES", "\"${availableLocales.joinToString(",")}\"")
+
+        // Release channel. "stable" (-Pmg4link.channel=stable, set by the Release workflow for a
+        // version without "-") has no self-update: the update UI is gone and the install
+        // permissions are removed from the manifest (src/stable). Every other build is "unstable"
+        // and keeps the OTA, as before.
+        buildConfigField("boolean", "OTA_ENABLED", (!stableChannel).toString())
 
         // Crash "Send" → Telegram (baked in at build; head-unit user never sees this).
         // local.properties (gitignored): TELEGRAM_BOT_TOKEN=...  TELEGRAM_CHAT_ID=...

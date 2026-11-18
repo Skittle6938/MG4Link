@@ -6,8 +6,9 @@ name: Release
 #   gh attestation verify MG4Link_<version>.apk --repo Skittle6938/MG4Link
 #
 # Push a tag equal to versionName with a "v" in front (v2.2.8, v2.2.8-beta1). A version
-# with a "-" in it is published as a pre-release, so only beta-enabled cars are offered
-# it; anything else is a stable release.
+# with a "-" in it is an unstable pre-release, offered by the in-app updater to
+# beta-enabled cars. A version without one is a stable release, built with
+# -Pmg4link.channel=stable: no updater and no install permission, updated by hand.
 on:
   push:
     tags: [ 'v*' ]
@@ -48,6 +49,11 @@ jobs:
             exit 1
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          # Stable channel for a version without "-": no self-update in that build.
+          case "$VERSION" in
+            *-*) echo "CHANNEL=unstable" >> "$GITHUB_ENV" ;;
+            *)   echo "CHANNEL=stable" >> "$GITHUB_ENV" ;;
+          esac
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -83,7 +89,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: ./gradlew :app:testCarDebugUnitTest :app:assembleCarRelease --stacktrace
+        run: ./gradlew :app:testCarDebugUnitTest :app:assembleCarRelease -Pmg4link.channel="$CHANNEL" --stacktrace
 
       - name: Fetch and verify the AOSP platform key
         run: |
@@ -110,6 +116,10 @@ jobs:
           # A published car build must never be debuggable.
           if "$BT/aapt2" dump badging "$APK" | grep -q "application-debuggable"; then
             echo "::error::carRelease is debuggable"; exit 1
+          fi
+          # A stable build must not be able to install anything.
+          if [ "$CHANNEL" = stable ] && "$BT/aapt2" dump permissions "$APK" | grep -qE "INSTALL_PACKAGES"; then
+            echo "::error::stable build still declares an install permission"; exit 1
           fi
           sha256sum "$APK" > "$APK.sha256"
           cat "$APK.sha256"

@@ -70,7 +70,10 @@ class HomeFragment : Fragment() {
             TripDialogs.toggle(requireActivity()) { showTripTile() }
         }
         val updateHint = view.findViewById<TextView>(R.id.home_update_hint)
-        ota = OtaController(requireActivity()).also { controller ->
+        // A stable build never updates itself: no tile, no update check (install the next one by hand).
+        view.findViewById<View>(R.id.home_update).visibility =
+            if (BuildConfig.OTA_ENABLED) View.VISIBLE else View.GONE
+        if (BuildConfig.OTA_ENABLED) ota = OtaController(requireActivity()).also { controller ->
             controller.setStateListener { status -> updateHint.text = updateText(requireContext(), status) }
         }
         view.findViewById<View>(R.id.home_update).setOnClickListener { ota?.checkOrDownload() }
