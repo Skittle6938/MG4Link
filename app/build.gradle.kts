@@ -221,7 +221,11 @@ android {
     }
 
     lint {
-        abortOnError = false
+        // The 1,741 findings already in the tree are recorded in lint-baseline.xml (reviewed:
+        // none is a crash). A NEW error fails the build; warnings are reported only.
+        // Regenerate after fixing some: delete the file and run :app:lintCarDebug once.
+        baseline = file("lint-baseline.xml")
+        abortOnError = true
         disable += "PackagedPrivateKey"
     }
 
