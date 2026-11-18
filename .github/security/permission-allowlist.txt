@@ -1,0 +1,62 @@
+# Permissions MG4Link may declare. A manifest permission missing here fails CI.
+# One full permission name per line, '#' starts a comment. Say why next to each
+# group: this list is the reviewed answer to "what can this app do to the car".
+
+# --- Projection link: Bluetooth discovery, the car's Wi-Fi hotspot, USB ---
+android.permission.BLUETOOTH
+android.permission.BLUETOOTH_ADMIN
+android.permission.BLUETOOTH_ADVERTISE
+android.permission.BLUETOOTH_CONNECT
+android.permission.BLUETOOTH_SCAN
+android.permission.ACCESS_WIFI_STATE
+android.permission.CHANGE_WIFI_STATE
+android.permission.NEARBY_WIFI_DEVICES
+android.permission.ACCESS_NETWORK_STATE
+android.permission.CHANGE_NETWORK_STATE
+# Phone internet over USB, ABRP telemetry (opt-in), update check, crash report.
+android.permission.INTERNET
+# car flavor: claim the phone on the head unit's USB bus.
+android.permission.MANAGE_USB
+
+# --- Location: wireless discovery and the GPS forwarded to the phone ---
+android.permission.ACCESS_FINE_LOCATION
+android.permission.ACCESS_COARSE_LOCATION
+
+# --- Audio, voice assistant, calls ---
+android.permission.RECORD_AUDIO
+android.permission.MODIFY_AUDIO_SETTINGS
+android.permission.READ_PHONE_STATE
+
+# --- Vehicle data read for Google Maps' battery estimate (read-only) ---
+android.car.permission.CAR_ENERGY
+android.car.permission.CAR_ENERGY_PORTS
+android.car.permission.CAR_SPEED
+android.car.permission.CAR_VENDOR_EXTENSION
+
+# --- Service lifecycle and projection UI ---
+android.permission.RECEIVE_BOOT_COMPLETED
+android.permission.FOREGROUND_SERVICE
+android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE
+android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK
+android.permission.POST_NOTIFICATIONS
+android.permission.USE_FULL_SCREEN_INTENT
+android.permission.SYSTEM_ALERT_WINDOW
+android.permission.WAKE_LOCK
+android.permission.BROADCAST_STICKY
+android.permission.WRITE_SETTINGS
+android.permission.WRITE_SECURE_SETTINGS
+android.permission.WRITE_EXTERNAL_STORAGE
+
+# --- High risk: system-user capabilities (car flavor, platform signature) ---
+# Exported logs include other apps' Android Auto lines.
+android.permission.READ_LOGS
+# Silent self-update (OTA) and removal of the former relay package.
+android.permission.INSTALL_PACKAGES
+android.permission.REQUEST_INSTALL_PACKAGES
+android.permission.DELETE_PACKAGES
+# Stops the car's own Android Auto while MG4Link runs (never disables it).
+android.permission.FORCE_STOP_PACKAGES
+
+# --- Signature-protected permissions MG4Link declares for its own components ---
+com.allgo.app.androidauto.permission.USER_DISCONNECT
+com.andrerinas.openheadunit.permission.NAVIGATION_UPDATE
