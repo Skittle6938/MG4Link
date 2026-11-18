@@ -1,8 +1,7 @@
 # MG4Link 2.2.7-beta23
 
-- Exporting the log (Settings › About › Logs) puts the last five logs onto a USB stick plugged into the car, in an MG4Link-logs folder, and says where. Without a stick it still goes to the car's Download folder, which now keeps only the last three exported copies (they used to pile up).
+- Exporting the log (Settings › About › Logs) puts the last five logs onto a USB stick plugged into the car, and says where: an MG4Link-logs folder at the root when the car allows it, otherwise Android/data/com.allgo.app.androidauto/files on the stick. Without a stick it still goes to the car's Download folder, which now keeps only the last three exported copies (they used to pile up).
 - Coming back to Android Auto (#23): 2.2.7-beta20 kept the last picture back until the screen had its new scale, but the pictures the phone kept sending in the meantime still went on at once and showed squished. They now wait too (the newest one only, at most 0.3 s), also when the screen is left and resumed in quick succession.
-- Wireless on cars whose head unit answers no ARP request (#30: the phone's connection fails with "No route to host"): MG4Link also listens on the hotspot's IPv6 link-local address, which the car's ARP setting and firewall leave alone. On those cars, when the phone gives up on an attempt, the next one gives it the IPv6 address instead (and the other way round), and the one that connects is used first from then on. Other cars are unchanged.
 
 # MG4Link 2.2.7-beta22
 
