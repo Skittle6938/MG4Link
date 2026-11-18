@@ -10,13 +10,12 @@ import java.io.File
  * Puts exported logs on a USB stick plugged into the car, when there is one. Exporting only to
  * Download/ left nothing on the stick, and the car has no file manager to move it there.
  *
- * Tried in order: an MG4Link-logs folder at the stick's root (the system user may write there with
+ * Tried in order: the stick's root (the system user may write there with
  * WRITE_MEDIA_STORAGE), the same through /mnt/media_rw, then the app's own folder on the stick,
  * which any app may write to without a permission.
  */
 object UsbStickExport {
     private const val TAG = "UsbStickExport"
-    const val FOLDER = "MG4Link-logs"
 
     /** Mounted removable volumes, as directories. */
     fun stickRoots(context: Context): List<File> {
@@ -44,7 +43,8 @@ object UsbStickExport {
      */
     fun copyToStick(context: Context, files: List<Pair<String, File>>): File? {
         val roots = stickRoots(context)
-        val candidates = roots.map { File(it, FOLDER) } + appFoldersOnSticks(context)
+        // The stick's root first, where the user looks for them; the app's folder only as a fallback.
+        val candidates = roots + appFoldersOnSticks(context)
         if (candidates.isEmpty()) {
             AppLog.i("$TAG: no USB stick mounted")
             return null
