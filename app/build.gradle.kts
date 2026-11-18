@@ -136,7 +136,10 @@ android {
 
     androidComponents {
         beforeVariants { variantBuilder ->
+            // carRelease is the published car build: not debuggable (a debuggable system-UID app
+            // lets anyone with ADB run code as the system user), built by .github/workflows/release.yml.
             val keep = variantBuilder.name == "carDebug" ||
+                variantBuilder.name == "carRelease" ||
                 variantBuilder.name == "phoneDebug"
             variantBuilder.enable = keep
         }
@@ -188,8 +191,11 @@ android {
 
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // Same code as the debug build the car has been running: R8 would rename or drop
+            // what is reached by reflection (hidden APIs, BuildConfig, dexmaker). Turn it on only
+            // after a minified build has been verified on the car.
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android.txt"),
                 "proguard-project.txt"
