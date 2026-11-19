@@ -52,7 +52,7 @@ object UsbStickExport {
         for (dir in candidates) {
             val ok = runCatching {
                 if (!dir.isDirectory && !dir.mkdirs()) error("cannot create the folder")
-                for ((name, source) in files) source.copyTo(File(dir, name), overwrite = true)
+                for ((name, source) in files) syncedCopy(source, File(dir, name))
             }
             if (ok.isSuccess) {
                 AppLog.i("$TAG: ${files.size} log(s) copied to ${dir.absolutePath}")
@@ -61,5 +61,23 @@ object UsbStickExport {
             AppLog.w("$TAG: ${dir.absolutePath} refused the logs (${ok.exceptionOrNull()?.message})")
         }
         return null
+    }
+
+    /**
+     * Copies [source] to [target] and forces it onto the stick before returning. Without the sync
+     * the data can sit in the car's memory, and a stick pulled out right after the export ended
+     * up with empty files (#30).
+     */
+    private fun syncedCopy(source: File, target: File) {
+        val expected = source.length()
+        source.inputStream().use { input ->
+            java.io.FileOutputStream(target, false).use { output ->
+                input.copyTo(output)
+                output.flush()
+                output.fd.sync()
+            }
+        }
+        val written = target.length()
+        if (written < expected) error("${target.name}: $written of $expected bytes written")
     }
 }
