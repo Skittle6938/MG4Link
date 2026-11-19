@@ -53,4 +53,15 @@ class StartReserveTest {
         assertEquals(87.0, StartReserve.sentWh(current, 900) * 100.0 / 45_933, 0.1)
         assertEquals(1, StartReserve.sentWh(500, 900))
     }
+
+    @Test
+    fun `a short guided trip sets aside only what it spends`() {
+        // 4 km to go: 4/15 of 900 Wh.
+        assertEquals(240, StartReserve.withinRouteWh(900, 900, 4f))
+        // A longer route, or no guidance: what is left of the reserve.
+        assertEquals(900, StartReserve.withinRouteWh(900, 900, 40f))
+        assertEquals(450, StartReserve.withinRouteWh(900, 450, 40f))
+        assertEquals(900, StartReserve.withinRouteWh(900, 900, null))
+        assertEquals(0, StartReserve.withinRouteWh(900, 900, 0f))
+    }
 }

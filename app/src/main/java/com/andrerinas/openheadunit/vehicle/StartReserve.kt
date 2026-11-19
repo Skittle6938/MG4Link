@@ -48,6 +48,17 @@ object StartReserve {
         return (fullWh * (1f - done)).roundToInt().coerceIn(0, fullWh)
     }
 
+    /**
+     * With a route of [routeKm] left (guidance on), only the part of the reserve that the drive
+     * spends before arriving: the reserve is spent at [fullWh] / [FADE_KM] per km, so a 4 km trip
+     * spends 4/15 of it. Without it, a short guided trip arrived about 2 points above the forecast
+     * (#14). [remainingWh] stays the ceiling.
+     */
+    fun withinRouteWh(fullWh: Int, remainingWh: Int, routeKm: Float?): Int {
+        if (routeKm == null || routeKm < 0f) return remainingWh
+        return (fullWh * routeKm / FADE_KM).roundToInt().coerceIn(0, remainingWh)
+    }
+
     /** The energy left to send: [currentWh] less [reserveWh], never below 1 Wh. */
     fun sentWh(currentWh: Int, reserveWh: Int): Int = (currentWh - reserveWh).coerceAtLeast(1)
 }

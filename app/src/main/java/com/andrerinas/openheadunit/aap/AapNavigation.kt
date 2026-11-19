@@ -222,6 +222,12 @@ class AapNavigation(
         // the destination.
         val lines = snapshot.navigationState?.payload?.destinationsCount ?: 0
         val stopsAhead = maxOf(snapshot.currentPosition?.payload?.destinationDistancesCount ?: 0, (lines + 1) / 2)
+        // The distance to the final destination, for the start reserve sent to Maps (#14).
+        val toDestination = snapshot.currentPosition?.payload?.destinationDistancesList
+            ?.mapNotNull { d -> d.takeIf { it.hasDistance() && it.distance.hasMeters() }?.distance?.meters }
+            ?.maxOrNull()
+        if (navigating) com.andrerinas.openheadunit.vehicle.RouteLeft.update(toDestination, android.os.SystemClock.elapsedRealtime())
+        else com.andrerinas.openheadunit.vehicle.RouteLeft.clear()
         com.andrerinas.openheadunit.vehicle.ChargeStopPreheater.update(context, navigating, nextStop, seconds, stopsAhead)
     }
 
