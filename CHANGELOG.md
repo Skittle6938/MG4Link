@@ -1,3 +1,7 @@
+# MG4Link 2.2.7-beta26
+
+- Exported logs are forced onto the USB stick before the export says it is done: a stick pulled out right after could end up with empty files (#30).
+
 # MG4Link 2.2.7-beta25
 
 - Exported logs go to the root of the USB stick (they ended up in Android/data/com.allgo.app.androidauto/files on it); that folder is only used when the car refuses the root.
