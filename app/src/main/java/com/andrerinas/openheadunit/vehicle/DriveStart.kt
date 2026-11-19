@@ -48,7 +48,8 @@ object DriveStart {
         val start = startOdometerKm
         val km = if (odometer != null && start != null) odometer - start else 0f
         val minutes = (nowMs - startAtMs) / 60_000f
-        return StartReserve.remainingWh(full, km, minutes)
+        val remaining = StartReserve.remainingWh(full, km, minutes)
+        return StartReserve.withinRouteWh(full, remaining, RouteLeft.km(nowMs))
     }
 
     fun describe(): String =

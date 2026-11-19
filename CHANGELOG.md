@@ -1,3 +1,7 @@
+# MG4Link 2.2.7-beta27
+
+- Google Maps battery forecast on short guided trips (#14): the energy set aside at the start of a drive (released over the first 15 km) is now cut to what the trip itself spends, from the distance to the destination Maps sends during guidance. A 4 km trip sets aside 4/15 of it, so Maps no longer forecasts about 2 points too little on arrival. Longer trips and drives without guidance are unchanged.
+
 # MG4Link 2.2.7-beta26
 
 - Exported logs are forced onto the USB stick before the export says it is done: a stick pulled out right after could end up with empty files (#30).
