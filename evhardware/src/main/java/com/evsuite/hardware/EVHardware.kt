@@ -732,16 +732,16 @@ object EVHardware {
      * keep it.
      */
     fun getTirePressureKpa(wheel: Wheel): Float? {
-        val vendorId = vendorTirePropertyId(wheel)
-        if (vendorId != null) {
-            val raw = getIntPropertyCPM(vendorId, AREA_GLOBAL)
-            if (raw > 0) return raw.toFloat()
-        }
-        return getFloatPropertyCPM(PROP_TIRE_PRESSURE, wheel.area)
-            ?.takeIf { it.isFinite() && it in 0f..1_000f }
+        val vendorKpa = getIntPropertyCPM(vendorTirePropertyId(wheel), AREA_GLOBAL)
+        return chooseTirePressureKpa(vendorKpa) { getFloatPropertyCPM(PROP_TIRE_PRESSURE, wheel.area) }
     }
 
-    private fun vendorTirePropertyId(wheel: Wheel): Int? = when (wheel) {
+    // The vendor TPMS block can report zero before the sensors have sent a reading.
+    internal fun chooseTirePressureKpa(vendorKpa: Int, readStandardKpa: () -> Float?): Float? =
+        vendorKpa.takeIf { it in 50..600 }?.toFloat()
+            ?: readStandardKpa()?.takeIf { it > 0f && it <= 1_000f }
+
+    private fun vendorTirePropertyId(wheel: Wheel): Int = when (wheel) {
         Wheel.FRONT_LEFT -> PROP_VENDOR_TIRE_FL
         Wheel.FRONT_RIGHT -> PROP_VENDOR_TIRE_FR
         Wheel.REAR_LEFT -> PROP_VENDOR_TIRE_RL
