@@ -1,3 +1,7 @@
+# MG4Link 2.2.7-beta28
+
+- Experimental fix for music starting on the phone's speaker (#36). When the car's hands-free link is down, MG4Link tries to connect it before using the usual Bluetooth wake-up. Please check where the first sound comes from on a cold wireless start with Android Auto's automatic music setting enabled.
+
 # MG4Link 2.2.7-beta27
 
 - Google Maps battery forecast on short guided trips (#14): the energy set aside at the start of a drive (released over the first 15 km) is now cut to what the trip itself spends, from the distance to the destination Maps sends during guidance. A 4 km trip sets aside 4/15 of it, so Maps no longer forecasts about 2 points too little on arrival. Longer trips and drives without guidance are unchanged.

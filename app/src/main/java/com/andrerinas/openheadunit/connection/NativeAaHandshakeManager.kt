@@ -53,6 +53,7 @@ class NativeAaHandshakeManager(
         private val AA_UUID = UUID.fromString("4de17a00-52cb-11e6-bdf4-0800200c9a66")
         private val HFP_UUID = UUID.fromString("0000111e-0000-1000-8000-00805f9b34fb")
         private const val OWN_HANDS_FREE_WAIT_MS = 30_000L
+        private const val OWN_HANDS_FREE_REQUEST_WAIT_MS = 5_000L
         /**
          * How long a poke holds the phone's hands-free slot. A phone that answers opens Android
          * Auto within a second or two, which ends the hold at once; one that doesn't is only kept
@@ -657,25 +658,39 @@ class NativeAaHandshakeManager(
         }
     }
 
+    private fun canWakePhone(): Boolean = isActive() && NativeHandoffPolicy.shouldPoke(
+        isHandoffSettling(), isHandshakeInFlight(), commManager.isBusy,
+    )
+
     /**
-     * The phone has just come back on Bluetooth and the car's own hands-free link is about to follow.
-     * A poke sent in that window wins the race for the phone's one hands-free slot, and calls then
-     * stay off the car for about two minutes (measured on an SWI69: 2 min 7 to 2 min 12 s, three times
-     * running). So give the link a moment first; once it is up, [BluetoothWakePolicy.shouldPoke] stands
-     * the poke down.
+     * On some cold starts Android Auto launches music while the car's own hands-free link is still
+     * down (#36). Try that link first. A phone already linked over Bluetooth keeps the longer wait
+     * for the car's hands-free stack to finish connecting.
      */
-    private suspend fun awaitOwnHandsFreeLink(device: BluetoothDevice) {
+    private suspend fun awaitOwnHandsFreeLink(device: BluetoothDevice, tryHandsFreeFirst: Boolean) {
+        if (BluetoothHelper.handsFreeLinkState(context) != false) return
         val linked = BluetoothHelper.connectedBondedDevices(context).any { it.address == device.address }
-        if (!linked) return
-        var waitedMs = 0L
-        while (waitedMs < OWN_HANDS_FREE_WAIT_MS && BluetoothHelper.handsFreeLinkState(context) == false) {
-            delay(OWN_HANDS_FREE_STEP_MS)
-            waitedMs += OWN_HANDS_FREE_STEP_MS
+        val startedAt = SystemClock.elapsedRealtime()
+        val requestDeadline = startedAt + OWN_HANDS_FREE_REQUEST_WAIT_MS
+        val wakeContext = currentCoroutineContext()
+        val requested = tryHandsFreeFirst && BluetoothHelper.requestCarHandsFreeLink(context, device.address) {
+            wakeContext.isActive && canWakePhone() && SystemClock.elapsedRealtime() < requestDeadline &&
+                BluetoothHelper.handsFreeLinkState(context) == false &&
+                BluetoothWakePolicy.mayPoke(bondReadingFor(device))
         }
-        if (waitedMs > 0) {
-            AppLog.i("NativeAA: waited ${waitedMs}ms for the car's hands-free link before poking " +
-                    "(up=${BluetoothHelper.handsFreeLinkState(context)})")
+        if (!linked && !requested) return
+        if (requested) AppLog.i("NativeAA: #36 trying the car's hands-free link before the wake poke")
+
+        val waitMs = if (linked) OWN_HANDS_FREE_WAIT_MS else OWN_HANDS_FREE_REQUEST_WAIT_MS
+        var handsFree = BluetoothHelper.handsFreeLinkState(context)
+        while (handsFree == false && canWakePhone()) {
+            val remaining = startedAt + waitMs - SystemClock.elapsedRealtime()
+            if (remaining <= 0) break
+            delay(minOf(OWN_HANDS_FREE_STEP_MS, remaining))
+            handsFree = BluetoothHelper.handsFreeLinkState(context)
         }
+        AppLog.i("NativeAA: waited ${SystemClock.elapsedRealtime() - startedAt}ms for the car's " +
+            "hands-free link (up=$handsFree, readyToWake=${canWakePhone()})")
     }
 
     /**
@@ -684,8 +699,17 @@ class NativeAaHandshakeManager(
      * below stands the poke down. Both poke entry points come through here, so one check covers
      * the retry loop and the manual poke alike.
      */
-    private suspend fun pokeDevice(device: BluetoothDevice, holdMs: Long): Boolean {
-        awaitOwnHandsFreeLink(device)
+    private suspend fun pokeDevice(
+        device: BluetoothDevice,
+        holdMs: Long,
+        tryHandsFreeFirst: Boolean = true,
+    ): Boolean {
+        if (!canWakePhone()) return false
+        // Asking for the real profile can also trigger a pairing prompt on an unpaired phone.
+        if (BluetoothWakePolicy.mayPoke(bondReadingFor(device))) {
+            awaitOwnHandsFreeLink(device, tryHandsFreeFirst)
+        }
+        if (!canWakePhone()) return false
         // A poke that connects takes the phone's single hands-free slot, and this unit's own client
         // is dropped to make room. See BluetoothWakePolicy for the measurement.
         val handsFreeLink = BluetoothWakePolicy.HandsFreeLink.of(BluetoothHelper.handsFreeLinkState(context))
@@ -707,6 +731,7 @@ class NativeAaHandshakeManager(
         pokeAttemptInFlight = true
         try {
             for (uuid in BluetoothWakePolicy.POKE_TARGETS) {
+                if (!canWakePhone()) return false
                 val profile = BluetoothWakePolicy.profileName(uuid)
                 var socket: BluetoothSocket? = null
                 var connectedAtMs = 0L
@@ -853,7 +878,7 @@ class NativeAaHandshakeManager(
                     }
 
                     AppLog.i("NativeAA: Attempting active poke to device: ${device.name} (${device.address})...")
-                    pokeDevice(device, holdMs = POKE_HOLD_MS)
+                    pokeDevice(device, holdMs = POKE_HOLD_MS, tryHandsFreeFirst = lastMacs.isNotEmpty())
                 }
 
                 // [BUG_FIX] Say out loud that the phone answers but never calls back. Untold, that

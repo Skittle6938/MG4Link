@@ -285,11 +285,13 @@ object BluetoothHelper {
         context: Context,
         device: android.bluetooth.BluetoothDevice,
         profile: Int,
+        mayConnect: () -> Boolean = { true },
     ): Boolean {
         return try {
             val listener = object : BluetoothProfile.ServiceListener {
                 override fun onServiceConnected(profileId: Int, proxy: BluetoothProfile) {
                     try {
+                        if (!mayConnect()) return
                         val connect = proxy.javaClass.methods.firstOrNull { method ->
                             method.name == "connect" &&
                                 method.parameterTypes.size == 1 &&
@@ -368,19 +370,22 @@ object BluetoothHelper {
         return asked
     }
 
-    /**
-     * Disconnect the phone's hands-free (HFP) link to this head unit, in both roles, to free the
-     * RFCOMM data port it holds. Used only by the SWI68/SWI131 experiment that tests whether the
-     * head unit's one-session RFCOMM cap is a global pool (freeing a port would then let the
-     * Android Auto channel through) or per-server (freeing a port changes nothing). Best-effort.
-     */
+    /** Requests the head unit's calls profile. [mayConnect] is checked when its proxy arrives. */
     @SuppressLint("MissingPermission")
-    fun requestCarHandsFreeLink(context: Context, address: String): Boolean {
+    fun requestCarHandsFreeLink(
+        context: Context,
+        address: String,
+        mayConnect: () -> Boolean = { true },
+    ): Boolean {
         val adapter = try { getBluetoothAdapter(context) } catch (e: Exception) { null } ?: return false
         val device = try { adapter.getRemoteDevice(address) } catch (e: Exception) { return false }
-        return requestProfileConnect(adapter, context, device, PROFILE_HEADSET_CLIENT)
+        return requestProfileConnect(adapter, context, device, PROFILE_HEADSET_CLIENT, mayConnect)
     }
 
+    /**
+     * Disconnect the phone's hands-free link in both roles to free its RFCOMM data port.
+     * Used by the SWI68/SWI131 experiment to distinguish a global RFCOMM cap from a per-server cap.
+     */
     @SuppressLint("MissingPermission")
     fun releaseCarHandsFreeLink(context: Context, preferredAddress: String? = null): Boolean {
         val adapter = try { getBluetoothAdapter(context) } catch (e: Exception) { null } ?: return false
