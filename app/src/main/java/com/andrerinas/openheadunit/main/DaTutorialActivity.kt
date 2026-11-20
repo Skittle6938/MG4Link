@@ -29,7 +29,7 @@ class DaTutorialActivity : BaseActivity() {
         Step(R.string.tuto_welcome_title, R.string.tuto_welcome_text, icon = R.drawable.ic_android_auto),
         Step(R.string.tuto_menu_title, R.string.tuto_menu_text, GestureDemoView.Gesture.MENU),
         Step(R.string.tuto_fullscreen_title, R.string.tuto_fullscreen_text, GestureDemoView.Gesture.FULLSCREEN),
-        Step(R.string.tuto_top_title, R.string.tuto_top_text, GestureDemoView.Gesture.TOP),
+        Step(R.string.tuto_side_home_title, R.string.tuto_side_home_text, GestureDemoView.Gesture.SIDE_HOME),
         Step(R.string.tuto_home_title, R.string.tuto_home_text, GestureDemoView.Gesture.HOME),
         Step(R.string.tuto_tips_title, R.string.tuto_tips_text, icon = R.drawable.ic_da_charging),
     )
