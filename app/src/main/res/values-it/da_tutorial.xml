@@ -11,8 +11,8 @@
     <string name="tuto_menu_text">Appoggia due dita vicino al bordo sinistro dello schermo e scorri verso destra. Si apre un menu con due grandi pulsanti: Disconnetti e Impostazioni.\n\nTocca altrove per chiuderlo.</string>
     <string name="tuto_fullscreen_title">Due dita dal bordo destro</string>
     <string name="tuto_fullscreen_text">Appoggia due dita vicino al bordo destro e scorri verso sinistra per mostrare o nascondere le barre dell\'auto e usare tutto lo schermo.</string>
-    <string name="tuto_top_title">Due dita dal bordo superiore</string>
-    <string name="tuto_top_text">Appoggia due dita in alto sullo schermo e scorri verso il basso per tornare al launcher dell\'auto. Android Auto resta connesso.</string>
+    <string name="tuto_side_home_title">Un dito da uno dei due bordi laterali</string>
+    <string name="tuto_side_home_text">Scorri con un dito dal bordo sinistro o destro verso il centro per tornare alla schermata iniziale dell\'auto. Android Auto resta connesso.</string>
     <string name="tuto_home_title">Tre dita verso il basso</string>
     <string name="tuto_home_text">Scorri tre dita verso il basso per scollegare Android Auto e tornare alla schermata iniziale di MG4Link.</string>
     <string name="tuto_tips_title">Buono a sapersi</string>
