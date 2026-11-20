@@ -1,12 +1,7 @@
 package com.andrerinas.openheadunit.utils
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
-import android.widget.Toast
-import com.andrerinas.openheadunit.R
-import com.andrerinas.openheadunit.diag.CrashReportSender
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -225,31 +220,5 @@ object LogExporter {
     } catch (e: Exception) {
         AppLog.w("LogExporter: car app lines not added: ${e.message}")
         own
-    }
-
-    /** Uploads the log file with one tap (Telegram). No Android share sheet. */
-    fun shareLogFile(context: Context, file: File) {
-        val appContext = context.applicationContext
-        val main = Handler(Looper.getMainLooper())
-        Toast.makeText(appContext, R.string.crash_report_sending, Toast.LENGTH_SHORT).show()
-        Thread({
-            val report = runCatching { file.readText() }.getOrNull()
-            val result = if (report.isNullOrBlank()) {
-                CrashReportSender.Result(ok = false, error = "empty")
-            } else {
-                CrashReportSender.send(
-                    report = report,
-                    fileName = file.name.ifBlank { "diauto_log.txt" },
-                    caption = "MG4Link log: ${file.name}",
-                )
-            }
-            main.post {
-                Toast.makeText(
-                    appContext,
-                    if (result.ok) R.string.crash_report_sent else R.string.crash_report_send_failed,
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        }, "DiAuto-LogSend").start()
     }
 }
