@@ -9,7 +9,8 @@ import kotlin.math.abs
  *  - one finger from the very top, slid down: MG4Dash's shortcuts menu (relayed to MG4Dash; only when
  *    MG4Dash's strip is on, and not when the car's own pull-down is left the top of the screen);
  *  - two fingers from the top, slid down: back to the launcher (same condition on the top);
- *  - two fingers from the right edge, slid left: exit menu; from the left edge, slid right: full screen;
+ *  - one finger from either side, slid inwards: back to the launcher;
+ *  - two fingers from the right edge, slid left: full screen; from the left edge, slid right: exit menu;
  *  - three fingers anywhere, slid down: disconnect.
  *
  * Coordinates are those of the activity's window, except [Sample.rawX] / [Sample.rawY] (the screen's):
@@ -21,7 +22,7 @@ internal class TopGestureRecognizer {
 
     enum class Kind {
         MENU_PULL_BEGIN, MENU_PULL_MOVE, MENU_PULL_END, MENU_PULL_CANCEL,
-        HOME, DISCONNECT, EXIT_DIALOG, TOGGLE_FULLSCREEN
+        HOME, SIDE_HOME, DISCONNECT, EXIT_DIALOG, TOGGLE_FULLSCREEN
     }
 
     data class Event(val kind: Kind, val dy: Float = 0f)
@@ -53,6 +54,10 @@ internal class TopGestureRecognizer {
     private var menuDownX = 0f
     private var menuDownY = 0f
 
+    private var homeSwipeDirection = 0
+    private var homeDownX = 0f
+    private var homeDownY = 0f
+
     private var edgeX = 0f
     private var edgeY = 0f
     private var potentialEdge = false
@@ -65,8 +70,34 @@ internal class TopGestureRecognizer {
     fun onTouch(s: Sample, env: Env): Result {
         val events = ArrayList<Event>(1)
         if (menu(s, env, events)) return Result(true, events)
+        if (sideHome(s, env)) return Result(true, listOf(Event(Kind.SIDE_HOME)))
         val consumed = gestures(s, env, events)
         return Result(consumed, events)
+    }
+
+    private fun sideHome(s: Sample, env: Env): Boolean {
+        when (s.action) {
+            Action.DOWN -> {
+                homeDownX = s.x0
+                homeDownY = s.y0
+                val band = HOME_EDGE_DP * env.density
+                homeSwipeDirection = when {
+                    s.x0 !in 0f..<env.usableWidth.toFloat() -> 0
+                    s.x0 < band -> 1
+                    s.x0 >= env.usableWidth - band -> -1
+                    else -> 0
+                }
+            }
+            Action.POINTER_DOWN, Action.CANCEL -> homeSwipeDirection = 0
+            Action.UP -> {
+                // Wait for release so a second finger can claim the existing two-finger gesture.
+                val inward = (s.x0 - homeDownX) * homeSwipeDirection
+                homeSwipeDirection = 0
+                return inward >= HOME_DISTANCE_DP * env.density && abs(s.y0 - homeDownY) <= inward
+            }
+            else -> {}
+        }
+        return false
     }
 
     /** One finger from the top 20 px, clearly down: the touch is taken from Android Auto. */
@@ -185,6 +216,8 @@ internal class TopGestureRecognizer {
         const val MENU_PULL_EDGE_PX = 20f
         const val MENU_PULL_EDGE_BELOW_BAR_PX = 60f
         const val MENU_PULL_DP = 40
+        const val HOME_EDGE_DP = 28
+        const val HOME_DISTANCE_DP = 96
         const val EDGE_PX = 100
         const val TOP_PX = 100
         const val SWIPE_PX = 200
