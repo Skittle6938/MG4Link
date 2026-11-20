@@ -224,6 +224,49 @@ class TopGestureRecognizerTest {
     // --- the edges -----------------------------------------------------------------------------
 
     @Test
+    fun `one finger from either edge goes home even on a diagonal with the car pull-down on`() {
+        val swipes = listOf(
+            Triple(12f, 140f, 410f),
+            Triple(12f, 140f, 528f),
+            Triple(1908f, 1780f, 410f),
+            Triple(1908f, 1780f, 272f),
+        )
+        for ((start, end, endY) in swipes) {
+            val t = touch(carKeepsTop)
+            t.send(Action.DOWN, 1, start, 400f)
+            t.send(Action.MOVE, 1, end, endY)
+            assertTrue(t.kinds.isEmpty())
+            assertFalse(t.consumedAny)
+            t.send(Action.UP, 1, end, endY)
+            assertEquals(listOf(Kind.SIDE_HOME), t.kinds)
+            assertTrue(t.consumedAny)
+        }
+    }
+
+    @Test
+    fun `a drag away from the edge band or too vertical stays with Android Auto`() {
+        for ((start, endY) in listOf(75f to 410f, 8f to 610f)) {
+            val t = touch(withDash)
+            t.send(Action.DOWN, 1, start, 400f)
+            t.send(Action.MOVE, 1, 200f, endY)
+            t.send(Action.UP, 1, 200f, endY)
+            assertTrue(t.kinds.isEmpty())
+            assertFalse(t.consumedAny)
+        }
+    }
+
+    @Test
+    fun `adding a second finger cancels home and preserves the right edge full screen gesture`() {
+        val t = touch(withDash)
+        t.send(Action.DOWN, 1, 1910f, 400f)
+        t.send(Action.POINTER_DOWN, 2, 1910f, 400f, y1 = 418f)
+        t.send(Action.MOVE, 2, 1650f, 410f, y1 = 428f)
+        t.send(Action.POINTER_UP, 2, 1650f, 410f, y1 = 428f)
+        t.send(Action.UP, 1, 1650f, 410f)
+        assertEquals(listOf(Kind.TOGGLE_FULLSCREEN), t.kinds)
+    }
+
+    @Test
     fun `two fingers from the right edge slid left toggle full screen`() {
         val t = touch(withDash)
         t.send(Action.DOWN, 1, 1880f, 400f)
