@@ -16,8 +16,7 @@ import java.nio.charset.StandardCharsets;
 
 final class OtaReleaseFetcher {
 
-    private static final String GITHUB_RELEASES_URL =
-            "https://api.github.com/repos/Skittle6938/MG4Link/releases?per_page=20";
+    private static final String GITHUB_RELEASES_URL = OtaUrls.RELEASES_API;
 
     private OtaReleaseFetcher() {
     }
@@ -123,12 +122,7 @@ final class OtaReleaseFetcher {
     private static String readUrl(android.net.Network network, String url, String accept) throws Exception {
         HttpURLConnection connection = null;
         try {
-            connection = OtaNetwork.open(network, new URL(url));
-            connection.setRequestMethod("GET");
-            connection.setConnectTimeout(7000);
-            connection.setReadTimeout(7000);
-            connection.setRequestProperty("Accept", accept);
-            connection.setRequestProperty("User-Agent", "MG4Link/" + BuildConfig.VERSION_NAME);
+            connection = OtaNetwork.get(network, new URL(url), 7000, 7000, accept);
             int status = connection.getResponseCode();
             if (status < 200 || status >= 300) {
                 throw new IllegalStateException("HTTP " + status);
