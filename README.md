@@ -167,6 +167,9 @@ gh attestation verify MG4Link_<version>.apk --repo Skittle6938/MG4Link
 A passing check names the commit the APK was built from. The `.sha256` file next to the APK
 only shows that the download is complete.
 
+To test release packaging, run the **Release** workflow manually and download its signed APK
+artifact. Pushing a matching version tag runs the separate publishing job.
+
 **Coming from 2.0.x** (`com.drivehub.diauto.mg4`): install the new APK once by hand. At first start
 it takes over the old settings, then removes the old app.
 

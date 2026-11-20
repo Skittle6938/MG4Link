@@ -19,8 +19,10 @@ def resources(path):
 
 def placeholders(text):
     # Preserve argument position and type; Android allows implicit position for a single argument.
-    matches = re.findall(r'%(?:(\d+)\$)?[\-+0 ,(#]*\d*(?:\.\d+)?([sdf])', text)
-    return sorted((int(pos) if pos else i + 1, kind) for i, (pos, kind) in enumerate(matches))
+    # A literal %% must be consumed as a pair even when followed by a letter such as in "%% de".
+    matches = re.findall(r'%%|%(?:(\d+)\$)?[\-+0 ,(#]*\d*(?:\.\d+)?([sdf])', text)
+    arguments = [(position, kind) for position, kind in matches if kind]
+    return sorted((int(pos) if pos else i + 1, kind) for i, (pos, kind) in enumerate(arguments))
 
 
 base = resources(RES / 'values')
