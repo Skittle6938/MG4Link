@@ -47,7 +47,11 @@ object Mg4EnergyReporter {
             if (App.provide(app).settings.batteryForGoogleMaps) Mg4EnergyProvider.start(app)
         }
         if (tickFuture == null) {
-            tickFuture = executor.scheduleWithFixedDelay(::tick, 1_000L, 1_000L, TimeUnit.MILLISECONDS)
+            // A throw cancels a fixed-delay task for good, and tickFuture would still look scheduled:
+            // Maps would get no battery for the rest of the session.
+            tickFuture = executor.scheduleWithFixedDelay(
+                { guarded("tick") { tick() } }, 1_000L, 1_000L, TimeUnit.MILLISECONDS
+            )
         }
     }
 
@@ -69,7 +73,7 @@ object Mg4EnergyReporter {
         if (type == 23 || type == 25) {
             requestedTypes.add(type)
             AppLog.i("$TAG phone requested VEM sensor type=$type (active=$requestedTypes)")
-            sendNow(force = true)
+            guarded("sensor start") { sendNow(force = true) }
         }
     }
 
@@ -87,7 +91,15 @@ object Mg4EnergyReporter {
     }
 
     /** Sends the model again now, e.g. after test values changed. */
-    fun resend() = executor.execute { sendNow(force = true) }
+    fun resend() = executor.execute { guarded("resend") { sendNow(force = true) } }
+
+    private inline fun guarded(what: String, block: () -> Unit) {
+        try {
+            block()
+        } catch (e: Exception) {
+            AppLog.w("$TAG $what failed: ${e.message}")
+        }
+    }
 
     private fun tick() {
         sampleDebugTrip()
