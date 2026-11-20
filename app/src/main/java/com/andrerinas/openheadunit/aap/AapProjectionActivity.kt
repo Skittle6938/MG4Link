@@ -1647,6 +1647,16 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
                 AppLog.i("Two-finger swipe from the top: back to the launcher")
                 moveToBackground()
             }
+            TopGestureRecognizer.Kind.SIDE_HOME -> {
+                val cancel = MotionEvent.obtain(ev).apply { action = MotionEvent.ACTION_CANCEL }
+                try {
+                    super.dispatchTouchEvent(cancel)
+                } finally {
+                    cancel.recycle()
+                }
+                AppLog.i("One-finger swipe in from the side: back to the launcher")
+                moveToBackground()
+            }
             TopGestureRecognizer.Kind.EXIT_DIALOG -> showExitDialog()
             TopGestureRecognizer.Kind.TOGGLE_FULLSCREEN -> toggleFullscreenFromGesture()
             TopGestureRecognizer.Kind.DISCONNECT -> returnToMainScreen()
