@@ -99,6 +99,15 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
     // Named rather than inline so onDestroy can tell this instance's listener apart from a
     // relaunched instance's before clearing it - lambdas have no usable identity across instances.
     private val fpsListener: (Int) -> Unit = { fps -> currentFps = fps }
+
+    // The decoder is app-wide and clears this only after a frame, so an instance closed before its
+    // first frame stayed reachable through it, and a later session's first frame ran on the dead one.
+    private var firstFrameListener: (() -> Unit)? = null
+
+    private fun setFirstFrameListener(listener: () -> Unit) {
+        firstFrameListener = listener
+        videoDecoder.onFirstFrameListener = listener
+    }
     private val performanceHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private val performanceSampler = PerformanceSampler()
     private val performanceExecutor = Executors.newSingleThreadExecutor { runnable ->
@@ -846,7 +855,7 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
                                 showReconnectingOverlay()
 
                                 // Re-initialize the first frame listener to hide the reconnecting overlay when video starts flowing
-                                videoDecoder.onFirstFrameListener = {
+                                setFirstFrameListener {
                                     runOnUiThread {
                                         hideReconnectingOverlay()
                                     }
@@ -938,7 +947,7 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
             finish()
         }
 
-        videoDecoder.onFirstFrameListener = {
+        setFirstFrameListener {
             runOnUiThread {
                 hideLoadingOverlay(loadingOverlay)
 
@@ -1975,6 +1984,8 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
             if (videoDecoder.softwareYuvFrameSink === it) videoDecoder.softwareYuvFrameSink = null
         }
         if (videoDecoder.dimensionsListener === this) videoDecoder.dimensionsListener = null
+        firstFrameListener?.let { if (videoDecoder.onFirstFrameListener === it) videoDecoder.onFirstFrameListener = null }
+        firstFrameListener = null
     }
 
     companion object {
