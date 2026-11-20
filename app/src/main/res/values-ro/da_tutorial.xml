@@ -11,8 +11,8 @@
     <string name="tuto_menu_text">Pune două degete lângă marginea stângă a ecranului și glisează spre dreapta. Se deschide un meniu cu două butoane mari: Deconectează și Setări.\n\nAtinge în altă parte pentru a-l închide.</string>
     <string name="tuto_fullscreen_title">Două degete de la marginea dreaptă</string>
     <string name="tuto_fullscreen_text">Pune două degete lângă marginea dreaptă și glisează spre stânga pentru a afișa sau ascunde barele mașinii și a folosi tot ecranul.</string>
-    <string name="tuto_top_title">Două degete de la marginea de sus</string>
-    <string name="tuto_top_text">Pune două degete în partea de sus a ecranului și glisează în jos pentru a reveni la launcherul mașinii. Android Auto rămâne conectat.</string>
+    <string name="tuto_side_home_title">Un deget de la marginea stângă sau dreaptă</string>
+    <string name="tuto_side_home_text">Glisează cu un deget de la marginea stângă sau dreaptă spre centru pentru a reveni la ecranul principal al mașinii. Android Auto rămâne conectat.</string>
     <string name="tuto_home_title">Trei degete în jos</string>
     <string name="tuto_home_text">Glisează cu trei degete în jos pentru a deconecta Android Auto și a reveni la ecranul principal MG4Link.</string>
     <string name="tuto_tips_title">Bine de știut</string>

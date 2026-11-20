@@ -1,5 +1,7 @@
 package com.andrerinas.openheadunit.main
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
@@ -19,7 +21,7 @@ class GestureDemoView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null,
 ) : View(context, attrs) {
 
-    enum class Gesture { MENU, FULLSCREEN, TOP, HOME }
+    enum class Gesture { MENU, FULLSCREEN, SIDE_HOME, HOME }
 
     var gesture = Gesture.MENU
         set(value) {
@@ -47,6 +49,7 @@ class GestureDemoView @JvmOverloads constructor(
     }
     private val rect = RectF()
     private var t = 0f
+    private var demoFromLeft = true
 
     /** Holds the loop at [progress] (0 – 1), for screenshots. */
     internal fun freeze(progress: Float) {
@@ -59,6 +62,11 @@ class GestureDemoView @JvmOverloads constructor(
         duration = 2600
         repeatCount = ValueAnimator.INFINITE
         interpolator = LinearInterpolator()
+        addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationRepeat(animation: Animator) {
+                demoFromLeft = !demoFromLeft
+            }
+        })
         addUpdateListener {
             t = it.animatedValue as Float
             invalidate()
@@ -97,7 +105,7 @@ class GestureDemoView @JvmOverloads constructor(
         if (shown) when (gesture) {
             Gesture.MENU -> drawMenu(canvas, screen)
             Gesture.HOME -> drawHome(canvas, screen)
-            Gesture.TOP -> drawLauncher(canvas, screen)
+            Gesture.SIDE_HOME -> drawLauncher(canvas, screen)
             Gesture.FULLSCREEN -> {}
         }
         drawFingers(canvas, screen)
@@ -221,10 +229,11 @@ class GestureDemoView @JvmOverloads constructor(
         val ease = p * p * (3 - 2 * p)
         val travel = s.width() * 0.4f
         val down = s.height() * 0.45f
+        val sideStart = if (demoFromLeft) s.left + 14 * dp else s.right - 14 * dp
         val fingers: List<Pair<Float, Float>> = when (gesture) {
             Gesture.MENU -> List(2) { i -> s.left + 14 * dp + travel * ease to s.centerY() + (i - 0.5f) * 46 * dp }
             Gesture.FULLSCREEN -> List(2) { i -> s.right - 14 * dp - travel * ease to s.centerY() + (i - 0.5f) * 46 * dp }
-            Gesture.TOP -> List(2) { i -> s.centerX() + (i - 0.5f) * 46 * dp to s.top + 14 * dp + down * ease }
+            Gesture.SIDE_HOME -> listOf(sideStart + (s.centerX() - sideStart) * ease to s.centerY())
             Gesture.HOME -> List(3) { i -> s.centerX() + (i - 1) * 44 * dp to s.top + s.height() * 0.2f + down * ease }
         }
         val radius = 17 * dp
@@ -234,7 +243,7 @@ class GestureDemoView @JvmOverloads constructor(
             val (sx, sy) = when (gesture) {
                 Gesture.MENU -> s.left + 14 * dp to y
                 Gesture.FULLSCREEN -> s.right - 14 * dp to y
-                Gesture.TOP -> x to s.top + 14 * dp
+                Gesture.SIDE_HOME -> sideStart to y
                 Gesture.HOME -> x to s.top + s.height() * 0.2f
             }
             stroke.color = accent
