@@ -158,5 +158,5 @@ jobs:
           PRE=""
           case "$VERSION" in *-*) PRE="--prerelease" ;; esac
           gh release create "$GITHUB_REF_NAME" "$APK" "$APK.sha256" \
-            --verify-tag $PRE --title "MG4Link $VERSION" \
+            --repo "$GITHUB_REPOSITORY" --verify-tag $PRE --title "MG4Link $VERSION" \
             --notes "Built from $GITHUB_SHA by the Release workflow. Changes: see CHANGELOG.md. Verify: gh attestation verify $APK --repo $GITHUB_REPOSITORY"
