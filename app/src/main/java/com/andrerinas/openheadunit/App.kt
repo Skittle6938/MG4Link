@@ -8,7 +8,6 @@ import android.content.Context
 import android.os.UserManager
 import android.os.Build
 import androidx.core.content.ContextCompat
-import androidx.multidex.MultiDex
 import com.andrerinas.openheadunit.main.BackgroundNotification
 import com.andrerinas.openheadunit.aap.AapNavigation
 import com.andrerinas.openheadunit.ssl.ConscryptInitializer
@@ -24,11 +23,6 @@ class App : Application() {
 
     private val component: AppComponent by lazy {
         AppComponent(this)
-    }
-
-    override fun attachBaseContext(base: Context?) {
-        super.attachBaseContext(base)
-        MultiDex.install(this)
     }
 
     override fun onCreate() {
