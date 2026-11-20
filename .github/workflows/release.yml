@@ -1,0 +1,162 @@
+name: Release
+
+# Builds the published car APK from the tagged source, on GitHub's runners, so anyone
+# can check that a download is exactly what this repository's code produces:
+#
+#   gh attestation verify MG4Link_<version>.apk --repo Skittle6938/MG4Link
+#
+# Push a tag equal to versionName with a "v" in front (v2.2.8, v2.2.8-beta1). A version
+# with a "-" in it is published as a pre-release, so only beta-enabled cars are offered
+# it; anything else is a stable release.
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/release.yml'
+      - 'scripts/check_localization.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and verify the signed car APK
+    runs-on: ubuntu-latest
+    env:
+      # The MG4 firmware trusts the public AOSP test platform key. It is fetched from AOSP
+      # and pinned here instead of being stored in the repository or in a secret: a changed
+      # key, or a substituted download, fails the release.
+      AOSP_KEYS: https://android.googlesource.com/platform/build/+/refs/heads/main/target/product/security
+      PLATFORM_PK8_SHA256: 1ad8ef556870edb70f69a9d3c112544c07de5162ba440d84d33f8bb0c5962875
+      PLATFORM_X509_SHA256: 9837de028f460c35cc8d3fa45f14eecce30f6fbfe4b93d399aef1acb80c20d14
+      # SHA-256 of the certificate, as apksigner prints it.
+      PLATFORM_CERT_DIGEST: c8a2e9bccf597c2fb6dc66bee293fc13f2fc47ec77bc6b2b0d52c11f51192ab8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read the version and verify release tags
+        run: |
+          VERSION=$(sed -nE 's/^[[:space:]]*versionName = "([^"]+)".*/\1/p' app/build.gradle.kts)
+          if ! [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+)*(-[A-Za-z0-9.-]+)?$ ]]; then
+            echo "::error::invalid versionName in app/build.gradle.kts"
+            exit 1
+          fi
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF_TYPE" == tag && "v$VERSION" != "$GITHUB_REF_NAME" ]]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match versionName $VERSION in app/build.gradle.kts"
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+
+      # The NDK version app/build.gradle.kts pins; retried as in android-ci.yml.
+      - name: Install pinned SDK, NDK and CMake
+        run: |
+          for attempt in 1 2 3; do
+            sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1" && exit 0
+            echo "sdkmanager attempt $attempt failed; retrying in 15s..." >&2
+            sleep 15
+          done
+          exit 1
+
+      - name: Check core translations
+        run: python3 scripts/check_localization.py
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests and carRelease
+        run: ./gradlew :app:testCarDebugUnitTest :app:assembleCarRelease --stacktrace
+
+      - name: Fetch and verify the AOSP platform key
+        run: |
+          mkdir -p "$RUNNER_TEMP/keys"
+          for f in platform.pk8 platform.x509.pem; do
+            curl -sSf "$AOSP_KEYS/$f?format=TEXT" | base64 -d > "$RUNNER_TEMP/keys/$f"
+          done
+          echo "$PLATFORM_PK8_SHA256  $RUNNER_TEMP/keys/platform.pk8" | sha256sum -c -
+          echo "$PLATFORM_X509_SHA256  $RUNNER_TEMP/keys/platform.x509.pem" | sha256sum -c -
+
+      - name: Sign, verify and checksum
+        run: |
+          BT="$ANDROID_HOME/build-tools/36.0.0"
+          UNSIGNED=$(ls app/build/outputs/apk/car/release/*.apk)
+          [ "$(echo "$UNSIGNED" | wc -l)" -eq 1 ] || { echo "::error::expected one carRelease APK, got: $UNSIGNED"; exit 1; }
+          APK="MG4Link_${VERSION}.apk"
+          "$BT/zipalign" -f -p 4 "$UNSIGNED" aligned.apk
+          "$BT/apksigner" sign --key "$RUNNER_TEMP/keys/platform.pk8" \
+            --cert "$RUNNER_TEMP/keys/platform.x509.pem" --out "$APK" aligned.apk
+          rm -rf "$RUNNER_TEMP/keys" aligned.apk
+          "$BT/apksigner" verify --print-certs "$APK" | tee certs.txt
+          grep -q "certificate SHA-256 digest: $PLATFORM_CERT_DIGEST" certs.txt \
+            || { echo "::error::APK not signed with the pinned platform certificate"; exit 1; }
+          # A published car build must never be debuggable.
+          BADGING=$("$BT/aapt2" dump badging "$APK")
+          if grep -q "application-debuggable" <<< "$BADGING"; then
+            echo "::error::carRelease is debuggable"; exit 1
+          fi
+          sha256sum "$APK" > "$APK.sha256"
+          cat "$APK.sha256"
+      - name: Upload the signed APK for verification
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-car-release
+          path: |
+            MG4Link_*.apk
+            MG4Link_*.apk.sha256
+          if-no-files-found: error
+
+  publish:
+    name: Attest and publish a tagged build
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download the verified build
+        uses: actions/download-artifact@v4
+        with:
+          name: signed-car-release
+
+      - name: Verify the artifact checksum
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          APK="MG4Link_${VERSION}.apk"
+          sha256sum -c "$APK.sha256"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "APK=$APK" >> "$GITHUB_ENV"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ${{ env.APK }}
+
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PRE=""
+          case "$VERSION" in *-*) PRE="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" "$APK" "$APK.sha256" \
+            --repo "$GITHUB_REPOSITORY" --verify-tag $PRE --title "MG4Link $VERSION" \
+            --notes "Built from $GITHUB_SHA by the Release workflow. Changes: see CHANGELOG.md. Verify: gh attestation verify $APK --repo $GITHUB_REPOSITORY"
