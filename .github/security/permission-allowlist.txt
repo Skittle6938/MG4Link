@@ -46,6 +46,8 @@ android.permission.BROADCAST_STICKY
 android.permission.WRITE_SETTINGS
 android.permission.WRITE_SECURE_SETTINGS
 android.permission.WRITE_EXTERNAL_STORAGE
+# Lets the car build copy exported logs to the root of a removable USB stick.
+android.permission.WRITE_MEDIA_STORAGE
 
 # --- High risk: system-user capabilities (car flavor, platform signature) ---
 # Exported logs include other apps' Android Auto lines.
