@@ -167,6 +167,10 @@ Uninstall updates*) or with `adb shell pm uninstall com.allgo.app.androidauto`.
 
 ## Tips
 
+- **The phone never tries to connect wirelessly** after installing MG4Link (no "Connecting to
+  Android Auto" on the phone, the car keeps waiting): the phone may still remember the car as it was
+  before, without wireless Android Auto. Remove the pairing on both sides (the car in the phone's
+  Bluetooth list, the phone in the car's), then pair again from the car's screen.
 - **Google Assistant / Gemini closes right away** (the listening animation shows, then stops before
   you speak): unlock the phone and try again. On some phones Gemini cancels at once while the phone
   is locked, even with *Use Gemini without unlocking* on. Keeping the phone unlocked in the car (for
