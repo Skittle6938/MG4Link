@@ -11,6 +11,11 @@ name: Release
 on:
   push:
     tags: [ 'v*' ]
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/release.yml'
+      - 'scripts/check_localization.py'
 
 permissions:
   contents: read
@@ -20,13 +25,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Build, sign and publish carRelease
+  build:
+    name: Build and verify the signed car APK
     runs-on: ubuntu-latest
-    permissions:
-      contents: write       # create the GitHub release
-      id-token: write       # sign the build provenance
-      attestations: write   # store it
     env:
       # The MG4 firmware trusts the public AOSP test platform key. It is fetched from AOSP
       # and pinned here instead of being stored in the repository or in a secret: a changed
@@ -40,10 +41,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: The tag must equal versionName
+      - name: Read the version and verify release tags
         run: |
           VERSION=$(sed -nE 's/^[[:space:]]*versionName = "([^"]+)".*/\1/p' app/build.gradle.kts)
-          if [ "v$VERSION" != "$GITHUB_REF_NAME" ]; then
+          if ! [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+)*(-[A-Za-z0-9.-]+)?$ ]]; then
+            echo "::error::invalid versionName in app/build.gradle.kts"
+            exit 1
+          fi
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF_TYPE" == tag && "v$VERSION" != "$GITHUB_REF_NAME" ]]; then
             echo "::error::tag $GITHUB_REF_NAME does not match versionName $VERSION in app/build.gradle.kts"
             exit 1
           fi
@@ -78,11 +83,6 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Unit tests and carRelease
-        # Optional: the crash window's Send button stays "unavailable" without them. The
-        # token ends up readable inside the APK, as with a local build.
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: ./gradlew :app:testCarDebugUnitTest :app:assembleCarRelease --stacktrace
 
       - name: Fetch and verify the AOSP platform key
@@ -108,11 +108,42 @@ jobs:
           grep -q "certificate SHA-256 digest: $PLATFORM_CERT_DIGEST" certs.txt \
             || { echo "::error::APK not signed with the pinned platform certificate"; exit 1; }
           # A published car build must never be debuggable.
-          if "$BT/aapt2" dump badging "$APK" | grep -q "application-debuggable"; then
+          BADGING=$("$BT/aapt2" dump badging "$APK")
+          if grep -q "application-debuggable" <<< "$BADGING"; then
             echo "::error::carRelease is debuggable"; exit 1
           fi
           sha256sum "$APK" > "$APK.sha256"
           cat "$APK.sha256"
+      - name: Upload the signed APK for verification
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-car-release
+          path: |
+            MG4Link_*.apk
+            MG4Link_*.apk.sha256
+          if-no-files-found: error
+
+  publish:
+    name: Attest and publish a tagged build
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download the verified build
+        uses: actions/download-artifact@v4
+        with:
+          name: signed-car-release
+
+      - name: Verify the artifact checksum
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          APK="MG4Link_${VERSION}.apk"
+          sha256sum -c "$APK.sha256"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "APK=$APK" >> "$GITHUB_ENV"
 
       - name: Attest build provenance
