@@ -7,6 +7,8 @@ plugins {
     kotlin("android")
 }
 
+val strictLint = providers.gradleProperty("mg4link.strictLint").orNull == "true"
+
 android {
     compileSdk = 36
     ndkVersion = "27.2.12479018"
@@ -202,8 +204,13 @@ android {
     }
 
     lint {
-        abortOnError = false
+        abortOnError = strictLint
         disable += "PackagedPrivateKey"
+        if (strictLint) {
+            val blockingChecks = setOf("NewApi", "WrongThread", "ResourceType", "DuplicateIds")
+            checkOnly += blockingChecks
+            error += blockingChecks
+        }
     }
 
     testOptions {
