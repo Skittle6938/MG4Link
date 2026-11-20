@@ -7,7 +7,8 @@ can plan your charging stops.
 > Community fork of [DiAuto](https://github.com/shihabal3amri/DiAuto) (AGPL-3.0), via
 > [merthankaraman/DiAuto-MG4](https://github.com/merthankaraman/DiAuto-MG4), maintained separately
 > for the MG4 (SWI69 head unit) with its own version line. MG4 data comes from the vendored
-> [EVHardware](https://github.com/fatihdonmezdev/MG4ABRP) library. For Apple CarPlay, use
+> [EVHardware](https://github.com/malys/EVHardware) library (PolyForm Noncommercial 1.0.0,
+> copied through [fatihdonmezdev/MG4ABRP](https://github.com/fatihdonmezdev/MG4ABRP)). For Apple CarPlay, use
 > **DiPlay-MG4** instead (do not run both at once).
 
 > [!WARNING]
@@ -124,9 +125,10 @@ internet over Bluetooth is not possible on the MG4: its Bluetooth stack has no n
 <p align="center"><img src="docs/screenshots/settings_display.png" width="800" alt="Settings, Display tab"></p>
 
 ### Privacy
-MG4Link sends no data anywhere: its only Internet access is checking this repository for updates.
-Wireless Android Auto only accepts a phone on the car's own hotspot. Logs stay on the car unless you
-export them, and contain no destinations, road names, GPS position, or phone and Wi-Fi names.
+No account, no advertising, no analytics. MG4Link goes online for update checks, for ABRP if you
+turn it on (it sends the car's position and charge), and for a crash report only when you tap
+*Send*; [PRIVACY.md](PRIVACY.md) lists exactly what goes where. Wireless Android Auto only accepts a
+phone on the car's own hotspot. Logs stay on the car unless you export or send them.
 
 ## Gestures over Android Auto
 
