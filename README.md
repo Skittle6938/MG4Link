@@ -133,9 +133,10 @@ be copied to a USB stick from the settings. See [PRIVACY.md](PRIVACY.md) for the
 
 | Gesture | What it does |
 | --- | --- |
+| One finger from the **left or right** edge, swipe towards the centre | Back to the car's home screen while Android Auto stays connected. A diagonal swipe also works. |
 | Two fingers from the **left** edge, slide right | Menu with **Disconnect** and **Settings** |
-| Two fingers from the **right** edge, slide left | Full screen: hides the car's side bar and top strip (Android Auto reconnects for a few seconds to use the new height). Same gesture to bring them back. |
-| Two fingers from the **top** edge, slide down | Back to the car's launcher, Android Auto stays connected. In MG4 Dash, the same gesture opens Android Auto again. |
+| Two fingers from the **right** edge, slide left | Toggles full screen and the car's top strip. Android Auto reconnects briefly to use the new height. |
+| Two fingers from the **top** edge, slide down | Back to the car's home screen while Android Auto stays connected, when **Car pull-down over Android Auto** is off. In MG4 Dash, the same gesture opens Android Auto again. |
 | One finger from the very **top** edge, slide down | With [MG4 Dash](https://github.com/Skittle6938/MG4Dash) and its shortcuts menu on (full screen): opens MG4 Dash's shortcuts menu over Android Auto. Without MG4 Dash, nothing changes. |
 | Three fingers **down** | Disconnects Android Auto and goes back to MG4Link's home screen |
 
