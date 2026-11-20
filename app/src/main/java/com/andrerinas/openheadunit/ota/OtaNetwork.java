@@ -7,6 +7,8 @@ import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
 import android.util.Log;
 
+import com.andrerinas.openheadunit.BuildConfig;
+
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -50,6 +52,40 @@ final class OtaNetwork {
     /** A connection to {@code url} over {@code network}, or Android's default network when null. */
     static HttpURLConnection open(Network network, URL url) throws IOException {
         return (HttpURLConnection) (network != null ? network.openConnection(url) : url.openConnection());
+    }
+
+    static final int MAX_REDIRECTS = 5;
+
+    /**
+     * A GET to {@code url}, redirects followed by hand and each hop checked by {@link OtaUrls}.
+     * Returns the connection of the first answer that is not a redirect; the caller checks its
+     * status and disconnects it.
+     */
+    static HttpURLConnection get(Network network, URL url, int connectTimeoutMs, int readTimeoutMs,
+                                 String accept) throws IOException {
+        if (!OtaUrls.isAllowedStart(url)) {
+            throw new SecurityException("update URL not allowed: " + url);
+        }
+        URL current = url;
+        for (int hops = 0; ; hops++) {
+            if (!OtaUrls.isAllowedHop(current)) {
+                throw new SecurityException("update redirect not allowed: " + current);
+            }
+            HttpURLConnection connection = open(network, current);
+            connection.setInstanceFollowRedirects(false);
+            connection.setConnectTimeout(connectTimeoutMs);
+            connection.setReadTimeout(readTimeoutMs);
+            connection.setRequestProperty("User-Agent", "MG4Link/" + BuildConfig.VERSION_NAME);
+            if (accept != null) connection.setRequestProperty("Accept", accept);
+            int code = connection.getResponseCode();
+            if (code < 300 || code >= 400 || hops >= MAX_REDIRECTS) {
+                return connection;
+            }
+            String location = connection.getHeaderField("Location");
+            connection.disconnect();
+            if (location == null) throw new IOException("HTTP " + code + " without Location");
+            current = new URL(current, location);
+        }
     }
 
     static String describe(Network network) {
