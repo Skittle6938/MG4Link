@@ -10,6 +10,7 @@ import java.util.concurrent.LinkedBlockingDeque
 internal object DiagnosticJournal {
     private const val MAX_FILE_BYTES = 1024 * 1024L
     private const val MAX_LINES = 6000
+    private const val MAX_BATCH = 256
     private val pending = LinkedBlockingDeque<String>(2048)
     private val recent = ArrayDeque<String>()
     private val diskLock = Any()
@@ -23,7 +24,11 @@ internal object DiagnosticJournal {
         directory = dir
         Thread({
             while (true) {
-                val line = try { pending.take() } catch (_: InterruptedException) { return@Thread }
+                val first = try { pending.take() } catch (_: InterruptedException) { return@Thread }
+                // One open/append/close per burst instead of per line: a connection logs dozens of
+                // INFO lines at once, and each one was a length check plus a file open on eMMC.
+                val batch = ArrayList<String>(64).apply { add(first) }
+                pending.drainTo(batch, MAX_BATCH - 1)
                 // Export still has the memory history when storage is full or unavailable.
                 runCatching {
                     synchronized(diskLock) {
@@ -34,7 +39,7 @@ internal object DiagnosticJournal {
                             previous.delete()
                             if (!current.renameTo(previous)) current.writeText("")
                         }
-                        current.appendText(line + "\n", Charsets.UTF_8)
+                        current.appendText(batch.joinToString("\n", postfix = "\n"), Charsets.UTF_8)
                     }
                 }
             }
