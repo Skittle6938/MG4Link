@@ -1,3 +1,8 @@
+# MG4Link 2.2.7-beta29
+
+- Swipe one finger from either side towards the centre to return to the car's home screen while Android Auto stays connected (#56). Diagonal swipes work up to 45 degrees. The tutorial shows both sides.
+- This beta also carries the hands-free experiment from beta28 for #36.
+
 # MG4Link 2.2.7-beta28
 
 - Experimental fix for music starting on the phone's speaker (#36). When the car's hands-free link is down, MG4Link tries to connect it before using the usual Bluetooth wake-up. Please check where the first sound comes from on a cold wireless start with Android Auto's automatic music setting enabled.
