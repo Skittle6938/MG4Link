@@ -1,0 +1,25 @@
+# Secret scan configuration (gitleaks). The default rules apply; the entries
+# below are reviewed false positives or material that is public by design.
+# Every new entry needs a one-line reason: an allowlist is a security decision.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Reviewed: public keys of the AOSP test platform and the Android Auto head-unit certificate"
+paths = [
+  # AOSP test platform key (build/target/product/security in AOSP), public since 2008.
+  # The MG4 firmware trusts it, which is why the car build is signed with it.
+  '''^tools/platform\.(key|pk8|p12|x509\.pem)$''',
+  # Head-unit certificate required by the Android Auto protocol, inherited from upstream.
+  '''^app/src/main/res/raw/privkey$''',
+  # Only the PEM header literal used to strip that key, no key material.
+  '''^app/src/main/java/com/andrerinas/openheadunit/ssl/SingleKeyKeyManager\.kt$''',
+]
+regexes = [
+  # ABRP telemetry API key: identifies the app to ABRP, not a user secret (the
+  # user token is entered at runtime and never committed).
+  '''7278aff7-d840-4a1e-a2c8-86676efd5e77''',
+  # Preference key name, not a secret.
+  '''stretch-to-fill-v2''',
+]
