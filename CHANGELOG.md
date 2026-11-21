@@ -1,3 +1,7 @@
+# MG4Link 2.2.7-beta31
+
+- Experimental fix for the factory DAB radio resuming before Gemini finishes on SWI68 (#50). MG4Link can now keep assistant audio priority through the reply after the microphone closes.
+
 # MG4Link 2.2.7-beta30
 
 - Android Auto can choose between 1080p and 720p when both are available. For adapters that still lose the connection, try forcing 720p in the advanced display settings (#59).
