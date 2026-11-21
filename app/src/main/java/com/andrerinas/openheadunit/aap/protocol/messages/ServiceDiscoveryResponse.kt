@@ -18,13 +18,17 @@ import com.andrerinas.openheadunit.utils.BluetoothHelper
 import com.andrerinas.openheadunit.utils.HeadUnitScreenConfig
 import com.andrerinas.openheadunit.utils.ToastUtils
 import com.andrerinas.openheadunit.vehicle.Mg4EnergyProvider
-import com.google.protobuf.Message
 
-class ServiceDiscoveryResponse(private val context: Context)
-    : AapMessage(Channel.ID_CTR, Control.ControlMsgType.MESSAGE_SERVICE_DISCOVERY_RESPONSE_VALUE, makeProto(context)) {
+class ServiceDiscoveryResponse private constructor(proto: Control.ServiceDiscoveryResponse)
+    : AapMessage(Channel.ID_CTR, Control.ControlMsgType.MESSAGE_SERVICE_DISCOVERY_RESPONSE_VALUE, proto) {
+
+    constructor(context: Context) : this(makeProto(context))
+
+    internal val videoResolutions = proto.servicesList.first { it.id == Channel.ID_VID }
+        .mediaSinkService.videoConfigsList.map { it.codecResolution }
 
     companion object {
-        private fun makeProto(context: Context): Message {
+        private fun makeProto(context: Context): Control.ServiceDiscoveryResponse {
             val settings = App.provide(context).settings
             // Initialize HeadUnitScreenConfig with actual physical screen dimensions
             HeadUnitScreenConfig.init(context, context.resources.displayMetrics, settings)
@@ -119,9 +123,8 @@ class ServiceDiscoveryResponse(private val context: Context)
                     }
 
                     // Use HeadUnitScreenConfig for negotiated resolution and margins
-                    val negotiatedResolution = HeadUnitScreenConfig.negotiatedResolutionType
-                    val phoneWidthMargin = HeadUnitScreenConfig.getWidthMargin()
-                    val phoneHeightMargin = HeadUnitScreenConfig.getHeightMargin()
+                    val negotiatedResolution = HeadUnitScreenConfig.primaryVideoResolution
+                    val resolutions = HeadUnitScreenConfig.videoResolutionOptions(negotiatedResolution)
 
                     // Enforce H.265 for 1440p resolution as required by Android Auto.
                     // Software HEVC is allowed only when the user explicitly selected it.
@@ -138,25 +141,25 @@ class ServiceDiscoveryResponse(private val context: Context)
                     mediaSinkServiceBuilder.audioType = Media.AudioStreamType.NONE
                     mediaSinkServiceBuilder.availableWhileInCall = true
 
-                    AppLog.i("[ServiceDiscovery] NegotiatedResolution is: ${HeadUnitScreenConfig.getNegotiatedWidth()}x${HeadUnitScreenConfig.getNegotiatedHeight()}")
                     logNegotiatedCodecCapability(context, effectiveCodec, settings)
-                    AppLog.i("[ServiceDiscovery] Margins are: ${phoneWidthMargin}x${phoneHeightMargin}")
-
-                    mediaSinkServiceBuilder.addVideoConfigs(Control.Service.MediaSinkService.VideoConfiguration.newBuilder().apply {
-                        codecResolution = negotiatedResolution
-                        frameRate = when (settings.fpsLimit) {
-                            30 -> Control.Service.MediaSinkService.VideoConfiguration.VideoFrameRateType._30
-                            else -> Control.Service.MediaSinkService.VideoConfiguration.VideoFrameRateType._60
-                        }
-                        setDensity(HeadUnitScreenConfig.getDensityDpi()) // Use actual densityDpi
-                        setPixelAspectRatioE4(HeadUnitScreenConfig.getPixelAspectRatioE4())
-                        setMarginWidth(phoneWidthMargin)
-                        setMarginHeight(phoneHeightMargin)
-                        // Stock AllGo on MG4 EH32 advertises depth 1 so the phone sends idle frames
-                        // for the HU decoder pipeline (see HUIG / aap_system_attributes).
-                        setDecoderAdditionalDepth(1)
-                        setVideoCodecType(effectiveCodec)
-                    }.build())
+                    resolutions.forEachIndexed { index, resolution ->
+                        val (widthMargin, heightMargin) = HeadUnitScreenConfig.videoMargins(resolution)
+                        AppLog.i("[ServiceDiscovery] Video config $index: $resolution, margins=${widthMargin}x${heightMargin}")
+                        mediaSinkServiceBuilder.addVideoConfigs(Control.Service.MediaSinkService.VideoConfiguration.newBuilder().apply {
+                            codecResolution = resolution
+                            frameRate = when (settings.fpsLimit) {
+                                30 -> Control.Service.MediaSinkService.VideoConfiguration.VideoFrameRateType._30
+                                else -> Control.Service.MediaSinkService.VideoConfiguration.VideoFrameRateType._60
+                            }
+                            setDensity(HeadUnitScreenConfig.getDensityDpi(resolution))
+                            setPixelAspectRatioE4(HeadUnitScreenConfig.getPixelAspectRatioE4())
+                            setMarginWidth(widthMargin)
+                            setMarginHeight(heightMargin)
+                            // Stock AllGo on MG4 EH32 advertises depth 1 so the phone sends idle frames.
+                            setDecoderAdditionalDepth(1)
+                            setVideoCodecType(effectiveCodec)
+                        })
+                    }
                 }.build()
             }.build()
 
@@ -166,15 +169,15 @@ class ServiceDiscoveryResponse(private val context: Context)
                 service.id = Channel.ID_INP
                 service.inputSourceService = Control.Service.InputSourceService.newBuilder().also {
                     it.touchscreen = Control.Service.InputSourceService.TouchConfig.newBuilder().apply {
-                        setWidth(HeadUnitScreenConfig.getNegotiatedWidth()) // Use negotiated width
-                        setHeight(HeadUnitScreenConfig.getNegotiatedHeight()) // Use negotiated height
+                        setWidth(HeadUnitScreenConfig.getAdvertisedTouchWidth())
+                        setHeight(HeadUnitScreenConfig.getAdvertisedTouchHeight())
                     }.build()
                     
                     if (settings.enableRotary) {
                         AppLog.i("[ServiceDiscovery] Announcing Rotary/Touchpad support")
                         it.touchpad = Control.Service.InputSourceService.TouchConfig.newBuilder().apply {
-                            setWidth(HeadUnitScreenConfig.getNegotiatedWidth())
-                            setHeight(HeadUnitScreenConfig.getNegotiatedHeight())
+                            setWidth(HeadUnitScreenConfig.getAdvertisedTouchWidth())
+                            setHeight(HeadUnitScreenConfig.getAdvertisedTouchHeight())
                         }.build()
                     }
                     

@@ -875,6 +875,7 @@ class CommManager(
         } catch (e: Exception) {
             AppLog.e("doDisconnect error: ${e.message}")
         } finally {
+            if (transport != null) HeadUnitScreenConfig.unlockResolution()
             if (_connectionState.value !is ConnectionState.Disconnected) {
                 _connectionState.value = ConnectionState.Disconnected()
             }
