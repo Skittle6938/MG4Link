@@ -1,3 +1,8 @@
+# MG4Link 2.2.7-beta30
+
+- Android Auto can choose between 1080p and 720p when both are available. For adapters that still lose the connection, try forcing 720p in the advanced display settings (#59).
+- The settings now fill the MG4 display with the factory sidebar hidden.
+
 # MG4Link 2.2.7-beta29
 
 - Swipe one finger from either side towards the centre to return to the car's home screen while Android Auto stays connected (#56). Diagonal swipes work up to 45 degrees. The tutorial shows both sides.
