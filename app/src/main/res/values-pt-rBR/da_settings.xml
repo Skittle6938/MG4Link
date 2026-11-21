@@ -97,4 +97,6 @@
     <string name="dset_battery_reset_button">Redefinir</string>
     <string name="dset_car_pulldown">Painel do carro sobre o Android Auto</string>
     <string name="dset_car_pulldown_summary">Abre as configurações rápidas do carro (aquecimento…) deslizando de cima para baixo sobre o Android Auto. No SWI68, o aviso de chamada do carro volta a aparecer sobre o Android Auto. Desativado: use o menu de atalhos do MG4 Dash.</string>
+    <string name="dset_video_res">Resolução de vídeo</string>
+    <string name="dset_video_res_summary">Escolha 720p se o Android Auto conectar, mas a imagem não aparecer. A alteração se aplica na próxima conexão.</string>
 </resources>

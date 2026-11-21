@@ -97,4 +97,6 @@
     <string name="dset_battery_reset_button">Visszaállítás</string>
     <string name="dset_car_pulldown">Az autó panelje az Android Auto felett</string>
     <string name="dset_car_pulldown_summary">Fentről lefelé húzva megnyitja az autó gyorsbeállításait (fűtés…) az Android Auto felett. SWI68-on az autó hívásértesítője ismét megjelenik az Android Auto felett. Kikapcsolva: használja az MG4 Dash parancsikonmenüjét.</string>
+    <string name="dset_video_res">Videófelbontás</string>
+    <string name="dset_video_res_summary">Válassza a 720p-t, ha az Android Auto csatlakozik, de nem jelenik meg kép. A következő csatlakozáskor lép életbe.</string>
 </resources>
