@@ -26,6 +26,7 @@ import com.andrerinas.openheadunit.utils.BluetoothHelper
 import com.andrerinas.openheadunit.utils.CompatibilityReport
 import com.andrerinas.openheadunit.utils.Settings
 import com.andrerinas.openheadunit.utils.SteeringKeyLog
+import com.andrerinas.openheadunit.utils.SystemUI
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -74,7 +75,13 @@ class DaSettingsActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
+        SystemUI.applyWindow(window, Settings.FullscreenMode.IMMERSIVE)
         ota?.checkOnStartup()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) SystemUI.applyWindow(window, Settings.FullscreenMode.IMMERSIVE)
     }
 
     override fun onDestroy() {
@@ -218,6 +225,13 @@ class DaSettingsActivity : BaseActivity() {
         row(R.string.dset_car_pulldown, R.string.dset_car_pulldown_summary, yesNo(settings.carPullDownOverAndroidAuto) {
             settings.carPullDownOverAndroidAuto = it
         })
+        val compatibilityResolution = Settings.Resolution._1280x720.id
+        row(R.string.dset_video_res, R.string.dset_video_res_summary,
+            choices(listOf(getString(R.string.dset_auto), "720p"),
+                if (settings.resolutionId == compatibilityResolution) 1 else 0) {
+                settings.resolutionId = if (it == 1) compatibilityResolution else Settings.Resolution._1920x1080.id
+                appliesOnReconnect()
+            })
         row(R.string.dset_fps, R.string.dset_fps_summary,
             choices(listOf("30", "60"), if (settings.fpsLimit == 60) 1 else 0) {
                 settings.fpsLimit = if (it == 1) 60 else 30

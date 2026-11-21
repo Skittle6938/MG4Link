@@ -97,4 +97,6 @@
     <string name="dset_battery_reset_button">Zurücksetzen</string>
     <string name="dset_car_pulldown">Fahrzeug-Schnellmenü über Android Auto</string>
     <string name="dset_car_pulldown_summary">Öffnet die Schnelleinstellungen des Autos (Heizung…) durch Wischen von oben über Android Auto. Auf SWI68 erscheint dann das Anrufbanner des Autos wieder über Android Auto. Aus: Nutzen Sie stattdessen das Kurzbefehlmenü von MG4 Dash.</string>
+    <string name="dset_video_res">Videoauflösung</string>
+    <string name="dset_video_res_summary">Wählen Sie 720p, wenn Android Auto verbunden ist, aber kein Bild erscheint. Gilt ab der nächsten Verbindung.</string>
 </resources>

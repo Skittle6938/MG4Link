@@ -97,4 +97,6 @@
     <string name="dset_battery_reset_button">إعادة الضبط</string>
     <string name="dset_car_pulldown">لوحة السيارة فوق Android Auto</string>
     <string name="dset_car_pulldown_summary">تفتح الإعدادات السريعة للسيارة (التدفئة…) بالسحب من الأعلى فوق Android Auto. في SWI68 يعود شريط المكالمات الخاص بالسيارة للظهور فوق Android Auto. عند الإيقاف: استخدم قائمة اختصارات MG4 Dash.</string>
+    <string name="dset_video_res">دقة الفيديو</string>
+    <string name="dset_video_res_summary">اختر 720p إذا اتصل Android Auto ولم تظهر الصورة. يسري الإعداد عند الاتصال التالي.</string>
 </resources>

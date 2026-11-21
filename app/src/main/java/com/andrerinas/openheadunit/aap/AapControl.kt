@@ -18,6 +18,7 @@ import com.andrerinas.openheadunit.decoder.MicRecorder
 import com.andrerinas.openheadunit.decoder.VideoDecoder
 import com.andrerinas.openheadunit.location.LocationHolder
 import com.andrerinas.openheadunit.utils.AppLog
+import com.andrerinas.openheadunit.utils.HeadUnitScreenConfig
 import com.andrerinas.openheadunit.utils.Settings
 
 interface AapControl {
@@ -81,6 +82,16 @@ internal class AapControlMedia(
     private fun mediaStartRequest(request: Media.Start, channel: Int): Int {
         AppLog.i("Media Start Request %s: session=%d, config_index=%d", Channel.name(channel), request.sessionId, request.configurationIndex)
 
+        if (channel == Channel.ID_VID) {
+            val resolutions = aapTransport.advertisedVideoResolutions
+            val selected = resolutions.getOrNull(request.configurationIndex)
+            if (selected == null) {
+                AppLog.w("Video configuration index ${request.configurationIndex} was not advertised")
+            } else {
+                AppLog.i("Video configuration selected: $selected (index ${request.configurationIndex})")
+                if (resolutions.size > 1) HeadUnitScreenConfig.selectVideoResolution(selected, resolutions.first())
+            }
+        }
         aapTransport.setSessionId(channel, request.sessionId)
         return 0
     }
@@ -96,7 +107,11 @@ internal class AapControlMedia(
             status = Media.Config.ConfigStatus.HEADUNIT
             this.maxUnacked = maxUnacked
 
-            addConfigurationIndices(0)
+            if (channel == Channel.ID_VID && aapTransport.advertisedVideoResolutions.isNotEmpty()) {
+                addAllConfigurationIndices(aapTransport.advertisedVideoResolutions.indices)
+            } else {
+                addConfigurationIndices(0)
+            }
         }.build()
         AppLog.i("Config response: %s (maxUnacked=%d)", configResponse, maxUnacked)
         val msg = AapMessage(channel, Media.MsgType.MEDIA_MESSAGE_CONFIG_VALUE, configResponse)
@@ -343,6 +358,7 @@ internal class AapControlService(
         AppLog.i("Service Discovery Request: %s", request.phoneName)
 
         val msg = ServiceDiscoveryResponse(context)
+        aapTransport.advertisedVideoResolutions = msg.videoResolutions
         aapTransport.send(msg)
         return 0
     }
