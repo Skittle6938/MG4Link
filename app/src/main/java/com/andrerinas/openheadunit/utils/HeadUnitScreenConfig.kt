@@ -7,6 +7,8 @@ import com.andrerinas.openheadunit.aap.protocol.proto.Control
 import com.andrerinas.openheadunit.decoder.VideoDecoder
 import kotlin.math.roundToInt
 
+internal typealias VideoResolution = Control.Service.MediaSinkService.VideoConfiguration.VideoCodecResolutionType
+
 object HeadUnitScreenConfig {
 
     private var screenWidthPx: Int = 0
@@ -29,6 +31,7 @@ object HeadUnitScreenConfig {
     var negotiatedResolutionType: Control.Service.MediaSinkService.VideoConfiguration.VideoCodecResolutionType = Control.Service.MediaSinkService.VideoConfiguration.VideoCodecResolutionType._800x480
     var isResolutionLocked: Boolean = false
         private set
+    private var advertisedTouchResolution: VideoResolution? = null
 
     private lateinit var currentSettings: Settings // Store settings instance
 
@@ -332,26 +335,25 @@ object HeadUnitScreenConfig {
         val longUsable = maxOf(screenWidthPx, screenHeightPx)
         val shortUsable = minOf(screenWidthPx, screenHeightPx)
         isSmallScreen = longUsable <= 1920 && shortUsable <= 1200
+        updateVideoScale()
+        AppLog.i("[UI_DEBUG] CarScreen isSmallScreen: $isSmallScreen, scaleFactor: $scaleFactor, margins: w=${getWidthMargin()}, h=${getHeightMargin()}")
+    }
 
-        scaleFactor = 1.0f
+    private fun updateVideoScale() {
+        val w = getNegotiatedWidth()
+        val h = getNegotiatedHeight()
+        scaleFactor = videoScale(w, h)
+        isPortraitScaled = (!isSmallScreen || w < screenWidthPx) &&
+            screenWidthPx.toFloat() / screenHeightPx < w.toFloat() / h
+    }
+
+    private fun videoScale(w: Int, h: Int): Float {
         // A stream narrower than the panel (720p on the MG4's 1920x640) is upscaled by the view, so
         // the margins must assume the same uniform scale or the phone lays out a taller picture.
-        val upscaledStream = getNegotiatedWidth() in 1 until screenWidthPx
-        if (!isSmallScreen || upscaledStream) {
-            val sWidth = screenWidthPx.toFloat()
-            val sHeight = screenHeightPx.toFloat()
-            if (getNegotiatedWidth() > 0 && getNegotiatedHeight() > 0) {
-                 if (sWidth / sHeight < getAspectRatio()) {
-                    isPortraitScaled = true
-                    scaleFactor = sHeight / getNegotiatedHeight().toFloat()
-                } else {
-                    isPortraitScaled = false
-                    scaleFactor = sWidth / getNegotiatedWidth().toFloat()
-                }
-            }
+        if ((!isSmallScreen || w < screenWidthPx) && screenWidthPx > 0 && screenHeightPx > 0) {
+            return maxOf(screenWidthPx.toFloat() / w, screenHeightPx.toFloat() / h)
         }
-        
-        AppLog.i("[UI_DEBUG] CarScreen isSmallScreen: $isSmallScreen, scaleFactor: $scaleFactor, margins: w=${getWidthMargin()}, h=${getHeightMargin()}")
+        return 1f
     }
 
     fun getAdjustedHeight(): Int {
@@ -366,25 +368,45 @@ object HeadUnitScreenConfig {
         return getNegotiatedWidth().toFloat() / getNegotiatedHeight().toFloat()
     }
 
-    fun getNegotiatedHeight(): Int {
-        val resString = negotiatedResolutionType.toString().replace("_", "")
-        return try {
-            resString.split("x")[1].toInt()
-        } catch (e: Exception) {
-            480
-        }
-    }
+    private fun heightOf(resolution: VideoResolution): Int =
+        resolution.name.substringAfter('x').toIntOrNull() ?: 480
+
+    private fun widthOf(resolution: VideoResolution): Int =
+        resolution.name.removePrefix("_").substringBefore('x').toIntOrNull() ?: 800
+
+    fun getNegotiatedHeight(): Int = heightOf(negotiatedResolutionType)
 
     private fun canNegotiateHevcHighResolution(): Boolean = VideoDecoder.isHevcSupported()
 
-    fun getNegotiatedWidth(): Int {
-        val resString = negotiatedResolutionType.toString().replace("_", "")
-        return try {
-            resString.split("x")[0].toInt()
-        } catch (e: Exception) {
-            800
-        }
+    fun getNegotiatedWidth(): Int = widthOf(negotiatedResolutionType)
+
+    internal fun videoResolutionOptions(primary: VideoResolution): List<VideoResolution> = when (primary) {
+        VideoResolution._1920x1080 -> listOf(primary, VideoResolution._1280x720)
+        VideoResolution._1080x1920 -> listOf(primary, VideoResolution._720x1280)
+        else -> listOf(primary)
     }
+
+    internal fun videoMargins(resolution: VideoResolution): Pair<Int, Int> {
+        val width = widthOf(resolution)
+        val height = heightOf(resolution)
+        val scale = videoScale(width, height)
+        fun margin(frame: Int, panel: Int) =
+            (((frame * scale).roundToInt() - panel) / scale).roundToInt().coerceAtLeast(0)
+        return margin(width, screenWidthPx) to margin(height, screenHeightPx)
+    }
+
+    internal fun selectVideoResolution(selected: VideoResolution, touchResolution: VideoResolution) {
+        advertisedTouchResolution = touchResolution.takeUnless { it == selected }
+        negotiatedResolutionType = selected
+        updateVideoScale()
+        lockResolution()
+    }
+
+    internal val primaryVideoResolution: VideoResolution
+        get() = advertisedTouchResolution ?: negotiatedResolutionType
+
+    internal fun getAdvertisedTouchWidth(): Int = widthOf(primaryVideoResolution)
+    internal fun getAdvertisedTouchHeight(): Int = heightOf(primaryVideoResolution)
 
     fun getHeightMargin(): Int {
         val margin = ((getAdjustedHeight() - screenHeightPx) / scaleFactor).roundToInt()
@@ -436,12 +458,14 @@ object HeadUnitScreenConfig {
         return divideOrOne((screenWidthPx.toFloat() / screenHeightPx.toFloat()), getAspectRatio())
     }
 
-    fun getDensityDpi(): Int {
+    fun getDensityDpi(): Int = getDensityDpi(negotiatedResolutionType)
+
+    internal fun getDensityDpi(resolution: VideoResolution): Int {
         if (this::currentSettings.isInitialized && currentSettings.dpiPixelDensity != 0) {
             return currentSettings.dpiPixelDensity
         }
         // Auto DPI: match stock AllGo EH32 densities per negotiated resolution.
-        return when (negotiatedResolutionType) {
+        return when (resolution) {
             Control.Service.MediaSinkService.VideoConfiguration.VideoCodecResolutionType._1920x1080,
             Control.Service.MediaSinkService.VideoConfiguration.VideoCodecResolutionType._1080x1920 -> 227
             Control.Service.MediaSinkService.VideoConfiguration.VideoCodecResolutionType._1280x720,
@@ -553,6 +577,11 @@ object HeadUnitScreenConfig {
         if (isResolutionLocked) {
             AppLog.i("[UI_DEBUG] HeadUnitScreenConfig: Unlocking resolution (was $negotiatedResolutionType)")
             isResolutionLocked = false
+        }
+        advertisedTouchResolution?.let { primary ->
+            advertisedTouchResolution = null
+            negotiatedResolutionType = primary
+            updateVideoScale()
         }
     }
 

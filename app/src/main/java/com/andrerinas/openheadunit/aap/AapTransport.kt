@@ -29,6 +29,7 @@ import com.andrerinas.openheadunit.main.BackgroundNotification
 import com.andrerinas.openheadunit.ssl.SingleKeyKeyManager
 import com.andrerinas.openheadunit.utils.AppLog
 import com.andrerinas.openheadunit.utils.Settings
+import com.andrerinas.openheadunit.utils.VideoResolution
 import com.andrerinas.openheadunit.aap.protocol.proto.Control
 import com.andrerinas.openheadunit.aap.protocol.proto.MediaPlayback
 
@@ -71,6 +72,7 @@ class AapTransport(
 
     internal val aapAudio: AapAudio
     internal val aapVideo: AapVideo
+    internal var advertisedVideoResolutions: List<VideoResolution> = emptyList()
     private var sendThread: HandlerThread? = null
     private var pollThread: HandlerThread? = null
     private val micRecorder: MicRecorder = MicRecorder(settings.micSampleRate, context)

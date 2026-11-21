@@ -97,4 +97,6 @@
     <string name="dset_battery_reset_button">Reset</string>
     <string name="dset_car_pulldown">Car pull-down over Android Auto</string>
     <string name="dset_car_pulldown_summary">Opens the car\'s quick settings (heating…) by swiping down from the top over Android Auto. On SWI68, the car\'s incoming call banner then shows over Android Auto again. Off: use MG4 Dash\'s shortcuts menu instead.</string>
+    <string name="dset_video_res">Video resolution</string>
+    <string name="dset_video_res_summary">Choose 720p if Android Auto connects but no picture appears. Applies at the next connection.</string>
 </resources>

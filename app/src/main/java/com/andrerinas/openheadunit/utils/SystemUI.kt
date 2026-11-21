@@ -11,7 +11,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 
 object SystemUI {
 
-    fun apply(window: Window, root: View, mode: Settings.FullscreenMode, onInsetsChanged: (() -> Unit)? = null) {
+    fun applyWindow(window: Window, mode: Settings.FullscreenMode) {
         // Always keep screen on for Headunit functionality
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
@@ -124,6 +124,10 @@ object SystemUI {
             controllerCompat.isAppearanceLightNavigationBars = false
         }
 
+    }
+
+    fun apply(window: Window, root: View, mode: Settings.FullscreenMode, onInsetsChanged: (() -> Unit)? = null) {
+        applyWindow(window, mode)
         val settings = Settings(root.context)
 
         // IMMEDIATE APPLICATION OF MANUAL INSETS

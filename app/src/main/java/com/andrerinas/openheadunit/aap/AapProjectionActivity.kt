@@ -61,6 +61,7 @@ import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, VideoDimensionsListener {
 
@@ -1904,7 +1905,18 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
             }
         }
 
-        commManager.send(TouchEvent(ts, action, event.actionIndex, pointerData))
+        // With multiple video profiles, the phone still receives a single touchscreen size.
+        val touchWidth = HeadUnitScreenConfig.getAdvertisedTouchWidth()
+        val touchHeight = HeadUnitScreenConfig.getAdvertisedTouchHeight()
+        val touchPointers = if (touchWidth == videoW && touchHeight == videoH) {
+            pointerData
+        } else {
+            pointerData.map { (id, x, y) ->
+                Triple(id, (x * (touchWidth.toFloat() / videoW)).roundToInt(),
+                    (y * (touchHeight.toFloat() / videoH)).roundToInt())
+            }
+        }
+        commManager.send(TouchEvent(ts, action, event.actionIndex, touchPointers))
     }
 
 

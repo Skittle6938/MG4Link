@@ -68,6 +68,7 @@ import com.andrerinas.openheadunit.connection.SoftApCredentialsProvider
 import com.andrerinas.openheadunit.main.BackgroundNotification
 import android.annotation.SuppressLint
 import com.andrerinas.openheadunit.utils.Settings
+import com.andrerinas.openheadunit.utils.HeadUnitScreenConfig
 import com.andrerinas.openheadunit.utils.protoUint32ToLong
 import com.evsuite.hardware.saic.SaicCarAudioSource
 import com.evsuite.hardware.saic.SaicMediaPlayer
@@ -1480,6 +1481,7 @@ class AapService : Service(), UsbReceiver.Listener {
      */
     private fun watchUsbPicture() {
         usbPictureWatchJob?.cancel()
+        if (settings.resolutionId == Settings.Resolution._1280x720.id) return
         val device = UsbVideoFallback.currentDevice ?: return
         usbPictureWatchJob = serviceScope.launch(Dispatchers.IO) {
             while (true) {
@@ -1492,7 +1494,9 @@ class AapService : Service(), UsbReceiver.Listener {
                 }
                 if (!UsbVideoFallback.pictureMissing()) continue
                 val known = settings.usb720pDevices
-                if (device in known) {
+                val is720p = minOf(HeadUnitScreenConfig.getNegotiatedWidth(),
+                    HeadUnitScreenConfig.getNegotiatedHeight()) == 720
+                if (device in known || is720p) {
                     AppLog.w("AapService: $device sent no picture at 720p either - leaving the session as it is")
                     return@launch
                 }

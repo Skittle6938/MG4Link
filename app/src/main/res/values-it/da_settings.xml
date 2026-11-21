@@ -97,4 +97,6 @@
     <string name="dset_battery_reset_button">Ripristina</string>
     <string name="dset_car_pulldown">Tendina dell\'auto su Android Auto</string>
     <string name="dset_car_pulldown_summary">Apre le impostazioni rapide dell\'auto (riscaldamento…) scorrendo dall\'alto su Android Auto. Su SWI68 il banner di chiamata dell\'auto torna sopra Android Auto. Disattivato: usa il menu scorciatoie di MG4 Dash.</string>
+    <string name="dset_video_res">Risoluzione video</string>
+    <string name="dset_video_res_summary">Scegli 720p se Android Auto si connette ma non compare alcuna immagine. Si applica alla prossima connessione.</string>
 </resources>
