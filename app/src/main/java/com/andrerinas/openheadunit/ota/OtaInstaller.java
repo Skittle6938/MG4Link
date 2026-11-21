@@ -20,6 +20,10 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Installs the downloaded APK with a PackageInstaller session, as MG4Dash does on the car.
@@ -79,7 +83,8 @@ final class OtaInstaller {
 
     private static void validateApk(Context context, File apk) throws Exception {
         PackageManager pm = context.getPackageManager();
-        PackageInfo info = pm.getPackageArchiveInfo(apk.getAbsolutePath(), 0);
+        PackageInfo info = pm.getPackageArchiveInfo(apk.getAbsolutePath(),
+                PackageManager.GET_SIGNING_CERTIFICATES);
         if (info == null || info.packageName == null) {
             throw new IllegalStateException("PackageManager cannot parse APK");
         }
@@ -87,12 +92,39 @@ final class OtaInstaller {
             throw new IllegalStateException("APK package mismatch: " + info.packageName);
         }
         long newCode = Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode;
-        PackageInfo installed = pm.getPackageInfo(context.getPackageName(), 0);
+        PackageInfo installed = pm.getPackageInfo(context.getPackageName(),
+                PackageManager.GET_SIGNING_CERTIFICATES);
         long oldCode = Build.VERSION.SDK_INT >= 28 ? installed.getLongVersionCode() : installed.versionCode;
         if (newCode <= oldCode) {
             throw new IllegalStateException("APK versionCode " + newCode + " is not newer than " + oldCode);
         }
+        // The platform checks this again on install; checking here refuses a foreign APK before
+        // anything is handed to the installer (and, for the system UID, to `pm`).
+        if (!sameSigners(signers(info), signers(installed))) {
+            throw new SecurityException("APK is not signed by the installed app's certificate");
+        }
         Log.i(TAG, "APK ok versionName=" + info.versionName + " versionCode=" + newCode);
+    }
+
+    private static List<byte[]> signers(PackageInfo info) {
+        List<byte[]> out = new ArrayList<>();
+        if (info.signingInfo == null) return out;
+        for (android.content.pm.Signature s : info.signingInfo.getApkContentsSigners()) {
+            out.add(s.toByteArray());
+        }
+        return out;
+    }
+
+    /** True when both lists hold the same, non-empty set of certificates (order is irrelevant). */
+    static boolean sameSigners(List<byte[]> a, List<byte[]> b) {
+        if (a.isEmpty() || b.isEmpty()) return false;
+        return hexSet(a).equals(hexSet(b));
+    }
+
+    private static Set<String> hexSet(List<byte[]> certs) {
+        Set<String> out = new HashSet<>();
+        for (byte[] c : certs) out.add(java.util.Arrays.toString(c));
+        return out;
     }
 
     private static void installWithSession(Context context, File apk) throws Exception {
