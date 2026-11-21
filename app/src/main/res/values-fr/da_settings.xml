@@ -97,4 +97,6 @@
     <string name="dset_battery_reset_button">Réinitialiser</string>
     <string name="dset_car_pulldown">Volet de la voiture sur Android Auto</string>
     <string name="dset_car_pulldown_summary">Ouvre les paramètres rapides de la voiture (chauffage…) en glissant du haut vers le bas sur Android Auto. Sur SWI68, la bannière d\'appel de la voiture s\'affiche alors de nouveau sur Android Auto. Désactivé : utilisez plutôt le menu de raccourcis de MG4 Dash.</string>
+    <string name="dset_video_res">Résolution vidéo</string>
+    <string name="dset_video_res_summary">Choisissez 720p si Android Auto se connecte mais que l\'image ne s\'affiche pas. S\'applique à la prochaine connexion.</string>
 </resources>

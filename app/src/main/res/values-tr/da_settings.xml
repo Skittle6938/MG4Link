@@ -97,4 +97,6 @@
     <string name="dset_battery_reset_button">Sıfırla</string>
     <string name="dset_car_pulldown">Araç paneli Android Auto üzerinde</string>
     <string name="dset_car_pulldown_summary">Android Auto üzerinde yukarıdan aşağı kaydırarak aracın hızlı ayarlarını (ısıtma…) açar. SWI68\'de aracın arama bildirimi yeniden Android Auto üzerinde görünür. Kapalı: bunun yerine MG4 Dash kısayol menüsünü kullanın.</string>
+    <string name="dset_video_res">Video çözünürlüğü</string>
+    <string name="dset_video_res_summary">Android Auto bağlanıyor ancak görüntü gelmiyorsa 720p seçin. Bir sonraki bağlantıda uygulanır.</string>
 </resources>
