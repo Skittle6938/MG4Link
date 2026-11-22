@@ -303,7 +303,15 @@ internal class AapAudio(
             } else {
                 // One kind per request type, as MG's own Android Auto asks (see ProtocolFocusRoute).
                 val kind = ProtocolFocusRoute.kind(stream, effectiveFocus)
-                if (kind != ProtocolFocusRoute.Kind.ASSISTANT) releaseAssistantReplyFocus()
+                if (kind == ProtocolFocusRoute.Kind.ASSISTANT && assistantVoiceSessionActive &&
+                    acquireAssistantAudioFocus()) {
+                    return AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+                }
+                if (assistantFocusGranted &&
+                    (kind == ProtocolFocusRoute.Kind.GUIDANCE || kind == ProtocolFocusRoute.Kind.ASSISTANT)) {
+                    AppLog.i("AapAudio: ${kind.name} focus covered by the active assistant focus")
+                    return AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+                }
                 if (!ProtocolFocusRoute.asksSystem(kind, settings.musicViaBluetooth)) {
                     AppLog.i("Audio Focus Request: music is on the car's Bluetooth - leaving system focus and source alone")
                     return AudioManager.AUDIOFOCUS_REQUEST_GRANTED
@@ -494,6 +502,8 @@ internal class AapAudio(
     }
 
     fun releaseAllFocus() {
+        assistantVoiceSessionActive = false
+        assistantMicOpen = false
         releaseAssistantFocus()
         handler.removeCallbacks(musicBackCheck)
         musicBeforeVoice = false
@@ -549,7 +559,7 @@ internal class AapAudio(
         return false
     }
 
-    private fun startAudioTrack(channel: Int) {
+    private fun startAudioTrack(channel: Int, assistantPlayback: Boolean) {
         if (audioDecoder.getTrack(channel) != null) return
 
         val config = AudioConfigs.get(channel)
@@ -597,8 +607,13 @@ internal class AapAudio(
             audioQueueCapacity,
             attachHwDspEqualizer = attachHwDspEqualizer,
             mediaBufferMillis = jitterMs,
+            assistantPlayback = assistantPlayback,
         )
-        onAudioPlaybackStarted(channel)
+        if (assistantPlayback) {
+            AppLog.i("AapAudio: AUDIO1 playing with assistant audio attributes")
+        } else {
+            onAudioPlaybackStarted(channel)
+        }
         // The phone is playing music over Wi-Fi: the moment to take the car's media source.
         if (channel == Channel.ID_AUD) onMediaPlaybackStarted?.invoke()
     }
@@ -614,7 +629,6 @@ internal class AapAudio(
         // Only the navigation channel needs it; on the media path the prompt plays with the music.
         if (!com.andrerinas.openheadunit.decoder.SpeechRoute.navigationChannel) return
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || speechFocusRequests.containsKey(channel)) return
-        releaseAssistantReplyFocus()
         lastOwnFocusRequestMs = SystemClock.elapsedRealtime()
         val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
             .setAudioAttributes(
@@ -674,24 +688,27 @@ internal class AapAudio(
     }
 
     private var assistantFocusRequest: AudioFocusRequest? = null
-    private var assistantFocusTimeout: Runnable? = null
+    @Volatile private var assistantFocusGranted = false
+    @Volatile private var assistantVoiceSessionActive = false
+    @Volatile private var assistantMicOpen = false
+    private val assistantFocusTimeout = Runnable { checkAssistantReplyIdle() }
 
     /**
-     * Stock AllGo holds the assistant focus (transient) while the phone listens, which is what
-     * makes the car's own assistant ("Hello MG") free the cabin mic (issue #16).
-     * Only on SWI68, the cars with "Hello MG": on an
-     * SWI69 it brought nothing and the car refused the phone's listening tone.
+     * AllGo holds one transient assistant focus across voice recognition and its audio stream.
+     * CarVoicePath manages microphone ownership separately.
      */
-    @Synchronized
     fun requestAssistantFocus() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         if (!VoiceSessionPolicy.assistantFocusWanted(com.evsuite.hardware.FirmwareInfo.getGeneration())) return
-        assistantFocusTimeout?.let {
-            handler.removeCallbacks(it)
-            assistantFocusTimeout = null
-            com.evsuite.hardware.EVHardware.requestVoiceCommandFocus()
-        }
-        if (assistantFocusRequest != null) return
+        assistantMicOpen = true
+        handler.removeCallbacks(assistantFocusTimeout)
+        acquireAssistantAudioFocus()
+    }
+
+    @Synchronized
+    private fun acquireAssistantAudioFocus(): Boolean {
+        if (assistantFocusGranted) return true
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+            !VoiceSessionPolicy.assistantFocusWanted(com.evsuite.hardware.FirmwareInfo.getGeneration())) return false
         lastOwnFocusRequestMs = SystemClock.elapsedRealtime()
         val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
             .setAudioAttributes(
@@ -702,51 +719,47 @@ internal class AapAudio(
             )
             .setOnAudioFocusChangeListener { }
             .build()
-        assistantFocusRequest = request
         val result = audioManager.requestAudioFocus(request)
-        // The audio focus alone did not free the mic from "Hello MG" (2.2.3-beta5): stock AllGo
-        // also takes the car's voice command focus.
-        val voiceFocus = com.evsuite.hardware.EVHardware.requestVoiceCommandFocus()
-        AppLog.i("AapAudio: mic open - assistant focus result=$result, voice command focus=$voiceFocus")
+        assistantFocusGranted = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        if (assistantFocusGranted) {
+            assistantFocusRequest = request
+            if (!assistantMicOpen) handler.postDelayed(assistantFocusTimeout, ASSISTANT_REPLY_TIMEOUT_MS)
+        }
+        AppLog.i("AapAudio: assistant audio focus result=$result")
+        return assistantFocusGranted
     }
 
-    @Synchronized
-    fun onAssistantMicClosed(voiceSessionActive: Boolean) {
-        if (assistantFocusRequest == null || assistantFocusTimeout != null) return
-        // If a reply still needs to request guidance focus, give it room to do so.
-        if (!voiceSessionActive || audioFocusKind != ProtocolFocusRoute.Kind.ASSISTANT || audioFocusRequest == null) {
+    fun onAssistantMicClosed() {
+        assistantMicOpen = false
+        releaseAssistantIfIdle()
+        if (assistantFocusGranted) {
+            handler.removeCallbacks(assistantFocusTimeout)
+            handler.postDelayed(assistantFocusTimeout, ASSISTANT_REPLY_TIMEOUT_MS)
+        }
+    }
+
+    private fun releaseAssistantIfIdle() {
+        if (assistantMicOpen || assistantVoiceSessionActive ||
+            audioDecoder.getTrack(Channel.ID_AU1)?.assistantPlayback == true) return
+        releaseAssistantFocus()
+    }
+
+    private fun checkAssistantReplyIdle() {
+        if (assistantMicOpen || !assistantFocusGranted) return
+        if (audioDecoder.getTrack(Channel.ID_AU1)?.isReceivingAudio() == true) {
+            handler.postDelayed(assistantFocusTimeout, ASSISTANT_REPLY_TIMEOUT_MS)
+        } else {
+            AppLog.i("AapAudio: assistant reply idle - releasing focus")
             releaseAssistantFocus()
-            return
         }
-        com.evsuite.hardware.EVHardware.abandonVoiceCommandFocus()
-        val timeout = object : Runnable {
-            override fun run() {
-                synchronized(this@AapAudio) {
-                    if (assistantFocusTimeout === this) releaseAssistantFocus()
-                }
-            }
-        }
-        assistantFocusTimeout = timeout
-        handler.postDelayed(timeout, 30_000L)
-        AppLog.i("AapAudio: mic closed - keeping assistant audio focus for the reply")
-    }
-
-    @Synchronized
-    private fun releaseAssistantReplyFocus() {
-        if (assistantFocusTimeout != null) releaseAssistantFocus()
     }
 
     @Synchronized
     private fun releaseAssistantFocus() {
         val request = assistantFocusRequest ?: return
         assistantFocusRequest = null
-        val timeout = assistantFocusTimeout
-        assistantFocusTimeout = null
-        if (timeout != null) {
-            handler.removeCallbacks(timeout)
-        } else {
-            com.evsuite.hardware.EVHardware.abandonVoiceCommandFocus()
-        }
+        assistantFocusGranted = false
+        handler.removeCallbacks(assistantFocusTimeout)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             runCatching { audioManager.abandonAudioFocusRequest(request) }
         }
@@ -772,6 +785,7 @@ internal class AapAudio(
      * music stream just before it announces the session, so a stop a moment ago counts too.
      */
     fun onVoiceSessionStarted() {
+        assistantVoiceSessionActive = true
         handler.removeCallbacks(musicBackCheck)
         musicBeforeVoice = VoiceSessionPolicy.musicBeforeVoice(
             musicBeforeVoice, isMediaPlaying, SystemClock.elapsedRealtime(), lastMusicStopMs)
@@ -784,7 +798,8 @@ internal class AapAudio(
      * restarted it by itself shortly after.
      */
     fun onVoiceSessionStopped() {
-        releaseAssistantReplyFocus()
+        assistantVoiceSessionActive = false
+        releaseAssistantIfIdle()
         handler.removeCallbacks(musicBackCheck)
         handler.postDelayed(musicBackCheck, VoiceSessionPolicy.MUSIC_BACK_CHECK_MS)
     }
@@ -911,8 +926,15 @@ internal class AapAudio(
             length = AUDIO_BUFS_SIZE
         }
 
+        val track = audioDecoder.getTrack(channel)
+        val assistantPlayback = channel == Channel.ID_AU1 && (assistantFocusGranted ||
+            (track == null && assistantVoiceSessionActive && acquireAssistantAudioFocus()))
+        if (track != null && track.assistantPlayback != assistantPlayback) {
+            audioDecoder.stop(channel)
+            releaseSpeechFocus(channel)
+        }
         if (audioDecoder.getTrack(channel) == null) {
-            startAudioTrack(channel)
+            startAudioTrack(channel, assistantPlayback)
         }
 
         return audioDecoder.decode(channel, buf, start, length)
@@ -933,6 +955,7 @@ internal class AapAudio(
     fun restartAudio() {
         AppLog.i("AapAudio: Restarting all audio tracks")
         audioDecoder.stop()
+        releaseAssistantIfIdle()
     }
 
     fun stopAudio(channel: Int) {
@@ -940,9 +963,11 @@ internal class AapAudio(
         if (channel == Channel.ID_AUD) lastMusicStopMs = SystemClock.elapsedRealtime()
         audioDecoder.stop(channel)
         onAudioPlaybackStopped(channel)
+        if (channel == Channel.ID_AU1) releaseAssistantIfIdle()
     }
 
     companion object {
+        private const val ASSISTANT_REPLY_TIMEOUT_MS = 30_000L
         private const val AUDIO_BUFS_SIZE = 65536 * 4  // Up to 256 Kbytes
         private const val OWN_REQUEST_GRACE_MS = 1_000L
         private const val CAR_LOSS_DEBOUNCE_MS = 1_500L

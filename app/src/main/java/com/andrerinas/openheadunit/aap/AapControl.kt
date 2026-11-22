@@ -182,7 +182,7 @@ internal class AapControlMedia(
             micOpenedAtMs = 0L
             synchronized(micRecorder) { micRecorder.stop() }
             if (VoiceSessionPolicy.phoneRefusedMic(openMs)) micRecorder.phoneClosedMicAtOnce(openMs)
-            aapAudio.onAssistantMicClosed(aapTransport.isAssistantActive)
+            aapAudio.onAssistantMicClosed()
             sendMicResponse(Common.MessageStatus.STATUS_SUCCESS_VALUE)
             return 0
         }

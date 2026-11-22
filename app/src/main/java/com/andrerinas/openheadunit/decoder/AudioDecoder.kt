@@ -49,6 +49,7 @@ class AudioDecoder {
         audioQueueCapacity: Int = 0,
         attachHwDspEqualizer: Boolean = false,
         mediaBufferMillis: Int = 0,
+        assistantPlayback: Boolean = false,
     ) {
         val thread = AudioTrackWrapper(
             stream = stream,
@@ -63,6 +64,7 @@ class AudioDecoder {
             attachHwDspEqualizer = attachHwDspEqualizer,
             mediaBufferMillis = mediaBufferMillis,
             onChunkDone = { mediaAck?.invoke(channel) },
+            assistantPlayback = assistantPlayback,
         )
         audioTracks.put(channel, thread)
     }
