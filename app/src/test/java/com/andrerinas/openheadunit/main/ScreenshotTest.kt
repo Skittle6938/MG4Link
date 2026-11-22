@@ -67,10 +67,8 @@ class ScreenshotTest {
     )
 
     @Test fun startupOverlay() {
-        val activity = Robolectric.buildActivity(FragmentActivity::class.java).setup().get()
-        activity.setTheme(R.style.AppTheme)
-        val root = activity.layoutInflater.inflate(R.layout.activity_main, null)
-        save(root.findViewById(R.id.splash_overlay), 1920, 720, "startup_overlay.png")
+        val overlay = LayoutInflater.from(context).inflate(R.layout.da_startup_overlay, null)
+        save(overlay, 1920, 720, "startup_overlay.png")
     }
 
     @Test fun homeUpdateAvailable() = home(
