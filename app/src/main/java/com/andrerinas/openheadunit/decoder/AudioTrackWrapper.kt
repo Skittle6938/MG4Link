@@ -39,6 +39,7 @@ class AudioTrackWrapper(
      * and then dropped here when the queue overflowed (heard as sped-up, choppy music).
      */
     private val onChunkDone: (() -> Unit)? = null,
+    internal val assistantPlayback: Boolean = false,
 ) : Thread() {
 
     private data class AudioChunk(
@@ -507,16 +508,16 @@ class AudioTrackWrapper(
 
         AppLog.i("Audio stream: $stream buffer size: $bufferSize (min: $minBufferSize) sampleRateInHz: $sampleRateInHz channelCount: $channelCount")
 
-        // With the navigation channel chosen (SpeechRoute), prompts and the assistant (AUDIO1/AUDIO2)
-        // play as navigation guidance, untagged: the MG4
-        // sends that usage to its NAVI bus, mixed over any source. As media tagged Android Auto
-        // they went to the media bus, which is silent while the radio is the car's source.
+        // AllGo uses assistant attributes for its voice output and guidance for navigation.
+        // Both are untagged so speech can be heard while another source is selected.
         val speech = channelId == Channel.ID_AU1 || channelId == Channel.ID_AU2
-        if (speech && SpeechRoute.navigationChannel && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        if ((assistantPlayback || (speech && SpeechRoute.navigationChannel)) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val usage = if (assistantPlayback) AudioAttributes.USAGE_ASSISTANT
+                else AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE
             return AudioTrack.Builder()
                 .setAudioAttributes(
                     AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                        .setUsage(usage)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                         .build()
                 )

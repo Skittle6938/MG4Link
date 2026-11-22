@@ -3,10 +3,7 @@ package com.andrerinas.openheadunit.decoder
 import android.content.ComponentName
 import android.content.Context
 import android.content.ServiceConnection
-import android.media.AudioAttributes
-import android.media.AudioFocusRequest
 import android.media.AudioManager
-import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
 import com.andrerinas.openheadunit.utils.AppLog
@@ -18,15 +15,14 @@ import java.lang.reflect.Proxy
  *
  * 1. Voice-command app focus (CarAppFocusManager type 2). SAIC's VrSpeechService listens for it and
  *    stops its always-on wake-word listener, which otherwise holds the mic and leaves us silence.
- * 2. Transient audio focus with the assistant usage.
- * 3. The HAL speech path, `SSE_AA_VR_Wifi` / `SSE_AA_VR`.
+ * 2. The HAL speech path, `SSE_AA_VR_Wifi` / `SSE_AA_VR`.
+ * Assistant audio focus is held separately by AapAudio.
  *
  * android.car is on this head unit's boot classpath (AllGo ships only stubs), so it is reached by
  * reflection rather than bundled.
  */
 object CarVoicePath {
     private const val APP_FOCUS_TYPE_VOICE_COMMAND = 2
-    private const val USAGE_ASSISTANT = 16
     /** How long SAIC's wake-word engine gets to let go of the mic before we open it. */
     private const val MIC_RELEASE_WAIT_MS = 400L
     /** Without voice focus (no android.car, or nothing to release): as AllGo waits, and as before. */
@@ -36,7 +32,6 @@ object CarVoicePath {
     private var car: Any? = null
     @Volatile private var focusManager: Any? = null
     private var focusCallback: Any? = null
-    private var audioFocus: AudioFocusRequest? = null
 
     fun parameter(wireless: Boolean, enabled: Boolean) =
         "${if (wireless) "SSE_AA_VR_Wifi" else "SSE_AA_VR"}=$enabled"
@@ -82,7 +77,6 @@ object CarVoicePath {
         val takeFocus = takesVoiceFocus()
         if (takeFocus) prepare(context)
         val focusGranted = takeFocus && requestVoiceFocus()
-        if (takeFocus) requestAudioFocus(context)
         val param = parameter(wireless, enabled = true)
         try {
             (context.getSystemService(Context.AUDIO_SERVICE) as AudioManager).setParameters(param)
@@ -106,12 +100,6 @@ object CarVoicePath {
         } catch (e: Exception) {
             AppLog.w("CarVoicePath: could not clear $key: ${e.message}")
         }
-        audioFocus?.let { request ->
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                (context.getSystemService(Context.AUDIO_SERVICE) as AudioManager).abandonAudioFocusRequest(request)
-            }
-        }
-        audioFocus = null
         abandonVoiceFocus()
     }
 
@@ -169,14 +157,4 @@ object CarVoicePath {
         }
     }
 
-    private fun requestAudioFocus(context: Context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
-            .setAudioAttributes(AudioAttributes.Builder().setUsage(USAGE_ASSISTANT).build())
-            .setOnAudioFocusChangeListener { }
-            .build()
-        val result = (context.getSystemService(Context.AUDIO_SERVICE) as AudioManager).requestAudioFocus(request)
-        AppLog.i("CarVoicePath: assistant audio focus result=$result (1 = granted)")
-        audioFocus = request
-    }
 }
