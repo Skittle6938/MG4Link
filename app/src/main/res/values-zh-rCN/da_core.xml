@@ -48,6 +48,8 @@
     <string name="dset_battery_waiting">正在等待车辆数据…</string>
     <string name="dset_first_call_delay">首次联系手机的延迟</string>
     <string name="dset_first_call_delay_summary">车辆启动后，如果手机尚未连接蓝牙，MG4Link 会在这段时间后尝试连接。15 秒可让车机先自行重连。如果车机始终无法自行重连，可缩短延迟。</string>
+    <string name="dset_wait_bt_links">等待车辆蓝牙</string>
+    <string name="dset_wait_bt_links_summary">启动 Android Auto 前，最多等待 5 秒，让车辆完成与手机的蓝牙连接，使自动播放的音乐从车内而不是手机扬声器播放。</string>
     <string name="fullscreen_nav_only">仅隐藏左侧栏</string>
     <string name="ota_dialog_install_message">将下载并安装 MG4Link %1$s（%2$s）。没有 Wi-Fi 时会使用车辆的移动数据。随后 MG4Link 会重新启动，Android Auto 将中断几秒。</string>
     <string name="ota_dialog_no_stable_message">目前没有比 %1$s 更新的正式版。在设置中启用检查测试版更新后，即可收到测试版。</string>
