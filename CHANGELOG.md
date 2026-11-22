@@ -1,3 +1,7 @@
+# MG4Link 2.2.7-beta32
+
+- Fixed the factory DAB radio resuming before Gemini finishes on SWI68 (#50). One assistant audio focus request now covers the voice session and the reply, while the microphone is freed when listening ends. Confirmed on SWI68 R67.
+
 # MG4Link 2.2.7-beta31
 
 - Experimental fix for the factory DAB radio resuming before Gemini finishes on SWI68 (#50). MG4Link can now keep assistant audio priority through the reply after the microphone closes.
