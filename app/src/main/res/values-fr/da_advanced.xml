@@ -8,4 +8,6 @@
     <string name="dset_first_call_delay">Premier appel au téléphone après</string>
     <string name="dset_first_call_delay_summary">Au démarrage de la voiture, si le téléphone n\'est pas encore relié en Bluetooth, MG4Link l\'appelle après ce délai. 15 s laisse à la voiture le temps de le reconnecter elle-même ; si votre voiture ne le fait jamais, un délai plus court connecte plus vite.</string>
     <string name="dset_advanced_summary_general">Réglages fins et diagnostic. Les valeurs par défaut conviennent à la plupart des voitures.</string>
+    <string name="dset_wait_bt_links">Attendre le Bluetooth de la voiture</string>
+    <string name="dset_wait_bt_links_summary">Avant de lancer Android Auto, attend jusqu\'à 5 s que la voiture ait fini de relier le téléphone en Bluetooth, pour que la musique lancée toute seule sorte dans la voiture et pas sur le haut-parleur du téléphone.</string>
 </resources>

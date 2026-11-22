@@ -420,6 +420,9 @@ class AapService : Service(), UsbReceiver.Listener {
             musicRecoveryDone = true
             AppLog.w("AapService: the phone says its music plays but sent no audio to the car for " +
                 "${MusicAudioRecovery.WAIT_MS / 1000}s - pause then play to bring it over (#36)")
+            val lastLink = com.andrerinas.openheadunit.utils.BluetoothLinkWatch.lastChangeAtMs
+            if (lastLink > 0L) AppLog.i("AapService: last Bluetooth link change " +
+                "${android.os.SystemClock.elapsedRealtime() - lastLink}ms ago (#36)")
             commManager.sendKey(android.view.KeyEvent.KEYCODE_MEDIA_PAUSE, true, null, "audio-recovery")
             commManager.sendKey(android.view.KeyEvent.KEYCODE_MEDIA_PAUSE, false, null, "audio-recovery")
             delay(MusicAudioRecovery.PAUSE_TO_PLAY_MS)
@@ -1728,6 +1731,7 @@ class AapService : Service(), UsbReceiver.Listener {
     }
 
     private fun registerReceivers() {
+        com.andrerinas.openheadunit.utils.BluetoothLinkWatch.register(this)
         usbReceiver = UsbReceiver(this)
         ContextCompat.registerReceiver(
             this, nightModeUpdateReceiver,
@@ -2020,6 +2024,7 @@ class AapService : Service(), UsbReceiver.Listener {
             unregisterReceiver(sensorRefreshReceiver)
         } catch (_: Exception) {}
         try { unregisterReceiver(usbReceiver) } catch (_: Exception) {}
+        com.andrerinas.openheadunit.utils.BluetoothLinkWatch.unregister()
         try { unregisterReceiver(mediaButtonReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(wakeDetectReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(bluetoothStateReceiver) } catch (_: Exception) {}

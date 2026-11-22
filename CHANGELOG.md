@@ -1,3 +1,7 @@
+# MG4Link 2.2.7-beta33
+
+- Music that Android Auto starts by itself on the phone's speaker at a cold start (#36): before it asks the phone to start Android Auto, MG4Link now waits until the car has finished connecting the phone over Bluetooth (no change for 1.5 s, at most 5 s), so no Bluetooth link comes up or down while the music starts. Settings > Connection > Advanced options > Wait for the car's Bluetooth turns it off. The log lists every change of the car's Bluetooth links to the phone, with its time. The pause/play recovery stays as a fallback.
+
 # MG4Link 2.2.7-beta32
 
 - Fixed the factory DAB radio resuming before Gemini finishes on SWI68 (#50). One assistant audio focus request now covers the voice session and the reply, while the microphone is freed when listening ends. Confirmed on SWI68 R67.

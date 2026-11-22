@@ -276,6 +276,14 @@ class Settings(private val context: Context) {
         get() = prefs.getInt("first-phone-call-delay-s", 15).coerceIn(0, 60)
         set(value) { prefs.edit().putInt("first-phone-call-delay-s", value.coerceIn(0, 60)).apply() }
 
+    /**
+     * Hold the wireless handshake until the car has finished (re)connecting the phone over
+     * Bluetooth, up to 5 s (#36). On by default.
+     */
+    var waitForBluetoothLinks: Boolean
+        get() = prefs.getBoolean("wait-bt-links", true)
+        set(value) { prefs.edit().putBoolean("wait-bt-links", value).apply() }
+
     /** Live telemetry to ABRP over the car's T-box (vehicle/AbrpUploader). Off by default. */
     var abrpEnabled: Boolean
         get() = prefs.getBoolean("abrp-enabled", false)

@@ -164,6 +164,8 @@ class DaSettingsActivity : BaseActivity() {
             choices(firstCalls.map { "$it s" }, firstCalls.indexOf(settings.firstPhoneCallDelaySeconds).takeIf { it >= 0 } ?: 2) {
                 settings.firstPhoneCallDelaySeconds = firstCalls[it]
             })
+        row(R.string.dset_wait_bt_links, R.string.dset_wait_bt_links_summary,
+            yesNo(settings.waitForBluetoothLinks) { settings.waitForBluetoothLinks = it })
         val delays = listOf(10, 30, 60, 120, 300)
         val delay = delays.indexOf(settings.stationRestoreDelaySeconds).takeIf { it >= 0 } ?: 2
         row(R.string.dset_station_delay, R.string.dset_station_delay_summary,

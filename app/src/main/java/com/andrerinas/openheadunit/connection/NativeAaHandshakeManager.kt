@@ -1131,6 +1131,12 @@ class NativeAaHandshakeManager(
                         spokeToPhone = true
                     }
                     WppAction.SendStartRequest -> {
+                        if (settings.waitForBluetoothLinks) {
+                            // #36: let the car finish (re)connecting the phone before Android Auto
+                            // starts, so no Bluetooth link changes under the music auto-start.
+                            val waited = com.andrerinas.openheadunit.utils.BluetoothLinkWatch.awaitQuiet()
+                            if (waited > 0L) AppLog.i("NativeAA: waited ${waited}ms for the car's Bluetooth links to settle (#36)")
+                        }
                         AppLog.i("NativeAA: [TX] Sending WifiStartRequest (Type 1)")
                         sendWifiStartRequest(output, credIp, context.wirelessPort)
                         spokeToPhone = true
