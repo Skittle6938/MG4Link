@@ -32,6 +32,9 @@ jobs:
       - name: Install pinned Android packages
         run: bash scripts/ci_android_sdk.sh
       - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Render home, settings and tutorial
         run: |
           ./gradlew :app:testCarDebugUnitTest \
