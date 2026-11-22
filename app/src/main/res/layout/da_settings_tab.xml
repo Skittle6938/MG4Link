@@ -12,12 +12,12 @@
     android:paddingStart="20dp"
     android:paddingEnd="16dp">
 
-    <ImageView
+    <androidx.appcompat.widget.AppCompatImageView
         android:id="@+id/tab_icon"
         android:layout_width="34dp"
         android:layout_height="34dp"
         android:importantForAccessibility="no"
-        android:tint="@color/da_muted" />
+        app:tint="@color/da_muted" />
 
     <TextView
         android:id="@+id/tab_label"

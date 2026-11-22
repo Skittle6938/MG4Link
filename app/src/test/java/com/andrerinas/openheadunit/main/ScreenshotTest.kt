@@ -66,6 +66,13 @@ class ScreenshotTest {
         "home_update_up_to_date.png",
     )
 
+    @Test fun startupOverlay() {
+        val activity = Robolectric.buildActivity(FragmentActivity::class.java).setup().get()
+        activity.setTheme(R.style.AppTheme)
+        val root = activity.layoutInflater.inflate(R.layout.activity_main, null)
+        save(root.findViewById(R.id.splash_overlay), 1920, 720, "startup_overlay.png")
+    }
+
     @Test fun homeUpdateAvailable() = home(
         OtaController.Status(OtaController.State.AVAILABLE, "2.0.0-beta16", true, true),
         "home_update_available.png",

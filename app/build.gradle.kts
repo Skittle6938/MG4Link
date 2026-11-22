@@ -206,6 +206,9 @@ android {
     lint {
         abortOnError = strictLint
         disable += "PackagedPrivateKey"
+        // Regional locale packs intentionally fall back to English. The locale check
+        // enforces full coverage for the core packs and validates every supplied format.
+        warning += "MissingTranslation"
         if (strictLint) {
             val blockingChecks = setOf("NewApi", "WrongThread", "ResourceType", "DuplicateIds")
             checkOnly += blockingChecks

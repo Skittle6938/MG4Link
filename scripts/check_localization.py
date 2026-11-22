@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Validate the core locale resources without an Android SDK."""
+"""Validate translated resources and the locale list generated from their directories."""
+import argparse
 import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -20,30 +21,59 @@ def resources(path):
 def placeholders(text):
     # Preserve argument position and type; Android allows implicit position for a single argument.
     # A literal %% must be consumed as a pair even when followed by a letter such as in "%% de".
-    matches = re.findall(r'%%|%(?:(\d+)\$)?[\-+0 ,(#]*\d*(?:\.\d+)?([sdf])', text)
+    matches = re.findall(r'%%|%(?:(\d+)\$)?[\-+0,(#]*\d*(?:\.\d+)?([sdf])', text)
     arguments = [(position, kind) for position, kind in matches if kind]
     return sorted((int(pos) if pos else i + 1, kind) for i, (pos, kind) in enumerate(arguments))
 
 
-base = resources(RES / 'values')
-required = {k: n for k, n in base.items() if n.get('translatable') != 'false'}
-for locale in LOCALES:
-    translated = resources(RES / f'values-{locale}')
-    assert not required.keys() - translated.keys(), (locale, 'missing', required.keys() - translated.keys())
-    for key, node in required.items():
-        other = translated[key]
-        assert node.tag == other.tag, (locale, key, 'resource type')
-        if node.tag == 'string':
-            assert placeholders(''.join(node.itertext())) == placeholders(''.join(other.itertext())), (locale, key, 'format arguments')
-        elif node.tag == 'string-array':
-            assert len(node) == len(other), (locale, key, 'array size')
-        elif node.tag == 'plurals':
-            for item in other:
-                assert placeholders(''.join(item.itertext())) == placeholders(''.join(node[-1].itertext())), (locale, key, 'plural arguments')
-    print(f'{locale}: {len(required)} translatable resources, coverage and format arguments OK')
+def check_formats(source, translation, locale, key):
+    if source.get("formatted") == "false":
+        return
+    assert placeholders("".join(source.itertext())) == placeholders(
+        "".join(translation.itertext())
+    ), (locale, key, "format arguments")
 
-ns = '{http://schemas.android.com/apk/res/android}'
-configured = {e.attrib[ns + 'name'] for e in ET.parse(RES / 'xml/locales_config.xml').getroot()}
-expected = {'en'} | {p.parent.name.removeprefix('values-').replace('-r', '-') for p in RES.glob('values-*/strings.xml')}
-assert configured == expected, ('system locale configuration mismatch', configured ^ expected)
-print('System language configuration matches available translations')
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--write", action="store_true", help="Regenerate Android's locale list")
+    args = parser.parse_args()
+    directories = sorted(p.parent for p in RES.glob("values-*/strings.xml"))
+    base = resources(RES / "values")
+    required = {key: node for key, node in base.items() if node.get("translatable") != "false"}
+    for directory in directories:
+        locale = directory.name.removeprefix("values-")
+        translated = resources(directory)
+        if locale in LOCALES:
+            missing = required.keys() - translated.keys()
+            assert not missing, (locale, "missing", sorted(missing))
+        for key in required.keys() & translated.keys():
+            node, other = required[key], translated[key]
+            if node.tag == "string":
+                check_formats(node, other, locale, key)
+            elif node.tag == "string-array":
+                assert len(node) == len(other), (locale, key, "array size")
+                for item, translated_item in zip(node, other):
+                    check_formats(item, translated_item, locale, key)
+            else:
+                quantities = {item.get("quantity"): item for item in node}
+                for item in other:
+                    source = quantities.get(item.get("quantity"), quantities["other"])
+                    check_formats(source, item, locale, key)
+        print(f"{locale}: {len(required.keys() & translated.keys())}/{len(required)} translations checked")
+
+    locales = {"en"} | {p.name.removeprefix("values-").replace("-r", "-") for p in directories}
+    lines = ['<?xml version="1.0" encoding="utf-8"?>',
+             '<locale-config xmlns:android="http://schemas.android.com/apk/res/android">']
+    lines += [f'    <locale android:name="{locale}" />' for locale in sorted(locales)]
+    expected = "\n".join([*lines, "</locale-config>", ""])
+    config = RES / "xml/locales_config.xml"
+    if args.write:
+        config.write_text(expected, encoding="utf-8", newline="\n")
+    elif config.read_text(encoding="utf-8-sig") != expected:
+        raise SystemExit("Stale locale list. Run python3 scripts/check_localization.py --write")
+    print("Generated system language list matches the translation directories")
+
+
+if __name__ == "__main__":
+    main()
