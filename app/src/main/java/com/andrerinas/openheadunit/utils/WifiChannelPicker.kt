@@ -56,6 +56,9 @@ object WifiChannelPicker {
     private fun leastBusy(context: Context): Int? {
         val results: List<ScanResult> = try {
             (context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager).scanResults
+        } catch (_: SecurityException) {
+            AppLog.w("WifiChannelPicker: permission denied reading scan results")
+            return null
         } catch (e: Exception) {
             AppLog.w("WifiChannelPicker: no scan results: ${e.message}")
             return null

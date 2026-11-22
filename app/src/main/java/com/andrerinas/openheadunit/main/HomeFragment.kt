@@ -179,24 +179,27 @@ class HomeFragment : Fragment() {
             showBluetoothHelp(R.string.bt_permission_denied)
         }
     }
-    private fun rememberAutoStartDevice(device: BluetoothDevice) {
+    private fun startNativeAa(device: BluetoothDevice) {
+        val address = device.address
+        // Remember this phone so the next Bluetooth ACL_CONNECTED auto-starts without a tap.
         val macs = app.settings.autoStartBluetoothDeviceMacs
-        if (!macs.contains(device.address)) {
-            val updated = macs + device.address
+        if (address !in macs) {
+            val name = try {
+                device.name
+            } catch (_: SecurityException) {
+                showBluetoothHelp(R.string.bt_permission_denied)
+                return
+            }
+            val updated = macs + address
             app.settings.autoStartBluetoothDeviceMacs = updated
-            app.settings.autoStartBluetoothDeviceName = device.name ?: "Unknown Device"
+            app.settings.autoStartBluetoothDeviceName = name ?: "Unknown Device"
             Settings.syncAutoStartBtMacsToDeviceStorage(requireContext(), updated)
         }
-    }
-
-    private fun startNativeAa(device: BluetoothDevice) {
-        // Remember this phone so the next Bluetooth ACL_CONNECTED auto-starts without a tap.
-        rememberAutoStartDevice(device)
         (activity as? MainActivity)?.beginAutoConnect(
-            "native wireless ${device.address}", MainActivity.ConnectionUiMode.PILL)
+            "native wireless $address", MainActivity.ConnectionUiMode.PILL)
         ContextCompat.startForegroundService(requireContext(), Intent(requireContext(), AapService::class.java).apply {
             action = AapService.ACTION_NATIVE_AA_POKE
-            putExtra(AapService.EXTRA_MAC, device.address)
+            putExtra(AapService.EXTRA_MAC, address)
         })
     }
 

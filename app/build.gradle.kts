@@ -9,6 +9,12 @@ plugins {
 
 val strictLint = providers.gradleProperty("mg4link.strictLint").orNull == "true"
 
+// Robolectric downloads Android framework images outside Gradle's dependency resolver.
+// Its default Maven Central endpoint has returned HTTP 429 on GitHub-hosted runners.
+tasks.withType<Test>().configureEach {
+    systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
+}
+
 android {
     compileSdk = 36
     ndkVersion = "27.2.12479018"
@@ -206,6 +212,9 @@ android {
     lint {
         abortOnError = strictLint
         disable += "PackagedPrivateKey"
+        // Regional locale packs intentionally fall back to English. The locale check
+        // enforces full coverage for the core packs and validates every supplied format.
+        warning += "MissingTranslation"
         if (strictLint) {
             val blockingChecks = setOf("NewApi", "WrongThread", "ResourceType", "DuplicateIds")
             checkOnly += blockingChecks

@@ -26,12 +26,12 @@
             android:gravity="center"
             android:orientation="vertical">
 
-            <ImageView
+            <androidx.appcompat.widget.AppCompatImageView
                 android:layout_width="96dp"
                 android:layout_height="96dp"
                 android:importantForAccessibility="no"
                 android:src="@drawable/ic_stop"
-                android:tint="#FF6B6B" />
+                app:tint="#FF6B6B" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -54,12 +54,12 @@
             android:gravity="center"
             android:orientation="vertical">
 
-            <ImageView
+            <androidx.appcompat.widget.AppCompatImageView
                 android:layout_width="96dp"
                 android:layout_height="96dp"
                 android:importantForAccessibility="no"
                 android:src="@drawable/ic_settings_white"
-                android:tint="@color/da_accent" />
+                app:tint="@color/da_accent" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -83,12 +83,12 @@
             android:orientation="vertical"
             android:visibility="gone">
 
-            <ImageView
+            <androidx.appcompat.widget.AppCompatImageView
                 android:layout_width="96dp"
                 android:layout_height="96dp"
                 android:importantForAccessibility="no"
                 android:src="@drawable/ic_da_charging"
-                android:tint="@color/da_accent" />
+                app:tint="@color/da_accent" />
 
             <TextView
                 android:id="@+id/menu_trip_label"

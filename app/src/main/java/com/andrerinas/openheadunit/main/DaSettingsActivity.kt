@@ -681,14 +681,17 @@ class DaSettingsActivity : BaseActivity() {
             .show()
     }
 
-    private fun bondedPhones(): List<android.bluetooth.BluetoothDevice> = try {
-        BluetoothHelper.getBluetoothAdapter(this)?.bondedDevices.orEmpty().sortedBy { it.name ?: it.address }
+    private fun bondedPhoneNames(): Map<String, String> = try {
+        BluetoothHelper.getBluetoothAdapter(this)?.bondedDevices.orEmpty()
+            .map { it.address to it.name }
+            .sortedBy { (address, name) -> name ?: address }
+            .associate { (address, name) -> address to (name ?: getString(R.string.da_device)) }
     } catch (_: SecurityException) {
-        emptyList()
+        emptyMap()
     }
 
     private fun phonesLabel(): String {
-        val names = bondedPhones().associate { it.address to (it.name ?: getString(R.string.da_device)) }
+        val names = bondedPhoneNames()
         val chosen = settings.autoStartBluetoothDeviceMacs.mapNotNull { names[it] }
         return chosen.joinToString(", ").ifBlank {
             settings.autoStartBluetoothDeviceName.ifBlank { getString(R.string.dset_phone_none) }
@@ -697,12 +700,11 @@ class DaSettingsActivity : BaseActivity() {
 
     /** The phones to connect, ticked, and their order: the first one present goes wireless. */
     private fun pickPhone() {
-        val bonded = bondedPhones()
-        if (bonded.isEmpty()) {
+        val names = bondedPhoneNames()
+        if (names.isEmpty()) {
             Toast.makeText(this, R.string.da_no_paired, Toast.LENGTH_LONG).show()
             return
         }
-        val names = bonded.associate { it.address to (it.name ?: getString(R.string.da_device)) }
         var chosen = settings.autoStartBluetoothDeviceMacs.filter { it in names }
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -724,7 +726,7 @@ class DaSettingsActivity : BaseActivity() {
                 setTextColor(ContextCompat.getColor(context, R.color.da_muted))
                 setPadding(0, 0, 0, dp(8))
             })
-            val others = bonded.map { it.address }.filter { it !in chosen }
+            val others = names.keys.filter { it !in chosen }
             (chosen + others).forEach { mac ->
                 val rank = chosen.indexOf(mac)
                 box.addView(LinearLayout(this).apply {
