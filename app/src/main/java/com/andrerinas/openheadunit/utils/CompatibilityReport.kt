@@ -138,11 +138,12 @@ object CompatibilityReport {
         val adapter = BluetoothHelper.getBluetoothAdapter(context) ?: return "none"
         if (!adapter.isEnabled) return "off"
         val paired = runCatching { adapter.bondedDevices?.size }.getOrNull() ?: 0
-        val hfp = runCatching {
-            adapter.getProfileConnectionState(16 /* HEADSET_CLIENT */) ==
-                android.bluetooth.BluetoothProfile.STATE_CONNECTED
-        }.getOrDefault(false)
-        "on, paired=$paired, hands-free=${if (hfp) "connected" else "no"}"
+        val handsFree = when (BluetoothHelper.handsFreeLinkState(context)) {
+            true -> "connected"
+            false -> "no"
+            null -> "unknown"
+        }
+        "on, paired=$paired, hands-free=$handsFree"
     }.getOrDefault("?")
 
     /** Up or not, and its band: no network name, no password. */

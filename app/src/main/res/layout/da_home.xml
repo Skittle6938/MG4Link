@@ -17,12 +17,12 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <ImageView
+        <androidx.appcompat.widget.AppCompatImageView
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:importantForAccessibility="no"
             android:src="@drawable/ic_android_auto"
-            android:tint="@color/da_accent" />
+            app:tint="@color/da_accent" />
 
         <TextView
             android:id="@+id/home_title"
@@ -78,13 +78,13 @@
             android:orientation="vertical"
             android:padding="36dp">
 
-            <ImageView
+            <androidx.appcompat.widget.AppCompatImageView
                 android:id="@+id/home_state_icon"
                 android:layout_width="120dp"
                 android:layout_height="120dp"
                 android:importantForAccessibility="no"
                 android:src="@drawable/ic_android_auto"
-                android:tint="@color/da_accent" />
+                app:tint="@color/da_accent" />
 
             <TextView
                 android:id="@+id/home_state"
@@ -117,12 +117,12 @@
                 android:gravity="center"
                 android:orientation="horizontal">
 
-                <ImageView
+                <androidx.appcompat.widget.AppCompatImageView
                     android:layout_width="36dp"
                     android:layout_height="36dp"
                     android:importantForAccessibility="no"
                     android:src="@drawable/ic_android_auto"
-                    android:tint="@color/da_background" />
+                    app:tint="@color/da_background" />
 
                 <TextView
                     android:id="@+id/home_main_label"
@@ -153,12 +153,12 @@
                 android:gravity="center"
                 android:orientation="vertical">
 
-                <ImageView
+                <androidx.appcompat.widget.AppCompatImageView
                     android:layout_width="56dp"
                     android:layout_height="56dp"
                     android:importantForAccessibility="no"
                     android:src="@drawable/ic_settings_white"
-                    android:tint="@color/da_accent" />
+                    app:tint="@color/da_accent" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -206,12 +206,12 @@
                 android:gravity="center"
                 android:orientation="vertical">
 
-                <ImageView
+                <androidx.appcompat.widget.AppCompatImageView
                     android:layout_width="56dp"
                     android:layout_height="56dp"
                     android:importantForAccessibility="no"
                     android:src="@drawable/ic_update_white"
-                    android:tint="@color/da_accent" />
+                    app:tint="@color/da_accent" />
 
                 <TextView
                     android:layout_width="wrap_content"

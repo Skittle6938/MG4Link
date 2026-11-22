@@ -1,0 +1,63 @@
+name: UI previews
+
+on:
+  pull_request:
+    paths: ['app/src/**', 'app/build.gradle.kts', '.github/workflows/screenshots.yml', 'scripts/splash_gif.py']
+  push:
+    branches: [main]
+    paths: ['app/src/**', 'app/build.gradle.kts', '.github/workflows/screenshots.yml', 'scripts/splash_gif.py']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-previews-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Install pinned Android packages
+        run: bash scripts/ci_android_sdk.sh
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Render home, settings and tutorial
+        run: |
+          ./gradlew :app:testCarDebugUnitTest \
+            --tests '*.main.ScreenshotTest' \
+            --tests '*.main.ReadmeShotTest' \
+            --tests '*.main.TutorialShotTest'
+      - name: Create the startup animation preview
+        run: |
+          python3 -m pip install Pillow==11.3.0
+          python3 scripts/splash_gif.py
+      - name: Preview summary
+        run: |
+          echo '## UI previews' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Download the ui-previews artifact for simulated PNGs and the startup GIF.' >> "$GITHUB_STEP_SUMMARY"
+          find app/build/screenshots -maxdepth 1 -type f \( -name '*.png' -o -name '*.gif' \) \
+            -printf '- %f\n' | sort >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-previews
+          path: |
+            app/build/screenshots/*.png
+            app/build/screenshots/*.gif
+            app/build/reports/tests/testCarDebugUnitTest
+          retention-days: 14
+          if-no-files-found: error

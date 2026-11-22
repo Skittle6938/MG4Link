@@ -66,6 +66,11 @@ class ScreenshotTest {
         "home_update_up_to_date.png",
     )
 
+    @Test fun startupOverlay() {
+        val overlay = LayoutInflater.from(context).inflate(R.layout.da_startup_overlay, null)
+        save(overlay, 1920, 720, "startup_overlay.png")
+    }
+
     @Test fun homeUpdateAvailable() = home(
         OtaController.Status(OtaController.State.AVAILABLE, "2.0.0-beta16", true, true),
         "home_update_available.png",
