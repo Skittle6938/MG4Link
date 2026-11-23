@@ -1,0 +1,15 @@
+# Baseline profile: code compiled ahead of time from the first start, so connecting, the
+# protocol read loop and the video and audio paths do not start in the interpreter.
+HSPLcom/andrerinas/openheadunit/aap/**->**(**)**
+HSPLcom/andrerinas/openheadunit/connection/**->**(**)**
+HSPLcom/andrerinas/openheadunit/decoder/**->**(**)**
+HSPLcom/andrerinas/openheadunit/utils/**->**(**)**
+HSPLcom/allgo/app/androidauto/**->**(**)**
+HSPLcom/evsuite/hardware/**->**(**)**
+HSPLcom/google/protobuf/**->**(**)**
+HSPLorg/conscrypt/**->**(**)**
+Lcom/andrerinas/openheadunit/**;
+Lcom/allgo/app/androidauto/**;
+Lcom/evsuite/hardware/**;
+Lcom/google/protobuf/**;
+Lorg/conscrypt/**;

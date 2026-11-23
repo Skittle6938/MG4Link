@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Resource shrinking: the certificates and the bundled test video are read at runtime. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@raw/*" />

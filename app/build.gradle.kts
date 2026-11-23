@@ -174,13 +174,12 @@ android {
 
     buildTypes {
         getByName("release") {
-            // Same code as the debug build the car has been running: R8 would rename or drop
-            // what is reached by reflection (hidden APIs, BuildConfig, dexmaker). Turn it on only
-            // after a minified build has been verified on the car.
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // R8 shrinks and optimises the published build but keeps every name (see
+            // proguard-project.txt): hidden APIs, the car's framework and DexMaker are reached by name.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
-                getDefaultProguardFile("proguard-android.txt"),
+                getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-project.txt"
             )
 
@@ -289,5 +288,9 @@ dependencies {
 
     // ZXing for QR Code generation
     implementation("com.google.zxing:core:3.5.3")
+
+    // Installs the baseline profile (src/main/baseline-prof.txt) so the connection and video
+    // paths are compiled ahead of time from the first start.
+    implementation("androidx.profileinstaller:profileinstaller:1.3.1")
 
 }

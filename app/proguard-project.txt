@@ -43,3 +43,32 @@
 
 # Sent to the car apps, which read it back by this class name.
 -keep class com.saicmotor.common.CommandParcelable { *; }
+
+# --- R8 on published builds ---
+# Shrinking and optimisation only: class and member names stay as they are, so logs, crash
+# reports and anything that looks a name up at runtime read the same as in debug builds.
+-dontobfuscate
+
+# JNI: the native USB helper looks its Java side up by name.
+-keepclasseswithmembers class * { native <methods>; }
+-keep class com.andrerinas.openheadunit.connection.UsbNative { *; }
+
+# Conscrypt's native code calls back into its Java classes by name.
+-keep class org.conscrypt.** { *; }
+
+# DexMaker generates subclasses of hidden framework classes at runtime and reflects on itself.
+-keep class com.android.dx.** { *; }
+-dontwarn com.android.dx.**
+
+# The relay the car's launcher (rui) binds to and the binder classes it talks to.
+-keep class com.allgo.app.androidauto.** { *; }
+
+# Car library: classes and members it reaches by reflection on the car's own framework are not
+# in this APK, but its listeners and callbacks are handed to that framework by interface.
+-keep class com.evsuite.hardware.** { *; }
+
+# Interfaces implemented through java.lang.reflect.Proxy or handed to hidden framework APIs.
+-keepclassmembers class * implements java.lang.reflect.InvocationHandler { *; }
+
+-dontwarn javax.annotation.**
+-dontwarn org.slf4j.**
