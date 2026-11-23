@@ -71,7 +71,7 @@ class AudioTrackWrapper(
         LinkedBlockingQueue<AudioChunk>(audioQueueCapacity)
     else
         LinkedBlockingQueue<AudioChunk>()
-    private val audioBufferPool = LinkedBlockingQueue<ByteArray>()
+    private val audioBufferPool = AudioBufferPool(AUDIO_BUFFER_POOL_LIMIT, MIN_POOLED_AUDIO_BUFFER_SIZE)
 
     @Volatile
     private var isRunning = true
@@ -267,19 +267,20 @@ class AudioTrackWrapper(
                             if (!isRunning) return
                             val outputBuffer = codec.getOutputBuffer(index)
                             if (outputBuffer != null && info.size > 0) {
-                                val chunk = ByteArray(info.size)
-                                outputBuffer.position(info.offset)
-                                outputBuffer.get(chunk)
+                                // Pooled: about 47 decoded buffers a second would each be a new array.
+                                val size = info.size
+                                val chunk = audioBufferPool.copyOf(outputBuffer, info.offset, size)
                                 outputBuffer.clear()
 
                                 writeSemaphore.acquire()
                                 // Write to AudioTrack or Mixer using executor
                                 writeExecutor.submit {
                                     try {
-                                        writeToTrack(chunk)
+                                        writeToTrack(chunk, size)
                                     } catch (e: Exception) {
                                         AppLog.e("Error writing decoded AAC to AudioTrack", e)
                                     } finally {
+                                        audioBufferPool.recycle(chunk)
                                         writeSemaphore.release()
                                     }
                                 }
@@ -316,10 +317,6 @@ class AudioTrackWrapper(
         } catch (e: Exception) {
             AppLog.e("Failed to init AAC decoder", e)
         }
-    }
-
-    private fun writeToTrack(buffer: ByteArray) {
-        writeToTrack(buffer, buffer.size)
     }
 
     private fun writeToTrack(buffer: ByteArray, size: Int) {
@@ -407,10 +404,13 @@ class AudioTrackWrapper(
             var outputIndex = dec.dequeueOutputBuffer(info, 0)
             while (outputIndex >= 0) {
                 val outputBuffer = dec.outputBuffers[outputIndex]
-                val chunk = ByteArray(info.size)
-                outputBuffer.position(info.offset)
-                outputBuffer.get(chunk)
-                writeToTrack(chunk)
+                val size = info.size
+                val chunk = audioBufferPool.copyOf(outputBuffer, info.offset, size)
+                try {
+                    writeToTrack(chunk, size)
+                } finally {
+                    audioBufferPool.recycle(chunk)
+                }
                 dec.releaseOutputBuffer(outputIndex, false)
                 outputIndex = dec.dequeueOutputBuffer(info, 0)
             }
@@ -769,18 +769,9 @@ class AudioTrackWrapper(
         }
     }
 
-    private fun obtainAudioBuffer(size: Int): ByteArray {
-        while (true) {
-            val pooled = audioBufferPool.poll() ?: return ByteArray(maxOf(size, MIN_POOLED_AUDIO_BUFFER_SIZE))
-            if (pooled.size >= size) return pooled
-        }
-    }
+    private fun obtainAudioBuffer(size: Int): ByteArray = audioBufferPool.obtain(size)
 
-    private fun recycleAudioBuffer(buffer: ByteArray) {
-        if (audioBufferPool.size < AUDIO_BUFFER_POOL_LIMIT) {
-            audioBufferPool.offer(buffer)
-        }
-    }
+    private fun recycleAudioBuffer(buffer: ByteArray) = audioBufferPool.recycle(buffer)
 
     private fun drainQueuedAudio() {
         while (true) {
