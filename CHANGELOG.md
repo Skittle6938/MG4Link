@@ -1,3 +1,16 @@
+# MG4Link 2.2.7
+
+Stable release gathering 2.2.7-beta1 to beta33.
+
+- **Music on the phone's speaker at a cold start (#36):** MG4Link waits for the car's Bluetooth to settle before starting Android Auto, asks for the hands-free link before a Bluetooth wake-up, and if the music still stays on the phone it sends a pause then a play to bring it over. *Settings › Connection › Advanced options › Wait for the car's Bluetooth* turns the wait off.
+- **Google Maps battery forecast (#14, #19):** back to the model that matched daily trips within about 1 point, with drivetrain losses, a start-of-drive reserve for heating the cabin and battery (cut to the trip length on short guided trips) and a steadier battery health.
+- **USB:** phones and tablets that cannot show 1080p fall back to 720p (#31). Wireless adapters can pick 720p from the start (#59). USB comes back after ending Android Auto or restarting MG4Link, and plugging in during a wireless session no longer drops the connection.
+- **Assistant and radio on SWI68:** the voice key frees the microphone held by the car's voice recognition (#35, thanks to lukeet332), and the DAB radio no longer comes back before Gemini finishes answering (#50).
+- **Steering wheel (#28):** quick series of next/previous clicks are no longer dropped, and play/pause reacts as soon as the key is released. Long titles with cover art no longer leave the previous track on the car.
+- **Screen:** swipe one finger from the left or right edge towards the centre to go back to the car's home screen (#56). Coming back to Android Auto no longer shows a squished picture (#23). The climate page opened by remote pre-conditioning closes on SWI68 (#32). Settings now fill the screen.
+- **Wireless diagnosis (#30):** extra checks for cars whose head unit does not answer ARP requests, and a more detailed log. Exported logs go to the root of a USB stick and are fully written before the export says it is done.
+- **Shortcuts with MG4Dash:** status bar, top-of-screen gestures and the Android Auto button work together with a recent MG4Dash.
+
 # MG4Link 2.2.7-beta33
 
 - Music that Android Auto starts by itself on the phone's speaker at a cold start (#36): before it asks the phone to start Android Auto, MG4Link now waits until the car has finished connecting the phone over Bluetooth (no change for 1.5 s, at most 5 s), so no Bluetooth link comes up or down while the music starts. Settings > Connection > Advanced options > Wait for the car's Bluetooth turns it off. The log lists every change of the car's Bluetooth links to the phone, with its time. The pause/play recovery stays as a fallback.
