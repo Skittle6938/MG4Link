@@ -20,7 +20,10 @@ can plan your charging stops.
 >
 > Another way out: a **USB wireless Android Auto dongle** also works with MG4Link. Early reports and
 > our own tests show a more stable and reliable connection than with the car's original Android Auto
-> app.
+> app. A **USB cable** works on these firmwares too.
+>
+> **SWI132**: wireless Android Auto works from **R43** on; R29 users reported that the phone never
+> reached the car over Wi-Fi.
 
 <p align="center"><img src="docs/screenshots/tutorial_1.png" width="800" alt="MG4Link first-start tutorial"></p>
 
