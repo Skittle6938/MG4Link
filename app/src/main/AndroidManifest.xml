@@ -42,6 +42,11 @@
         android:name="com.andrerinas.openheadunit.permission.NAVIGATION_UPDATE"
         android:protectionLevel="signature" />
 
+    <!-- Apps signed like MG4Link (platform key) reserve a strip at the side of Android Auto (#69). -->
+    <permission
+        android:name="com.allgo.app.androidauto.permission.RESERVE_MARGIN"
+        android:protectionLevel="signature" />
+
     <!-- MG4 Dash asks MG4Link to disconnect (three fingers from the top, over the car's status bar). -->
     <permission
         android:name="com.allgo.app.androidauto.permission.USER_DISCONNECT"
@@ -304,6 +309,16 @@
             android:permission="com.allgo.app.androidauto.permission.USER_DISCONNECT">
             <intent-filter>
                 <action android:name="com.allgo.app.androidauto.USER_DISCONNECT" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".aap.SideMarginReceiver"
+            android:exported="true"
+            android:permission="com.allgo.app.androidauto.permission.RESERVE_MARGIN">
+            <intent-filter>
+                <action android:name="com.allgo.app.androidauto.RESERVE_LEFT" />
+                <action android:name="com.allgo.app.androidauto.RESERVE_RIGHT" />
             </intent-filter>
         </receiver>
 

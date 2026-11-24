@@ -1730,12 +1730,9 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
 
             if (commManager.connectionState.value is CommManager.ConnectionState.TransportStarted) {
                 // AA is already running → send corrected per-side margins dynamically
-                commManager.sendUpdateUiConfigRequest(
-                    HeadUnitScreenConfig.getLeftMargin(),
-                    HeadUnitScreenConfig.getTopMargin(),
-                    HeadUnitScreenConfig.getRightMargin(),
-                    HeadUnitScreenConfig.getBottomMargin()
-                )
+                // Keeps any side strip another app reserved (#69).
+                val margins = SideMargins.uiMargins()
+                commManager.sendUpdateUiConfigRequest(margins[0], margins[1], margins[2], margins[3])
                 AppLog.i("[UI_DEBUG_FIX] AA is already running, send corrected via sendUpdateUiConfigRequest")
             }
             // If transport not started yet, ServiceDiscoveryResponse will use the corrected values automatically.
@@ -1901,6 +1898,16 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
                 val correctedX = videoX.toInt().coerceIn(0, videoW)
                 val correctedY = videoY.toInt().coerceIn(0, videoH)
                 pointerData.add(Triple(pointerId, correctedX, correctedY))
+            }
+        }
+
+        // A strip reserved on the left (#69) moves the origin of Android Auto's layout: the phone
+        // reads touches relative to its layout area, so they are shifted by the strip's width.
+        val reservedLeft = SideMargins.leftVideoPx()
+        if (reservedLeft > 0) {
+            for (i in pointerData.indices) {
+                val (id, x, y) = pointerData[i]
+                pointerData[i] = Triple(id, (x - reservedLeft).coerceAtLeast(0), y)
             }
         }
 

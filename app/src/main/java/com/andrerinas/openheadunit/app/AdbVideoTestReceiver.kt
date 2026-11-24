@@ -32,6 +32,15 @@ class AdbVideoTestReceiver : BroadcastReceiver() {
         intent.getStringExtra("language")?.let {
             com.andrerinas.openheadunit.utils.LocaleHelper.setScreenshotLanguage(context, it)
         }
+        // Side strip over Android Auto, as SideMarginReceiver gets from other apps (#69).
+        if (intent.hasExtra("reserveRight") || intent.hasExtra("reserveLeft")) {
+            val side = if (intent.hasExtra("reserveLeft")) com.andrerinas.openheadunit.aap.SideMargins.Side.LEFT
+                else com.andrerinas.openheadunit.aap.SideMargins.Side.RIGHT
+            val px = intent.getIntExtra(if (side == com.andrerinas.openheadunit.aap.SideMargins.Side.LEFT) "reserveLeft" else "reserveRight", 0)
+            com.andrerinas.openheadunit.aap.SideMargins.request("adb", side, px,
+                com.andrerinas.openheadunit.utils.HeadUnitScreenConfig.getUsableWidth())
+            com.andrerinas.openheadunit.aap.SideMargins.apply(context, "ADB test")
+        }
         AppLog.i("ADB video test: resolutionId=${settings.resolutionId} lowLatency=${settings.debugVideoLowLatency}")
     }
 }

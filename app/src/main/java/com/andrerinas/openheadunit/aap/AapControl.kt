@@ -91,6 +91,7 @@ internal class AapControlMedia(
                 AppLog.i("Video configuration selected: $selected (index ${request.configurationIndex})")
                 if (resolutions.size > 1) HeadUnitScreenConfig.selectVideoResolution(selected, resolutions.first())
             }
+            com.andrerinas.openheadunit.App.instance?.let { SideMargins.onVideoStarted(it) }
         }
         aapTransport.setSessionId(channel, request.sessionId)
         return 0
