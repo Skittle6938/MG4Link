@@ -6,7 +6,9 @@ import android.content.ServiceConnection
 import android.media.AudioManager
 import android.os.IBinder
 import android.os.SystemClock
+import com.andrerinas.openheadunit.aap.VoiceSessionPolicy
 import com.andrerinas.openheadunit.utils.AppLog
+import com.evsuite.hardware.FirmwareInfo
 import java.lang.reflect.Proxy
 
 /**
@@ -63,12 +65,10 @@ object CarVoicePath {
     }
 
     /**
-     * Only on SWI68, where SAIC's wake-word engine was found holding the mic (#35, R71). On an SWI69
-     * the same focus left Android Auto's assistant hearing nothing (2026-11-17), so other firmwares
-     * keep the speech path alone, as before.
+     * Only on firmware that needs the voice focus to free the mic from Hello MG.
      */
     private fun takesVoiceFocus(): Boolean =
-        runCatching { com.evsuite.hardware.FirmwareInfo.getGeneration() == com.evsuite.hardware.FirmwareInfo.Gen.SWI68 }.getOrDefault(false)
+        runCatching { VoiceSessionPolicy.assistantFocusWanted(FirmwareInfo.getGeneration()) }.getOrDefault(false)
 
     @Synchronized
     fun enable(context: Context, wireless: Boolean) {

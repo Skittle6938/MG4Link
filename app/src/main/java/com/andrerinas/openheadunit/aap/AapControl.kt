@@ -501,7 +501,7 @@ internal class AapControlGateway(
             AapControlMedia(aapTransport, micRecorder, aapAudio),
             AapControlTouch(aapTransport),
             AapControlSensor(aapTransport, context, settings),
-            AapControlBluetooth(aapTransport, context))
+            aapTransport.bluetoothControl)
 
     override fun execute(message: AapMessage): Int {
         if (rxLogged < RX_LOG_LIMIT) {
