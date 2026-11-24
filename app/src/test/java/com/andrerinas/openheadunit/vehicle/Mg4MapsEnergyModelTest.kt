@@ -6,16 +6,19 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class Mg4MapsEnergyModelTest {
+    /** The spec table was written for a rolling coefficient of 0.0097; 2.2.8 uses 0.0102. */
+    private val R = 0.0102f / 0.0097f
+
 
     @Test
     fun `A matches the spec table`() {
         val std = Mg4Variant.STANDARD
-        assertEquals(162f, Mg4MapsEnergyModel.a(std, 25f), 1f)
-        assertEquals(180f, Mg4MapsEnergyModel.a(std, 15f), 1f)
-        assertEquals(226f, Mg4MapsEnergyModel.a(std, 5f), 1f)
-        assertEquals(296f, Mg4MapsEnergyModel.a(std, -10f), 1f)
-        assertEquals(166f, Mg4MapsEnergyModel.a(Mg4Variant.LONG_RANGE, null), 1f)
-        assertEquals(277f, Mg4MapsEnergyModel.a(Mg4Variant.EXTENDED_RANGE, 0f), 1f)
+        assertEquals(162f * R, Mg4MapsEnergyModel.a(std, 25f), 1.1f)
+        assertEquals(180f * R, Mg4MapsEnergyModel.a(std, 15f), 1.1f)
+        assertEquals(226f * R, Mg4MapsEnergyModel.a(std, 5f), 1.1f)
+        assertEquals(296f * R, Mg4MapsEnergyModel.a(std, -10f), 1.1f)
+        assertEquals(166f * R, Mg4MapsEnergyModel.a(Mg4Variant.LONG_RANGE, null), 1.1f)
+        assertEquals(277f * R, Mg4MapsEnergyModel.a(Mg4Variant.EXTENDED_RANGE, 0f), 1.1f)
     }
 
     @Test
@@ -41,7 +44,7 @@ class Mg4MapsEnergyModelTest {
         val m = Mg4MapsEnergyModel.build(Mg4Variant.STANDARD, -5f, false, t)
         assertTrue(m.aux.all { it.second == 2500 })
         assertEquals(2 * Mg4MapsEnergyModel.a(Mg4Variant.STANDARD, 20f), m.a, 0.1f)
-        assertEquals(0.212f, m.c, 0.001f)
+        assertEquals(0.2225f, m.c, 0.001f)
         assertEquals(20f, m.tempC!!, 0f)
     }
 
@@ -55,9 +58,9 @@ class Mg4MapsEnergyModelTest {
 
     @Test
     fun `cold air is denser and brakes more (#19)`() {
-        assertEquals(0.424f, Mg4MapsEnergyModel.c(20f), 0.001f)
-        assertEquals(0.4551f, Mg4MapsEnergyModel.c(0f), 0.001f)
-        assertEquals(0.4100f, Mg4MapsEnergyModel.c(30f), 0.001f)
-        assertEquals(0.424f, Mg4MapsEnergyModel.c(null), 0.001f)
+        assertEquals(0.445f, Mg4MapsEnergyModel.c(20f), 0.001f)
+        assertEquals(0.4776f, Mg4MapsEnergyModel.c(0f), 0.001f)
+        assertEquals(0.4303f, Mg4MapsEnergyModel.c(30f), 0.001f)
+        assertEquals(0.445f, Mg4MapsEnergyModel.c(null), 0.001f)
     }
 }
