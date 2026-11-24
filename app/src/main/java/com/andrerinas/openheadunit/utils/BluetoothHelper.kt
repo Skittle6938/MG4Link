@@ -370,6 +370,71 @@ object BluetoothHelper {
         return asked
     }
 
+    /**
+     * What to do so the car's hands-free follows [target], the phone Android Auto runs on (#59):
+     * phones to let go of first, and whether [target] still needs connecting. Addresses compare
+     * case-insensitively.
+     */
+    data class HandsFreeSwitch(val disconnect: List<String>, val connect: Boolean)
+
+    fun handsFreeSwitchFor(connected: List<String>, target: String): HandsFreeSwitch {
+        if (connected.any { it.equals(target, ignoreCase = true) }) return HandsFreeSwitch(emptyList(), false)
+        return HandsFreeSwitch(connected, true)
+    }
+
+    /**
+     * Moves the car's hands-free to [address] when it is linked to another phone or to none, so
+     * calls from Android Auto go through the car from the first ring. For sessions over USB
+     * (cable or wireless adapter), where the phone on Android Auto is not necessarily the one the
+     * car linked over Bluetooth.
+     */
+    @SuppressLint("MissingPermission")
+    fun moveCarHandsFreeTo(context: Context, address: String): Boolean {
+        val adapter = try { getBluetoothAdapter(context) } catch (e: Exception) { null } ?: return false
+        val target = try {
+            adapter.getRemoteDevice(address.uppercase(java.util.Locale.ROOT))
+        } catch (e: Exception) {
+            return false
+        }
+        return try {
+            adapter.getProfileProxy(context.applicationContext, object : BluetoothProfile.ServiceListener {
+                override fun onServiceConnected(profileId: Int, proxy: BluetoothProfile) {
+                    try {
+                        val connected = proxy.connectedDevices
+                        val plan = handsFreeSwitchFor(connected.mapNotNull { it.address }, target.address)
+                        if (!plan.connect) {
+                            AppLog.i("BluetoothHelper: the car's hands-free already follows the Android Auto phone (#59)")
+                            return
+                        }
+                        for (other in connected) {
+                            if (other.address in plan.disconnect) {
+                                AppLog.i("BluetoothHelper: hands-free off ${other.address} → ${callProfile(proxy, "disconnect", other)} (#59)")
+                            }
+                        }
+                        AppLog.i("BluetoothHelper: hands-free to the Android Auto phone ${target.address} → ${callProfile(proxy, "connect", target)} (#59)")
+                    } catch (e: Exception) {
+                        AppLog.w("BluetoothHelper: moving the hands-free failed: ${e.message}")
+                    } finally {
+                        try { adapter.closeProfileProxy(profileId, proxy) } catch (_: Exception) {}
+                    }
+                }
+
+                override fun onServiceDisconnected(profileId: Int) {}
+            }, PROFILE_HEADSET_CLIENT)
+        } catch (e: Exception) {
+            AppLog.w("BluetoothHelper: hands-free proxy failed: ${e.message}")
+            false
+        }
+    }
+
+    private fun callProfile(proxy: BluetoothProfile, name: String, device: android.bluetooth.BluetoothDevice): Boolean? {
+        val method = proxy.javaClass.methods.firstOrNull {
+            it.name == name && it.parameterTypes.size == 1 &&
+                it.parameterTypes[0].isAssignableFrom(android.bluetooth.BluetoothDevice::class.java)
+        }
+        return method?.invoke(proxy, device) as? Boolean
+    }
+
     /** Requests the head unit's calls profile. [mayConnect] is checked when its proxy arrives. */
     @SuppressLint("MissingPermission")
     fun requestCarHandsFreeLink(

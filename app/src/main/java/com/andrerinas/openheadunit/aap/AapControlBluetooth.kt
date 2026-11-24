@@ -86,6 +86,12 @@ internal class AapControlBluetooth(
             }
         }
         AppLog.i("Bluetooth pairing request: method=$method alreadyPaired=$alreadyPaired")
+        // #59: over USB (cable or wireless adapter) the car may hold another phone on hands-free,
+        // and calls from Android Auto start on the phone until the car switches. Not on native
+        // wireless, where the hands-free link is the one that woke the phone (#36).
+        if (alreadyPaired && !com.andrerinas.openheadunit.App.provide(context).commManager.isWirelessSession) {
+            com.andrerinas.openheadunit.utils.BluetoothHelper.moveCarHandsFreeTo(context, phoneAddress)
+        }
         aapTransport.send(AapMessage(Channel.ID_BTH, PAIRING_RESPONSE, pairingResponse(alreadyPaired)))
     }
 
