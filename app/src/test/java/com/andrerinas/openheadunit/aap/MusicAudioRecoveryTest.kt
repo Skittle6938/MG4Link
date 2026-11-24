@@ -18,6 +18,13 @@ class MusicAudioRecoveryTest {
     }
 
     @Test
+    fun `timers stay clear of healthy starts and of the pause acknowledgement`() {
+        assertTrue(MusicAudioRecovery.WAIT_MS > MusicAudioRecovery.SLOWEST_HEALTHY_START_MS)
+        assertTrue(MusicAudioRecovery.PAUSE_TO_PLAY_MS > MusicAudioRecovery.PAUSE_ACK_MS)
+        assertTrue(MusicAudioRecovery.WAIT_MS + MusicAudioRecovery.PAUSE_TO_PLAY_MS < 3_000L)
+    }
+
+    @Test
     fun `no media sink this session (music over Bluetooth) does nothing`() {
         assertFalse(MusicAudioRecovery.shouldRecover(1_000L, 500L, 0L, true, false))
         assertFalse(MusicAudioRecovery.shouldRecover(0L, 2_000L, 0L, true, false))

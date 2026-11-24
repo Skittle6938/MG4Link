@@ -10,8 +10,18 @@ package com.andrerinas.openheadunit.aap
  * it plays, no audio started since the session began, and [WAIT_MS] went by; once per session.
  */
 object MusicAudioRecovery {
-    const val WAIT_MS = 3_000L
-    const val PAUSE_TO_PLAY_MS = 1_000L
+    /**
+     * Healthy starts bring the sound at most about 1.5 s after the phone says it plays (warm
+     * starts; cold starts before it), so 2 s still leaves those alone.
+     */
+    const val WAIT_MS = 2_000L
+
+    /** The phone reports the pause about 150 ms after it; the play follows with some margin. */
+    const val PAUSE_TO_PLAY_MS = 300L
+
+    /** Slowest healthy start and pause acknowledgement seen in the logs (#36). */
+    const val SLOWEST_HEALTHY_START_MS = 1_500L
+    const val PAUSE_ACK_MS = 150L
 
     /** When the music sink (the AUDIO channel) was last set up, elapsedRealtime. */
     @Volatile var musicSinkSetupAtMs = 0L
