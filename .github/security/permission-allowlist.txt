@@ -63,4 +63,6 @@ android.permission.FORCE_STOP_PACKAGES
 
 # --- Signature-protected permissions MG4Link declares for its own components ---
 com.allgo.app.androidauto.permission.USER_DISCONNECT
+# signature: platform-signed apps reserve a strip at the side of Android Auto (#69).
+com.allgo.app.androidauto.permission.RESERVE_MARGIN
 com.andrerinas.openheadunit.permission.NAVIGATION_UPDATE
