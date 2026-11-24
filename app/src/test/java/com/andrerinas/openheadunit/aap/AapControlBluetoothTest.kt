@@ -18,4 +18,11 @@ class AapControlBluetoothTest {
 
         assertArrayEquals(byteArrayOf(0x08, 0x00, 0x10, 0x00), bytes)
     }
+
+    @Test
+    fun `authentication data matches the AllGo passkey and pairing method layout`() {
+        val bytes = AapControlBluetooth.authenticationData(passkey = 12345, method = 4).toByteArray()
+
+        assertArrayEquals(byteArrayOf(0x0a, 0x05, 0x31, 0x32, 0x33, 0x34, 0x35, 0x10, 0x04), bytes)
+    }
 }

@@ -10,6 +10,11 @@
         android:name="android.permission.MANAGE_USB"
         tools:ignore="ProtectedPermissions" />
 
+    <!-- Confirm Android's passkey only after the Android Auto peer authenticates it. -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_PRIVILEGED"
+        tools:ignore="ProtectedPermissions" />
+
     <!-- Silent OTA install on platform-signed system UID (avoids OEM "parse package" UI). -->
     <uses-permission
         android:name="android.permission.INSTALL_PACKAGES"

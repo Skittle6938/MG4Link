@@ -12,13 +12,11 @@ import org.junit.Test
 /** Voice requests on the MG4 (issue #16, 2.2.3-beta4 and beta5). */
 class VoiceSessionPolicyTest {
 
-    // --- assistant focus: SWI68 only ---
-
     @Test
-    fun `assistant focus is held only on SWI68, the cars with Hello MG`() {
-        assertTrue(VoiceSessionPolicy.assistantFocusWanted(FirmwareInfo.Gen.SWI68))
-        for (gen in FirmwareInfo.Gen.values().filter { it != FirmwareInfo.Gen.SWI68 }) {
-            assertFalse("gen=$gen", VoiceSessionPolicy.assistantFocusWanted(gen))
+    fun `assistant focus makes Hello MG release the mic on SWI68 and SWI165`() {
+        val needsFocus = setOf(FirmwareInfo.Gen.SWI68, FirmwareInfo.Gen.SWI165)
+        for (gen in FirmwareInfo.Gen.values()) {
+            assertEquals("gen=$gen", gen in needsFocus, VoiceSessionPolicy.assistantFocusWanted(gen))
         }
     }
 

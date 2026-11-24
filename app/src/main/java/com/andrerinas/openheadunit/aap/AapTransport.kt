@@ -71,6 +71,7 @@ class AapTransport(
     val ssl: AapSsl = externalSsl ?: AapSslContext(SingleKeyKeyManager(context))
 
     internal val aapAudio: AapAudio
+    internal val bluetoothControl = AapControlBluetooth(this, context)
     internal val aapVideo: AapVideo
     internal var advertisedVideoResolutions: List<VideoResolution> = emptyList()
     private var sendThread: HandlerThread? = null
@@ -493,6 +494,7 @@ class AapTransport(
         onQuit = null
 
         AppLog.i("AapTransport quitting (clean=$clean)")
+        bluetoothControl.close()
         cb.invoke(clean)
         micRecorder.stop()
         micRecorder.listener = null

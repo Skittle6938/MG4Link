@@ -28,12 +28,11 @@ object VoiceSessionPolicy {
     const val MIC_WARNING_EVERY_MS = 10 * 60_000L
 
     /**
-     * Whether DiAuto holds the assistant audio focus while the mic is open. Only on SWI68, the
-     * cars with "Hello MG": it makes the car's own assistant free the cabin mic. On SWI69 it kept
-     * the answer and the music from coming back (2.2.3-beta5).
+     * On SWI68 and SWI165, assistant focus makes Hello MG release the cabin mic.
+     * On SWI69 it kept the answer and the music from coming back (2.2.3-beta5).
      */
     fun assistantFocusWanted(generation: FirmwareInfo.Gen): Boolean =
-        generation == FirmwareInfo.Gen.SWI68
+        generation == FirmwareInfo.Gen.SWI68 || generation == FirmwareInfo.Gen.SWI165
 
     /**
      * Voice session start: whether the music counts as playing before the assistant, so it is

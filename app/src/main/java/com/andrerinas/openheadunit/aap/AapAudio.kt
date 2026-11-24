@@ -679,8 +679,7 @@ internal class AapAudio(
     /**
      * Stock AllGo holds the assistant focus (transient) while the phone listens, which is what
      * makes the car's own assistant ("Hello MG") free the cabin mic (issue #16).
-     * Only on SWI68, the cars with "Hello MG": on an
-     * SWI69 it brought nothing and the car refused the phone's listening tone.
+     * Enabled on SWI68 and SWI165. On SWI69 the car refused the phone's listening tone.
      */
     @Synchronized
     fun requestAssistantFocus() {
@@ -714,7 +713,8 @@ internal class AapAudio(
     fun onAssistantMicClosed(voiceSessionActive: Boolean) {
         if (assistantFocusRequest == null || assistantFocusTimeout != null) return
         // If a reply still needs to request guidance focus, give it room to do so.
-        if (!voiceSessionActive || audioFocusKind != ProtocolFocusRoute.Kind.ASSISTANT || audioFocusRequest == null) {
+        if (!voiceSessionActive || audioFocusKind != ProtocolFocusRoute.Kind.ASSISTANT || audioFocusRequest == null ||
+            com.evsuite.hardware.FirmwareInfo.getGeneration() != com.evsuite.hardware.FirmwareInfo.Gen.SWI68) {
             releaseAssistantFocus()
             return
         }
