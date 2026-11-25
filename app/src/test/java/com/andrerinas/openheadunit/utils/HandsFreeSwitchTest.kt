@@ -30,4 +30,17 @@ class HandsFreeSwitchTest {
             BluetoothHelper.HandsFreeSwitch(emptyList(), false),
             BluetoothHelper.handsFreeSwitchFor(listOf(otherPhone, aaPhone), aaPhone),
         )
+private val paired = listOf("AA:BB:CC:DD:EE:01" to "Pixel 7", "AA:BB:CC:DD:EE:02" to "Galaxy S23", "AA:BB:CC:DD:EE:03" to null)
+
+    @Test fun `the phone is found by its name`() =
+        assertEquals("AA:BB:CC:DD:EE:02", BluetoothHelper.pairedAddressForName(paired, " galaxy s23 "))
+
+    @Test fun `no match or an empty name gives nothing`() {
+        assertEquals(null, BluetoothHelper.pairedAddressForName(paired, "iPhone"))
+        assertEquals(null, BluetoothHelper.pairedAddressForName(paired, " "))
+        assertEquals(null, BluetoothHelper.pairedAddressForName(paired, null))
+    }
+
+    @Test fun `two paired phones with the same name are not guessed`() =
+        assertEquals(null, BluetoothHelper.pairedAddressForName(paired + ("AA:BB:CC:DD:EE:04" to "Pixel 7"), "Pixel 7"))
 }

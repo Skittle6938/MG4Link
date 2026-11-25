@@ -427,6 +427,29 @@ object BluetoothHelper {
         }
     }
 
+    /**
+     * The paired device whose name is [phoneName] (as Android Auto reports it), or null when none
+     * or several match. Names compare trimmed and case-insensitively.
+     */
+    fun pairedAddressForName(paired: List<Pair<String, String?>>, phoneName: String?): String? {
+        val wanted = phoneName?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        val matches = paired.filter { it.second?.trim()?.equals(wanted, ignoreCase = true) == true }
+        return matches.singleOrNull()?.first
+    }
+
+    /** [moveCarHandsFreeTo] for the paired phone named [phoneName], when exactly one matches (#59). */
+    @SuppressLint("MissingPermission")
+    fun moveCarHandsFreeToNamed(context: Context, phoneName: String?) {
+        val adapter = try { getBluetoothAdapter(context) } catch (e: Exception) { null } ?: return
+        val paired = try {
+            adapter.bondedDevices.orEmpty().map { it.address to it.name }
+        } catch (e: Exception) { emptyList() }
+        val address = pairedAddressForName(paired, phoneName)
+        AppLog.i("BluetoothHelper: Android Auto phone by name - ${paired.size} paired, " +
+            (if (address != null) "one matches" else "no single match") + " (#59)")
+        if (address != null) moveCarHandsFreeTo(context, address)
+    }
+
     private fun callProfile(proxy: BluetoothProfile, name: String, device: android.bluetooth.BluetoothDevice): Boolean? {
         val method = proxy.javaClass.methods.firstOrNull {
             it.name == name && it.parameterTypes.size == 1 &&

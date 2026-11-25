@@ -357,6 +357,11 @@ internal class AapControlService(
     private fun serviceDiscoveryRequest(request: Control.ServiceDiscoveryRequest): Int {
         AppLog.hide(request.phoneName)
         AppLog.i("Service Discovery Request: %s", request.phoneName)
+        // #59: through a wireless adapter the phone never sends its Bluetooth address, only its
+        // name here; find it among the car's paired phones and move the hands-free to it.
+        if (!com.andrerinas.openheadunit.App.provide(context).commManager.isWirelessSession) {
+            com.andrerinas.openheadunit.utils.BluetoothHelper.moveCarHandsFreeToNamed(context, request.phoneName)
+        }
 
         val msg = ServiceDiscoveryResponse(context)
         aapTransport.advertisedVideoResolutions = msg.videoResolutions
