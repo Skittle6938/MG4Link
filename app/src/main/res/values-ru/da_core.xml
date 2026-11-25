@@ -50,7 +50,7 @@
     <string name="dset_first_call_delay_summary">Если при запуске автомобиля телефон ещё не подключён по Bluetooth, MG4Link обратится к нему через это время. 15 секунд дают автомобилю время подключить телефон самостоятельно. Если автомобиль не подключает телефон сам, уменьшение задержки ускорит подключение.</string>
     <string name="dset_wait_bt_links">Ждать Bluetooth автомобиля</string>
     <string name="dset_wait_bt_links_summary">Перед запуском Android Auto ждёт до 5 с, пока автомобиль закончит подключать телефон по Bluetooth, чтобы музыка, запустившаяся сама, играла в машине, а не в динамике телефона.</string>
-    <string name="dset_dongle_bt_guard">Беспроводной адаптер: придержать Bluetooth автомобиля</string>
+    <string name="dset_dongle_bt_guard">Приоритет адаптеру Android Auto при запуске</string>
     <string name="dset_dongle_bt_guard_summary">Экспериментально, только для беспроводного адаптера Android Auto. При запуске автомобиль ждёт до 3 минут, прежде чем подключить телефон по Bluetooth, чтобы адаптер подключился первым. Без адаптера оставьте выключенным.</string>
     <string name="fullscreen_nav_only">Скрыть только левую панель</string>
     <string name="ota_dialog_install_message">MG4Link %1$s будет загружен (%2$s) и установлен. При отсутствии Wi-Fi будут использованы мобильные данные автомобиля. Затем MG4Link перезапустится, и Android Auto прервётся на несколько секунд.</string>
