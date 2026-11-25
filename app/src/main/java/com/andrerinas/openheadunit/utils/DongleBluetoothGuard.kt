@@ -93,6 +93,7 @@ object DongleBluetoothGuard {
         AppLog.i("DongleBtGuard: car's Bluetooth auto-connect given back ($why) (#64)")
     }
 
+    @SuppressLint("MissingPermission") // platform-signed: Bluetooth permissions are granted
     private fun handsFreeConnected(): Boolean = try {
         BluetoothAdapter.getDefaultAdapter()?.getProfileConnectionState(PROFILE_HEADSET_CLIENT)
             ?.let { it != BluetoothProfile.STATE_DISCONNECTED } ?: false
