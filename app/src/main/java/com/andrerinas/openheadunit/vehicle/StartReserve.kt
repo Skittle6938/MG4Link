@@ -53,11 +53,26 @@ object StartReserve {
      * spends before arriving: the reserve is spent at [fullWh] / [FADE_KM] per km, so a 4 km trip
      * spends 4/15 of it. Without it, a short guided trip arrived about 2 points above the forecast
      * (#14). [remainingWh] stays the ceiling.
+     *
+     * Under [SHORT_KM] the share falls faster, by (km / [SHORT_KM])²: on very short trips Maps
+     * still arrived above its forecast (2 km: 2 % of the reserve instead of 13 %, 4 km: 17 % instead
+     * of 27 %; from 5 km on nothing changes).
      */
     fun withinRouteWh(fullWh: Int, remainingWh: Int, routeKm: Float?): Int {
         if (routeKm == null || routeKm < 0f) return remainingWh
-        return (fullWh * routeKm / FADE_KM).roundToInt().coerceIn(0, remainingWh)
+        return (fullWh * routeShare(routeKm)).roundToInt().coerceIn(0, remainingWh)
     }
+
+    /** Share of the reserve a guided route of [routeKm] spends. */
+    fun routeShare(routeKm: Float): Float {
+        val share = (routeKm / FADE_KM).coerceIn(0f, 1f)
+        if (routeKm >= SHORT_KM) return share
+        val f = routeKm / SHORT_KM
+        return share * f * f
+    }
+
+    /** Below this, a guided route sets aside even less than its distance share (#14). */
+    const val SHORT_KM = 5f
 
     /** The energy left to send: [currentWh] less [reserveWh], never below 1 Wh. */
     fun sentWh(currentWh: Int, reserveWh: Int): Int = (currentWh - reserveWh).coerceAtLeast(1)
