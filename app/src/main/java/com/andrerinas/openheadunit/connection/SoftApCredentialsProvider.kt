@@ -98,6 +98,10 @@ class SoftApCredentialsProvider(
      */
     @Volatile private var triedAutoEnable = false
 
+    /** When the last switch-on or restart finished, and restarts this run: see StuckAccessPointPolicy. */
+    @Volatile private var lastSwitchOnAt: Long? = null
+    @Volatile private var stuckRestarts = 0
+
     /** So the once-per-second poll reports "nothing here" once, not thirty times. */
     @Volatile private var reportedNoInterface = false
 
@@ -174,6 +178,8 @@ class SoftApCredentialsProvider(
         // elapsedRealtime survives head-unit wall-clock jumps (seen as "after 245014311s").
         runStartedAt = SystemClock.elapsedRealtime()
         triedAutoEnable = false
+        lastSwitchOnAt = null
+        stuckRestarts = 0
         reportedConfigUnreadable = false
         reportedBudgetExhausted = false
         if (!isReceiverRegistered) {
@@ -216,6 +222,8 @@ class SoftApCredentialsProvider(
         resolveJob = null
         autoEnabled = false
         triedAutoEnable = false
+        lastSwitchOnAt = null
+        stuckRestarts = 0
         reportedConfigUnreadable = false
         reportedBudgetExhausted = false
         captivePortalSpoof.stop()
@@ -297,6 +305,15 @@ class SoftApCredentialsProvider(
                             // Best effort; most unrooted units lack the permission. Keep polling
                             // anyway, since the user may switch it on by hand.
                             autoEnabled = HotspotManager.setHotspotEnabled(context, true)
+                            lastSwitchOnAt = SystemClock.elapsedRealtime()
+                        } else if (StuckAccessPointPolicy.shouldRestart(
+                                SystemClock.elapsedRealtime(), lastSwitchOnAt, stuckRestarts,
+                                settings.autoEnableHotspot, HotspotManager.isStarting)) {
+                            stuckRestarts++
+                            val since = (SystemClock.elapsedRealtime() - (lastSwitchOnAt ?: 0L)) / 1000
+                            AppLog.w("SoftApCredentials: Still no usable access point ${since}s after switching it on - stopping and starting the hotspot again ($stuckRestarts/${StuckAccessPointPolicy.MAX_RESTARTS}, #73).")
+                            autoEnabled = HotspotManager.restart(context) || autoEnabled
+                            lastSwitchOnAt = SystemClock.elapsedRealtime()
                         }
                     }
                 }

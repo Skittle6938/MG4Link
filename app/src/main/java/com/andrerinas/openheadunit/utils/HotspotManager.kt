@@ -26,6 +26,15 @@ object HotspotManager {
     /** How long to give the framework to actually bring an access point up. */
     private const val AP_STATE_TIMEOUT_MS = 6_000L
 
+    /**
+     * Last look before giving up on a band: an access point the framework is still bringing up gets
+     * this long, any other a short one. Seen in #73: on 5 GHz it came up 0.7 s after its window
+     * closed, the 2.4 GHz restart took it down again, and the interface then stayed up with no
+     * address, so no phone could connect for 11 minutes.
+     */
+    private const val LATE_AP_GRACE_MS = 3_000L
+    private const val ENABLING_AP_GRACE_MS = 10_000L
+
     /** How long to leave the access point down so a joined client notices it has gone. */
     private const val RESTART_SETTLE_MS = 2_000L
 
@@ -42,6 +51,9 @@ object HotspotManager {
      * up twice, on both of them.
      */
     @Volatile private var startInFlight = false
+
+    /** Whether a start is running: it must not be interrupted by a restart. */
+    val isStarting: Boolean get() = startInFlight
 
     /**
      * Takes the access point down and brings it straight back up.
@@ -228,6 +240,12 @@ object HotspotManager {
             var attemptedAny = false
             for ((index, band) in SoftApBandPolicy.attemptOrder().withIndex()) {
                 if (index > 0) {
+                    val grace = if (SoftApStateReader.isEnabling(context)) ENABLING_AP_GRACE_MS else LATE_AP_GRACE_MS
+                    if (awaitApUp(context, grace)) {
+                        AppLog.i("HotspotManager: The access point came up just after its window on ${SoftApBandPolicy.describe(SoftApBandPolicy.attemptOrder()[index - 1])}; keeping it rather than restarting it on ${SoftApBandPolicy.describe(band)}.")
+                        lastAcceptedBand = null
+                        return true
+                    }
                     AppLog.w("HotspotManager: no access point on ${SoftApBandPolicy.describe(SoftApBandPolicy.attemptOrder()[index - 1])}; retrying on ${SoftApBandPolicy.describe(band)}. Android Auto is known to drop within seconds on 2.4 GHz — if the projection dies shortly after connecting, this line is why.")
                 }
                 val outcome = startOnBand(context, enabled = true, band = band)
@@ -362,8 +380,8 @@ object HotspotManager {
      * `getWifiApState()` is hidden but widely present; where it is blocked, fall back to looking
      * for the interface, which is what a running access point is from the outside anyway.
      */
-    private fun awaitApUp(context: Context): Boolean {
-        val deadline = System.currentTimeMillis() + AP_STATE_TIMEOUT_MS
+    private fun awaitApUp(context: Context, timeoutMs: Long = AP_STATE_TIMEOUT_MS): Boolean {
+        val deadline = System.currentTimeMillis() + timeoutMs
         while (true) {
             if (isApUp(context)) return true
             if (System.currentTimeMillis() >= deadline) return false

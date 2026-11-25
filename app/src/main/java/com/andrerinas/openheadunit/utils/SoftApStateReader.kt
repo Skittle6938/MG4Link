@@ -16,6 +16,15 @@ import com.andrerinas.openheadunit.aap.SoftApState
 object SoftApStateReader {
 
     private const val WIFI_AP_STATE_ENABLED = 13
+    private const val WIFI_AP_STATE_ENABLING = 12
+
+    /** Whether the framework says an access point is on its way up (false when it cannot say). */
+    fun isEnabling(context: Context): Boolean = try {
+        val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        wm.javaClass.getMethod("getWifiApState").invoke(wm) as? Int == WIFI_AP_STATE_ENABLING
+    } catch (e: Exception) {
+        false
+    }
 
     fun read(context: Context): SoftApState = try {
         val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
