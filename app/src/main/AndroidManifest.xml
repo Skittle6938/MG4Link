@@ -47,11 +47,6 @@
         android:name="com.allgo.app.androidauto.permission.RESERVE_MARGIN"
         android:protectionLevel="signature" />
 
-    <!-- Apps signed like MG4Link (platform key) hand a destination to the phone's navigation (#71). -->
-    <permission
-        android:name="com.allgo.app.androidauto.permission.NAVIGATE"
-        android:protectionLevel="signature" />
-
     <!-- MG4 Dash asks MG4Link to disconnect (three fingers from the top, over the car's status bar). -->
     <permission
         android:name="com.allgo.app.androidauto.permission.USER_DISCONNECT"
@@ -324,15 +319,6 @@
             <intent-filter>
                 <action android:name="com.allgo.app.androidauto.RESERVE_LEFT" />
                 <action android:name="com.allgo.app.androidauto.RESERVE_RIGHT" />
-            </intent-filter>
-        </receiver>
-
-        <receiver
-            android:name=".aap.VoiceNavigationReceiver"
-            android:exported="true"
-            android:permission="com.allgo.app.androidauto.permission.NAVIGATE">
-            <intent-filter>
-                <action android:name="com.allgo.app.androidauto.NAVIGATE" />
             </intent-filter>
         </receiver>
 

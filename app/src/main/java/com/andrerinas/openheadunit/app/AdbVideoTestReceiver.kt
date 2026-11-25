@@ -41,15 +41,6 @@ class AdbVideoTestReceiver : BroadcastReceiver() {
                 com.andrerinas.openheadunit.utils.HeadUnitScreenConfig.getUsableWidth())
             com.andrerinas.openheadunit.aap.SideMargins.apply(context, "ADB test")
         }
-        // Destination by voice, as VoiceNavigationReceiver gets it from other apps (#71):
-        // --es navigate "Gare de Lyon" [--ez speakReply true]
-        intent.getStringExtra("navigate")?.let { label ->
-            com.andrerinas.openheadunit.aap.VoiceNavigation.handle(context,
-                Intent(com.andrerinas.openheadunit.aap.VoiceNavigation.ACTION_NAVIGATE)
-                    .putExtra(com.andrerinas.openheadunit.aap.VoiceNavigation.EXTRA_LABEL, label)
-                    .putExtra(com.andrerinas.openheadunit.aap.VoiceNavigation.EXTRA_SPEAK_REPLY,
-                        intent.getBooleanExtra("speakReply", false)))
-        }
         AppLog.i("ADB video test: resolutionId=${settings.resolutionId} lowLatency=${settings.debugVideoLowLatency}")
     }
 }
