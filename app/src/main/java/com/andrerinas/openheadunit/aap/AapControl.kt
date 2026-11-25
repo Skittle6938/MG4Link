@@ -179,6 +179,7 @@ internal class AapControlMedia(
         AppLog.i("Mic request: open=${micRequest.open} anc=${micRequest.ancEnabled} ec=${micRequest.ecEnabled} maxUnacked=${micRequest.maxUnacked}")
         if (!micRequest.open) {
             micGeneration.incrementAndGet()
+            AssistantCommand.onMicClosed()
             val openMs = VoiceSessionPolicy.micOpenDuration(micOpenedAtMs, android.os.SystemClock.elapsedRealtime())
             micOpenedAtMs = 0L
             synchronized(micRecorder) { micRecorder.stop() }
@@ -191,8 +192,8 @@ internal class AapControlMedia(
         micOpenedAtMs = android.os.SystemClock.elapsedRealtime()
         // #71: a sentence for the assistant feeds the mic itself, instead of the car's microphone.
         if (AssistantCommand.readyToFeed()) {
-            // With the answer allowed, the car's assistant focus is needed for it to be heard.
-            if (AssistantCommand.speakReply) aapAudio.requestAssistantFocus()
+            // No focus asked of the car here, so the music is not lowered while the sentence is
+            // said: an answer, if allowed, takes the assistant focus when it starts playing.
             sendMicResponse(Common.MessageStatus.STATUS_SUCCESS_VALUE)
             val generation = micGeneration.incrementAndGet()
             val rate = com.andrerinas.openheadunit.App.instance?.let {

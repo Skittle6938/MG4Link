@@ -17,9 +17,10 @@ import java.util.Locale
  * Android Auto has no message that lets the head unit hand text to the phone. What it does let the
  * head unit do is press the voice key and supply the microphone: MG4Link opens a voice session and,
  * instead of the car's microphone, sends the sentence spoken by the car's speech engine (Pico TTS,
- * which MG4Link installs, see [SpeechSynthesis]). Nothing is played in the car while it is said,
- * and the steering wheel's voice key is ignored. Unless the caller allows it, the assistant's
- * answer and the guidance's first words are dropped and no audio focus is asked of the car.
+ * which MG4Link installs, see [SpeechSynthesis]). Nothing is played in the car while the phone's
+ * mic is open for it (not even the assistant's beeps) and no audio focus is asked of the car, so
+ * the music or the radio carries on; the steering wheel's voice key is ignored. Unless the caller
+ * allows it, the assistant's answer and the guidance's first words are dropped too.
  *
  * Gemini's end-of-speech detection does not fire on synthesized speech: the phone closes the mic
  * only after the audio stops, so a short noise trail is sent and then nothing (measured on the car,
@@ -49,6 +50,9 @@ object AssistantCommand {
     @Volatile private var synthesizing = false
     @Volatile private var requestToken = 0
     @Volatile private var replyMuteUntilMs = 0L
+    /** From the voice key until the phone closes its mic: nothing played, no focus asked of the car. */
+    @Volatile var listening = false
+        private set
 
     /** What another app asks: a sentence, or a place to navigate to, in a language. */
     data class Command(
@@ -85,16 +89,24 @@ object AssistantCommand {
 
     /** Whether the assistant's or guidance's audio on [channel] is to be dropped right now. */
     fun dropsReply(channel: Int): Boolean =
-        !speakReply && (channel == com.andrerinas.openheadunit.aap.protocol.Channel.ID_AU1 ||
+        (channel == com.andrerinas.openheadunit.aap.protocol.Channel.ID_AU1 ||
             channel == com.andrerinas.openheadunit.aap.protocol.Channel.ID_AU2) &&
-            (active || SystemClock.elapsedRealtime() < replyMuteUntilMs)
+            (listening || !speakReply && (active || SystemClock.elapsedRealtime() < replyMuteUntilMs))
 
     /** Whether a synthesized sentence is waiting for the phone to open the mic. */
     fun readyToFeed(): Boolean = active && pcm != null
 
-    /** With the answer muted, no assistant or speech focus is asked of the car while it runs. */
+    /**
+     * No assistant or speech focus is asked of the car while the sentence is said, nor at all
+     * when the answer is muted: the music or the radio is not lowered for it.
+     */
     fun holdsCarFocus(): Boolean =
-        !speakReply && (active || SystemClock.elapsedRealtime() < replyMuteUntilMs)
+        listening || !speakReply && (active || SystemClock.elapsedRealtime() < replyMuteUntilMs)
+
+    /** The phone closed its mic: the answer, if allowed, may now take the car's focus. */
+    fun onMicClosed() {
+        listening = false
+    }
 
     /** Whether the voice key from the steering wheel is to be ignored right now. */
     fun blocksWheelVoiceKey(): Boolean = active
@@ -107,6 +119,7 @@ object AssistantCommand {
     private fun finish(reason: String) {
         if (!active) return
         active = false
+        listening = false
         pcm = null
         replyMuteUntilMs = SystemClock.elapsedRealtime() + REPLY_TAIL_MS
         AppLog.i("AssistantCommand: done ($reason)")
@@ -139,6 +152,8 @@ object AssistantCommand {
             if (spoken == null) { finish("no synthesized speech"); return@Thread }
             pcm = normalize(SpeechSynthesis.Wav.toMono16(spoken.pcm, settingsMicRate(app)))
             AppLog.i("AssistantCommand: \"${spoken.text}\" (${spoken.language}, answer ${if (command.speakReply) "played" else "dropped"}) - opening the assistant")
+            // From the key on: the phone asks for audio focus as it opens the assistant, before its mic.
+            listening = true
             comm.sendKey(KeyEvent.KEYCODE_SEARCH, true, null, SOURCE)
             comm.sendKey(KeyEvent.KEYCODE_SEARCH, false, null, SOURCE)
             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
@@ -160,6 +175,7 @@ object AssistantCommand {
         val speech = pcm ?: return false
         if (!active) return false
         pcm = null // one sentence per command: a follow-up question from the assistant gets the car's mic
+        listening = true
         Thread({
             val frameBytes = micRate * FRAME_MS / 1000 * 2
             val stream = withSilence(speech, micRate, LEAD_SILENCE_MS, TRAIL_SILENCE_MS)
