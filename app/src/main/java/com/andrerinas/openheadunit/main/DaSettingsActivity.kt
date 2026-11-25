@@ -166,6 +166,11 @@ class DaSettingsActivity : BaseActivity() {
             })
         row(R.string.dset_wait_bt_links, R.string.dset_wait_bt_links_summary,
             yesNo(settings.waitForBluetoothLinks) { settings.waitForBluetoothLinks = it })
+        row(R.string.dset_dongle_bt_guard, R.string.dset_dongle_bt_guard_summary,
+            yesNo(settings.dongleBluetoothGuard) {
+                settings.dongleBluetoothGuard = it
+                com.andrerinas.openheadunit.utils.DongleBluetoothGuard.onSettingChanged(this, it)
+            })
         val delays = listOf(10, 30, 60, 120, 300)
         val delay = delays.indexOf(settings.stationRestoreDelaySeconds).takeIf { it >= 0 } ?: 2
         row(R.string.dset_station_delay, R.string.dset_station_delay_summary,

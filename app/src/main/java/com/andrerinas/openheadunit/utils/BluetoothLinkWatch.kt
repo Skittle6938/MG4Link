@@ -68,6 +68,12 @@ object BluetoothLinkWatch {
                 else -> " ${stateName(previous)} → ${stateName(state)}"
             }
             AppLog.i("BtLink: $what$change ($address)")
+            if (action == "android.bluetooth.headsetclient.profile.action.CONNECTION_STATE_CHANGED") {
+                when (state) {
+                    BluetoothProfile.STATE_CONNECTED -> DongleBluetoothGuard.onHandsFreeConnected(context)
+                    BluetoothProfile.STATE_DISCONNECTED -> DongleBluetoothGuard.onHandsFreeDisconnected(context)
+                }
+            }
         }
     }
 

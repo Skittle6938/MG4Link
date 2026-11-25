@@ -280,6 +280,14 @@ class Settings(private val context: Context) {
      * Hold the wireless handshake until the car has finished (re)connecting the phone over
      * Bluetooth, up to 5 s (#36). On by default.
      */
+    /**
+     * Wireless Android Auto adapter: hold the car's own Bluetooth back at start so the adapter
+     * reaches the phone first (#64). Experimental, off by default.
+     */
+    var dongleBluetoothGuard: Boolean
+        get() = prefs.getBoolean("dongle-bt-guard", false)
+        set(value) { prefs.edit().putBoolean("dongle-bt-guard", value).apply() }
+
     var waitForBluetoothLinks: Boolean
         get() = prefs.getBoolean("wait-bt-links", true)
         set(value) { prefs.edit().putBoolean("wait-bt-links", value).apply() }

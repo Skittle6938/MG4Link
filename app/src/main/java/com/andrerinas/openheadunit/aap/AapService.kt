@@ -534,6 +534,7 @@ class AapService : Service(), UsbReceiver.Listener {
     }
 
     private fun notifyAllgoRelay() {
+        com.andrerinas.openheadunit.utils.DongleBluetoothGuard.onSessionStarted(this, !commManager.isWirelessSession)
         // Not settings.bluetoothAddress: that is the car's own address, and the car's Settings would
         // cut the phone's hands-free link for not being it.
         AllgoRelayNotifier.sessionStarted(
@@ -879,6 +880,7 @@ class AapService : Service(), UsbReceiver.Listener {
         setupNightMode()
         observeConnectionState()
         registerReceivers()
+        com.andrerinas.openheadunit.utils.DongleBluetoothGuard.onServiceStarted(this)
 
         // Initialize MediaSession early and set it active immediately.
         // This ensures media button routing works even BEFORE an AA connection,
@@ -1521,6 +1523,7 @@ class AapService : Service(), UsbReceiver.Listener {
         handsFreeRestoreJob?.cancel()
         handsFreeRestoreJob = null
         AllgoRelayNotifier.sessionEnded(this)
+        com.andrerinas.openheadunit.utils.DongleBluetoothGuard.onSessionEnded(this)
         com.andrerinas.openheadunit.hud.SaicNavigationOutputs.stop()
         // Fresh scan results for the next automatic channel choice; never during a session, where a
         // scan takes the radio off the access point's channel.

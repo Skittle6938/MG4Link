@@ -38,6 +38,7 @@ class SettingsDefaultsTest {
     @Test
     fun `the first call to the phone waits 15 s by default and stays within 0 to 60 s`() {
         assertEquals(true, settings.waitForBluetoothLinks)
+        assertEquals(false, settings.dongleBluetoothGuard)
         assertEquals(15, settings.firstPhoneCallDelaySeconds)
         settings.firstPhoneCallDelaySeconds = 0
         assertEquals(0, settings.firstPhoneCallDelaySeconds)

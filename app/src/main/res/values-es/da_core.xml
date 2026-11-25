@@ -50,6 +50,8 @@
     <string name="dset_first_call_delay_summary">Si el teléfono aún no se ha conectado por Bluetooth al arrancar el coche, MG4Link lo contacta tras este tiempo. Con 15 segundos, el coche tiene tiempo para reconectarlo por sí solo. Si nunca lo hace, un tiempo más corto acelera la conexión.</string>
     <string name="dset_wait_bt_links">Esperar al Bluetooth del coche</string>
     <string name="dset_wait_bt_links_summary">Antes de iniciar Android Auto, espera hasta 5 s a que el coche termine de conectar el teléfono por Bluetooth, para que la música que empieza sola suene en el coche y no en el altavoz del teléfono.</string>
+    <string name="dset_dongle_bt_guard">Adaptador inalámbrico: retener el Bluetooth del coche</string>
+    <string name="dset_dongle_bt_guard_summary">Experimental, solo con un adaptador inalámbrico de Android Auto (dongle). Al arrancar, el coche espera hasta 3 minutos antes de conectar el teléfono por Bluetooth, para que el adaptador lo tome primero. Déjelo desactivado sin adaptador.</string>
     <string name="fullscreen_nav_only">Ocultar solo la barra izquierda</string>
     <string name="ota_dialog_install_message">MG4Link %1$s se descargará (%2$s) y se instalará. Si no hay Wi-Fi, se usarán los datos móviles del coche. Después, MG4Link se reiniciará y Android Auto se interrumpirá unos segundos.</string>
     <string name="ota_dialog_no_stable_message">Aún no hay una versión oficial posterior a %1$s. Puedes recibir betas si activas la opción correspondiente en Ajustes.</string>

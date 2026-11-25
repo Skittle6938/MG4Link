@@ -50,6 +50,8 @@
     <string name="dset_first_call_delay_summary">إذا لم يكن الهاتف متصلًا عبر البلوتوث عند تشغيل السيارة، يحاول MG4Link الاتصال به بعد هذه المهلة. تمنح 15 ثانية السيارة وقتًا لإعادة الاتصال تلقائيًا. إذا كانت السيارة لا تعيد الاتصال تلقائيًا، فالمهلة الأقصر تسرّع الاتصال.</string>
     <string name="dset_wait_bt_links">انتظار بلوتوث السيارة</string>
     <string name="dset_wait_bt_links_summary">قبل تشغيل Android Auto، ينتظر حتى 5 ثوانٍ حتى تنتهي السيارة من توصيل الهاتف عبر البلوتوث، لكي تُشغَّل الموسيقى التي تبدأ تلقائيًا في السيارة بدلًا من مكبر صوت الهاتف.</string>
+    <string name="dset_dongle_bt_guard">محول لاسلكي: تأخير بلوتوث السيارة</string>
+    <string name="dset_dongle_bt_guard_summary">تجريبي، فقط مع محول Android Auto لاسلكي. عند التشغيل، تنتظر السيارة حتى 3 دقائق قبل توصيل الهاتف عبر البلوتوث، لكي يتصل المحول أولًا. اتركه معطّلًا بدون محول.</string>
     <string name="fullscreen_nav_only">إخفاء الشريط الأيسر فقط</string>
     <string name="ota_dialog_install_message">سيُنزَّل MG4Link %1$s ‏(%2$s) ويُثبَّت. في غياب Wi-Fi سيُستخدم اتصال بيانات السيارة. سيُعاد تشغيل MG4Link بعدها، وسيتوقف Android Auto لبضع ثوانٍ.</string>
     <string name="ota_dialog_no_stable_message">لا يتوفر بعد إصدار رسمي أحدث من %1$s. يمكنك تلقي الإصدارات التجريبية عند تفعيل البحث عنها في الإعدادات.</string>

@@ -10,4 +10,6 @@
     <string name="dset_advanced_summary_general">Fine-tuning and diagnostics. The defaults suit most cars.</string>
     <string name="dset_wait_bt_links">Wait for the car\'s Bluetooth</string>
     <string name="dset_wait_bt_links_summary">Before starting Android Auto, waits up to 5 s for the car to finish connecting the phone over Bluetooth, so music that starts by itself plays in the car instead of on the phone\'s speaker.</string>
+    <string name="dset_dongle_bt_guard">Wireless adapter: hold the car\'s Bluetooth back</string>
+    <string name="dset_dongle_bt_guard_summary">Experimental, for a wireless Android Auto adapter (dongle) only. At start, the car waits up to 3 minutes before connecting the phone over Bluetooth, so the adapter reaches it first. Leave it off without an adapter.</string>
 </resources>
