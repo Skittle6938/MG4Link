@@ -114,6 +114,25 @@ internet over Bluetooth is not possible on the MG4: its Bluetooth stack has no n
 
 <p align="center"><img src="docs/screenshots/settings_sound.png" width="800" alt="Settings, Sound tab"></p>
 
+### Speech engine and voice commands for other apps
+- The MG4 has no speech engine. MG4Link installs **Pico TTS** (English US and UK, German, Spanish,
+  French, Italian) by itself and keeps it up to date, so any app on the car can speak through
+  Android's text-to-speech. It becomes the default engine only when none is set: an engine you
+  installed yourself stays the default.
+- Apps signed like MG4Link (platform key), such as MG4 Dash, can say a sentence to the phone's
+  assistant (Gemini) over Android Auto, for example to start a navigation. MG4Link speaks it
+  into the phone instead of the car's microphone, and nothing is heard in the car. Broadcast
+  `com.allgo.app.androidauto.ASSISTANT_COMMAND` (permission
+  `com.allgo.app.androidauto.permission.ASSISTANT_COMMAND`) with:
+  - `phrase`: the sentence, as is ("Play Michael Jackson on YouTube Music"), or instead
+    `label` (a place) or `lat` and `lon`, said as "Navigate to …";
+  - `lang`: the language of the voice, for example `fr` (the car's language by default; the
+    phone's assistant should be set to the same one);
+  - `speakReply`: `true` to hear the assistant's answer in the car, `false` (default) to drop it.
+
+  An Android Auto session must be running. The engine used is the default one if it speaks the
+  language, else Pico TTS.
+
 ### Simple screens, in your language
 - A home screen and settings in five tabs (Connection, Display, Sound, Car, About) with large
   buttons, in the car's language (22 languages).
