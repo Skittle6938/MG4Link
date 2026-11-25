@@ -15,6 +15,27 @@ tasks.withType<Test>().configureEach {
     systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
 }
 
+// The Pico TTS speech engine (:picotts) ships inside MG4Link as assets/picotts/picotts.apk:
+// MG4Link installs it on the car, which has no speech engine of its own (#71).
+abstract class BundlePicoTts : DefaultTask() {
+    @get:InputDirectory abstract val apkDir: DirectoryProperty
+    @get:OutputDirectory abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun copy() {
+        val apk = apkDir.get().asFile.listFiles { f -> f.name.endsWith(".apk") }?.singleOrNull()
+            ?: throw GradleException("Expected exactly one Pico TTS APK in ${apkDir.get()}")
+        val out = outputDir.get().asFile
+        out.deleteRecursively()
+        apk.copyTo(File(out, "picotts/picotts.apk"), overwrite = true)
+    }
+}
+
+val bundlePicoTts = tasks.register<BundlePicoTts>("bundlePicoTts") {
+    dependsOn(":picotts:assembleRelease")
+    apkDir.set(project(":picotts").layout.buildDirectory.dir("outputs/apk/release"))
+}
+
 android {
     compileSdk = 36
     ndkVersion = "27.2.12479018"
@@ -125,6 +146,9 @@ android {
                 variantBuilder.name == "carRelease" ||
                 variantBuilder.name == "phoneDebug"
             variantBuilder.enable = keep
+        }
+        onVariants { variant ->
+            variant.sources.assets?.addGeneratedSourceDirectory(bundlePicoTts, BundlePicoTts::outputDir)
         }
     }
 

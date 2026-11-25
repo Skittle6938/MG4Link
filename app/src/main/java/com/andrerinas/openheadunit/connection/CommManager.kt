@@ -506,6 +506,13 @@ class CommManager(
         if (_connectionState.value !is ConnectionState.TransportStarted) {
             return
         }
+        // #71: while a sentence is being said to the assistant, the assistant key is MG4Link's alone.
+        if (keyCode == android.view.KeyEvent.KEYCODE_SEARCH &&
+            source != com.andrerinas.openheadunit.aap.AssistantCommand.SOURCE &&
+            com.andrerinas.openheadunit.aap.AssistantCommand.blocksWheelVoiceKey()) {
+            AppLog.i("CommManager: assistant key from $source ignored - assistant command running")
+            return
+        }
 
         // 1. Remapping (Physical -> Logical)
         // Check if the physical keyCode is mapped to a logical action in settings.

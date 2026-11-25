@@ -28,7 +28,15 @@ object VoiceSessionPolicy {
     const val MIC_WARNING_EVERY_MS = 10 * 60_000L
 
     /**
-     * On SWI68 and SWI165, assistant focus makes Hello MG release the cabin mic.
+     * The assistant's answer plays with the car's assistant audio focus (its own volume): on
+     * SWI68, SWI165 and SWI69. On SWI69 the answer otherwise played as navigation guidance, at the
+     * guidance volume (checked on the car 2026-11-25; the answer and the music came back fine).
+     */
+    fun assistantAudioFocusWanted(generation: FirmwareInfo.Gen): Boolean =
+        assistantFocusWanted(generation) || generation == FirmwareInfo.Gen.SWI69
+
+    /**
+     * The voice-command app focus too. On SWI68 and SWI165 it makes Hello MG release the cabin mic.
      * On SWI69 it kept the answer and the music from coming back (2.2.3-beta5).
      */
     fun assistantFocusWanted(generation: FirmwareInfo.Gen): Boolean =

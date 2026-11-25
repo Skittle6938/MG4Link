@@ -65,4 +65,6 @@ android.permission.FORCE_STOP_PACKAGES
 com.allgo.app.androidauto.permission.USER_DISCONNECT
 # signature: platform-signed apps reserve a strip at the side of Android Auto (#69).
 com.allgo.app.androidauto.permission.RESERVE_MARGIN
+# signature: platform-signed apps say a sentence to the phone's assistant (#71).
+com.allgo.app.androidauto.permission.ASSISTANT_COMMAND
 com.andrerinas.openheadunit.permission.NAVIGATION_UPDATE

@@ -189,6 +189,17 @@ internal class AapControlMedia(
         }
         aapTransport.micOpened(micRequest.maxUnacked)
         micOpenedAtMs = android.os.SystemClock.elapsedRealtime()
+        // #71: a sentence for the assistant feeds the mic itself, instead of the car's microphone.
+        if (AssistantCommand.readyToFeed()) {
+            // With the answer allowed, the car's assistant focus is needed for it to be heard.
+            if (AssistantCommand.speakReply) aapAudio.requestAssistantFocus()
+            sendMicResponse(Common.MessageStatus.STATUS_SUCCESS_VALUE)
+            val generation = micGeneration.incrementAndGet()
+            val rate = com.andrerinas.openheadunit.App.instance?.let {
+                com.andrerinas.openheadunit.utils.Settings(it).micSampleRate } ?: 16_000
+            if (AssistantCommand.feedMic(rate, { micGeneration.get() == generation }) { buf, len ->
+                    aapTransport.onMicDataAvailable(buf, len) }) return 0
+        }
         aapAudio.requestAssistantFocus()
         // Answered at once, and the recorder started off the read thread: starting it takes
         // ~120 ms (the car's voice path needs 100 ms), which held every other message from the
@@ -416,6 +427,7 @@ internal class AapControlService(
         } else if (request.status == Control.VoiceSessionNotification.VoiceSessionStatus.VOICE_STATUS_STOP) {
             AppLog.i("Voice Session Notification: STOP")
             aapTransport.isAssistantActive = false
+            AssistantCommand.onVoiceSessionStopped()
             aapAudio.onVoiceSessionStopped()
         }
         return 0
@@ -448,7 +460,9 @@ internal class AapControlService(
                     Control.AudioFocusRequestNotification.AudioFocusRequestType.RELEASE_VALUE
             val isMedia = notification.request.number ==
                     Control.AudioFocusRequestNotification.AudioFocusRequestType.GAIN_VALUE
-            if (aapAudio.shouldHonourProtocolFocusRequest(isRelease, isMedia)) {
+            if (!isMedia && AssistantCommand.holdsCarFocus()) {
+                AppLog.i("Audio focus: assistant command with a muted answer - not asking the car (#71)")
+            } else if (aapAudio.shouldHonourProtocolFocusRequest(isRelease, isMedia)) {
                 val separate = settings.separateAudioStreams || settings.musicViaBluetooth
                 aapAudio.requestFocusChange(
                     AudioConfigs.stream(channel, separate),

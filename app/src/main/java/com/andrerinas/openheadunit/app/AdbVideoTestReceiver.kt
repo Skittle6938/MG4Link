@@ -41,6 +41,24 @@ class AdbVideoTestReceiver : BroadcastReceiver() {
                 com.andrerinas.openheadunit.utils.HeadUnitScreenConfig.getUsableWidth())
             com.andrerinas.openheadunit.aap.SideMargins.apply(context, "ADB test")
         }
+        // A sentence for the phone's assistant, as AssistantCommandReceiver gets it from other apps
+        // (#71): --es say "Play Michael Jackson on YouTube Music" or --es navigate "Gare de Lyon",
+        // [--es lang fr] [--ez speakReply true]
+        if (intent.hasExtra("say") || intent.hasExtra("navigate")) {
+            com.andrerinas.openheadunit.aap.AssistantCommand.request(context,
+                com.andrerinas.openheadunit.aap.AssistantCommand.Command(
+                    phrase = intent.getStringExtra("say"),
+                    label = intent.getStringExtra("navigate"),
+                    language = intent.getStringExtra("lang"),
+                    speakReply = intent.getBooleanExtra("speakReply", false)))
+        }
+        // Hear the speech engine on the car's speakers: --es previewSay "Navigue vers la gare de Lyon"
+        // [--es lang fr] [--es engine com.mg4link.picotts]
+        intent.getStringExtra("previewSay")?.let { phrase ->
+            com.andrerinas.openheadunit.aap.SpeechSynthesis.preview(context,
+                intent.getStringExtra("lang") ?: java.util.Locale.getDefault().language, phrase,
+                intent.getStringExtra("engine"))
+        }
         AppLog.i("ADB video test: resolutionId=${settings.resolutionId} lowLatency=${settings.debugVideoLowLatency}")
     }
 }

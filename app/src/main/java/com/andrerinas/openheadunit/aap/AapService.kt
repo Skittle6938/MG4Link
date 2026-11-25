@@ -881,6 +881,8 @@ class AapService : Service(), UsbReceiver.Listener {
         observeConnectionState()
         registerReceivers()
         com.andrerinas.openheadunit.utils.DongleBluetoothGuard.onServiceStarted(this)
+        // The car has no speech engine: install the bundled Pico TTS if missing or older (#71).
+        com.andrerinas.openheadunit.utils.PicoTtsInstaller.ensureInstalled(this)
 
         // Initialize MediaSession early and set it active immediately.
         // This ensures media button routing works even BEFORE an AA connection,

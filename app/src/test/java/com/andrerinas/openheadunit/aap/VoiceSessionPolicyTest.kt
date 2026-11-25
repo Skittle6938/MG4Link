@@ -20,6 +20,14 @@ class VoiceSessionPolicyTest {
         }
     }
 
+    @Test
+    fun `the answer plays with assistant audio focus on SWI68, SWI165 and SWI69`() {
+        val wantsAudioFocus = setOf(FirmwareInfo.Gen.SWI68, FirmwareInfo.Gen.SWI165, FirmwareInfo.Gen.SWI69)
+        for (gen in FirmwareInfo.Gen.values()) {
+            assertEquals("gen=$gen", gen in wantsAudioFocus, VoiceSessionPolicy.assistantAudioFocusWanted(gen))
+        }
+    }
+
     // --- music before the assistant ---
 
     private val now = 1_000_000L

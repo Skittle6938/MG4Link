@@ -11,6 +11,11 @@
             <action android:name="android.settings.WIFI_SETTINGS" />
         </intent>
         <package android:name="com.google.android.projection.gearhead" />
+        <!-- Speech engines, and the Pico TTS engine MG4Link installs (#71). -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+        <package android:name="com.mg4link.picotts" />
     </queries>
 
     <uses-feature
@@ -45,6 +50,11 @@
     <!-- Apps signed like MG4Link (platform key) reserve a strip at the side of Android Auto (#69). -->
     <permission
         android:name="com.allgo.app.androidauto.permission.RESERVE_MARGIN"
+        android:protectionLevel="signature" />
+
+    <!-- Apps signed like MG4Link (platform key) say a sentence to the phone's assistant (#71). -->
+    <permission
+        android:name="com.allgo.app.androidauto.permission.ASSISTANT_COMMAND"
         android:protectionLevel="signature" />
 
     <!-- MG4 Dash asks MG4Link to disconnect (three fingers from the top, over the car's status bar). -->
@@ -321,6 +331,19 @@
                 <action android:name="com.allgo.app.androidauto.RESERVE_RIGHT" />
             </intent-filter>
         </receiver>
+
+        <receiver
+            android:name=".aap.AssistantCommandReceiver"
+            android:exported="true"
+            android:permission="com.allgo.app.androidauto.permission.ASSISTANT_COMMAND">
+            <intent-filter>
+                <action android:name="com.allgo.app.androidauto.ASSISTANT_COMMAND" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".utils.PicoTtsInstallReceiver"
+            android:exported="false" />
 
         <receiver
             android:name=".app.AdbVideoTestReceiver"
