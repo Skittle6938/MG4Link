@@ -55,7 +55,7 @@
                     android:layout_marginStart="16dp"
                     android:text="@string/android_auto_starting"
                     android:textColor="@android:color/white"
-                    android:textSize="27sp" />
+                    android:textSize="36sp" />
             </LinearLayout>
 
             <TextView
@@ -64,9 +64,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 android:gravity="center"
-                android:maxWidth="400dp"
+                android:maxWidth="700dp"
                 android:textColor="@android:color/white"
-                android:textSize="14sp"
+                android:textSize="20sp"
                 android:visibility="gone" />
 
             <Button
@@ -79,7 +79,7 @@
                 android:paddingEnd="24dp"
                 android:text="@string/shortcut_disconnect_title"
                 android:textColor="@android:color/white"
-                android:textSize="16sp"
+                android:textSize="22sp"
                 android:visibility="gone" />
         </LinearLayout>
 
