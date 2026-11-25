@@ -551,6 +551,8 @@ internal class AapAudio(
         // Control packets on audio channels (Setup, Start, Stop) have types > 32767.
         lastChunkAckDeferred = false
         if (message.type == 0 || message.type == 1) {
+            // #71: the assistant's answer to a destination sent by voice, unless the caller wants it.
+            if (VoiceNavigation.dropsReply(message.channel)) return true
             if (message.size >= 10) {
                 lastChunkAckDeferred = decode(message.channel, 10, message.data, message.size - 10)
             }
@@ -818,6 +820,10 @@ internal class AapAudio(
         // a second request made the SAIC radio drop focus and stay silent after it. The phone does
         // not always ask, though, and then the prompt asks here, with the same guidance usage.
         if (channel != Channel.ID_AUD) {
+            if (VoiceNavigation.holdsCarFocus()) {
+                AppLog.i("AapAudio: AA audio started (${Channel.name(channel)}) - voice navigation, no car focus (#71)")
+                return
+            }
             if (audioFocusRequest != null && audioFocusKind != null && audioFocusKind != ProtocolFocusRoute.Kind.MEDIA) {
                 AppLog.i("AapAudio: AA audio started (${Channel.name(channel)}) - the phone's focus request already covers it")
             } else {
@@ -927,8 +933,8 @@ internal class AapAudio(
         }
 
         val track = audioDecoder.getTrack(channel)
-        val assistantPlayback = channel == Channel.ID_AU1 && (assistantFocusGranted ||
-            (track == null && assistantVoiceSessionActive && acquireAssistantAudioFocus()))
+        val assistantPlayback = channel == Channel.ID_AU1 && !VoiceNavigation.holdsCarFocus() &&
+            (assistantFocusGranted || (track == null && assistantVoiceSessionActive && acquireAssistantAudioFocus()))
         if (track != null && track.assistantPlayback != assistantPlayback) {
             audioDecoder.stop(channel)
             releaseSpeechFocus(channel)
