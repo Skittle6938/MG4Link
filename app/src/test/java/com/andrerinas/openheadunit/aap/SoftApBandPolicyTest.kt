@@ -6,17 +6,6 @@ import org.junit.Test
 class SoftApBandPolicyTest {
 
     @Test
-    fun `5 GHz is tried first, with 2 point 4 kept only as a fallback`() {
-        assertEquals(listOf(ApBand.BAND_5GHZ, ApBand.BAND_2GHZ), SoftApBandPolicy.attemptOrder())
-    }
-
-    @Test
-    fun `opting out of 5 GHz leaves a single attempt, not a reordered pair`() {
-        // A second attempt on a band that just failed would only double the time to give up.
-        assertEquals(listOf(ApBand.BAND_2GHZ), SoftApBandPolicy.attemptOrder(prefer5Ghz = false))
-    }
-
-    @Test
     fun `band constants match the framework's, which are not the same on both APIs`() {
         // SoftApConfiguration: BAND_2GHZ = 1, BAND_5GHZ = 2.
         assertEquals(1, SoftApBandPolicy.softApConfigurationBand(ApBand.BAND_2GHZ))

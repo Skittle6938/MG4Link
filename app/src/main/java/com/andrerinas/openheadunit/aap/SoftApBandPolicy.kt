@@ -14,19 +14,10 @@ enum class ApBand { BAND_5GHZ, BAND_2GHZ }
  * the AA protocol itself carries the phone's answer to the same question (`selected_wifi_channel
  * _type`, one of 2.4-only / 5-only / dual).
  *
- * 2.4 GHz is kept only as a fallback for radios with no 5 GHz support at all, where the choice is
- * between a shaky link and none.
+ * There is no 2.4 GHz fallback any more: every MG4 radio hosts its access point on 5 GHz, and the
+ * retry on 2.4 GHz only ever took down a 5 GHz access point that was arriving late (#73).
  */
 object SoftApBandPolicy {
-
-    /**
-     * The bands to try, best first. Trying is the only way to find out: an app cannot ask whether
-     * the soft AP will accept 5 GHz — `is5GHzBandSupported()` describes the station side, and
-     * vendors ship radios that answer yes there and still refuse to host an AP on it.
-     */
-    fun attemptOrder(prefer5Ghz: Boolean = true): List<ApBand> =
-        if (prefer5Ghz) listOf(ApBand.BAND_5GHZ, ApBand.BAND_2GHZ)
-        else listOf(ApBand.BAND_2GHZ)
 
     /** `SoftApConfiguration.BAND_2GHZ` / `BAND_5GHZ` (API 30+). */
     fun softApConfigurationBand(band: ApBand): Int = when (band) {

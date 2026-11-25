@@ -27,12 +27,10 @@ object HotspotManager {
     private const val AP_STATE_TIMEOUT_MS = 6_000L
 
     /**
-     * Last look before giving up on a band: an access point the framework is still bringing up gets
-     * this long, any other a short one. Seen in #73: on 5 GHz it came up 0.7 s after its window
-     * closed, the 2.4 GHz restart took it down again, and the interface then stayed up with no
-     * address, so no phone could connect for 11 minutes.
+     * Last look before giving up while the framework says the access point is on its way up. Seen
+     * in #73: it came up 0.7 s after its window closed, a restart took it down again, and the
+     * interface then stayed up with no address, so no phone could connect for 11 minutes.
      */
-    private const val LATE_AP_GRACE_MS = 3_000L
     private const val ENABLING_AP_GRACE_MS = 10_000L
 
     /** How long to leave the access point down so a joined client notices it has gone. */
@@ -235,47 +233,31 @@ object HotspotManager {
         // DiPlay CarHotspotController left the station on and let the framework drop it; on the
         // MG4 the access point then took the station's band, hence the switch-off above.
         try {
-            // 5 GHz first, 2.4 GHz only if the radio will not host an access point on it. See
-            // SoftApBandPolicy for why the order is not a preference.
-            var attemptedAny = false
-            for ((index, band) in SoftApBandPolicy.attemptOrder().withIndex()) {
-                if (index > 0) {
-                    val grace = if (SoftApStateReader.isEnabling(context)) ENABLING_AP_GRACE_MS else LATE_AP_GRACE_MS
-                    if (awaitApUp(context, grace)) {
-                        AppLog.i("HotspotManager: The access point came up just after its window on ${SoftApBandPolicy.describe(SoftApBandPolicy.attemptOrder()[index - 1])}; keeping it rather than restarting it on ${SoftApBandPolicy.describe(band)}.")
-                        lastAcceptedBand = null
-                        return true
-                    }
-                    AppLog.w("HotspotManager: no access point on ${SoftApBandPolicy.describe(SoftApBandPolicy.attemptOrder()[index - 1])}; retrying on ${SoftApBandPolicy.describe(band)}. Android Auto is known to drop within seconds on 2.4 GHz — if the projection dies shortly after connecting, this line is why.")
-                }
-                val outcome = startOnBand(context, enabled = true, band = band)
-                attemptedAny = attemptedAny || outcome.attempted
-                if (outcome.up) {
-                    AppLog.i(describeApUp(outcome.configured, band))
-                    lastAcceptedBand = if (outcome.configured) band else null
-                    return true
-                }
-                if (!outcome.configured) {
-                    // The band never reached the framework, so the next one would post the same
-                    // request against the same stored configuration and start the same access
-                    // point again. Measured on a unit that refuses setSoftApConfiguration(): three
-                    // start requests, all `channels {3=0}`, two of them tearing down an access
-                    // point the previous one had just brought up.
-                    AppLog.w("HotspotManager: This device would not take a band request, so trying ${SoftApBandPolicy.describe(SoftApBandPolicy.attemptOrder().last())} would start the same access point again. Leaving the band to the device.")
-                    break
-                }
+            // 5 GHz only: every MG4 radio hosts its access point there, and Android Auto drops
+            // within seconds on 2.4 GHz. The 2.4 GHz retry this replaced only ever took down a
+            // 5 GHz access point that was arriving late (#73).
+            val band = ApBand.BAND_5GHZ
+            val outcome = startOnBand(context, enabled = true, band = band)
+            val attemptedAny = outcome.attempted
+            if (outcome.up) {
+                AppLog.i(describeApUp(outcome.configured, band))
+                lastAcceptedBand = if (outcome.configured) band else null
+                return true
             }
 
-            // A request the framework accepted late still brings an access point up, after the band
-            // it belonged to has been written off. Look once more before reporting failure: saying
-            // no here is what makes a caller start a second, overlapping sweep.
-            if (attemptedAny && awaitApUp(context)) {
-                AppLog.i("HotspotManager: An access point came up after its band's window had expired; taking it. Which band it chose is not something this app can read.")
+            // A request the framework accepted late still brings an access point up after its
+            // window (#73: 0.7 s late). Look once more before reporting failure, longer while the
+            // framework says it is on its way: saying no here is what makes a caller start a
+            // second, overlapping sweep.
+            val grace = if (SoftApStateReader.isEnabling(context)) ENABLING_AP_GRACE_MS else AP_STATE_TIMEOUT_MS
+            if (attemptedAny && awaitApUp(context, grace)) {
+                AppLog.i("HotspotManager: The access point came up after its window had expired; taking it.")
+                lastAcceptedBand = if (outcome.configured) band else null
                 return true
             }
 
             if (attemptedAny) {
-                AppLog.w("HotspotManager: Every start path was tried on every band and no access point came up within ${AP_STATE_TIMEOUT_MS / 1000}s each. On a non-privileged install this usually cannot be done from an app — switch the hotspot on in system settings instead.")
+                AppLog.w("HotspotManager: Every start path was tried and no access point came up. On a non-privileged install this usually cannot be done from an app — switch the hotspot on in system settings instead.")
             } else {
                 AppLog.w("HotspotManager: All hotspot attempts failed.")
             }
