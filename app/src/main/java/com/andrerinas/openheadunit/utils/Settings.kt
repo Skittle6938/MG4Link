@@ -288,6 +288,11 @@ class Settings(private val context: Context) {
         get() = prefs.getBoolean("dongle-bt-guard", false)
         set(value) { prefs.edit().putBoolean("dongle-bt-guard", value).apply() }
 
+    /** How long [dongleBluetoothGuard] holds the car's Bluetooth back after a start, seconds. */
+    var dongleWaitSeconds: Int
+        get() = prefs.getInt("dongle-wait-s", 180).coerceIn(30, 600)
+        set(value) { prefs.edit().putInt("dongle-wait-s", value.coerceIn(30, 600)).apply() }
+
     var waitForBluetoothLinks: Boolean
         get() = prefs.getBoolean("wait-bt-links", true)
         set(value) { prefs.edit().putBoolean("wait-bt-links", value).apply() }

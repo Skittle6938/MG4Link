@@ -25,8 +25,10 @@ import android.provider.Settings as AndroidSettings
  *   restarted so the car reconnects the phone as usual.
  */
 object DongleBluetoothGuard {
-    /** Longest the car's own Bluetooth is held back after a start. */
+    /** Longest the car's own Bluetooth is held back after a start (default; set in the settings). */
     const val WAIT_MS = 180_000L
+
+    private fun waitMs(c: Context) = com.andrerinas.openheadunit.utils.Settings(c).dongleWaitSeconds * 1000L
 
     /** Settings.Global keys read by HeadsetClient, A2dpSink and PbapClient on Android 9. */
     private val KEYS = listOf("bluetooth_headset_priority_", "bluetooth_a2dp_src_priority_", "bluetooth_pbap_client_priority_")
@@ -110,13 +112,14 @@ object DongleBluetoothGuard {
             AppLog.i("DongleBtGuard: the car already took the phone - restarting Bluetooth to give the adapter a chance (#64)")
             cycleBluetooth()
         }
+        val wait = waitMs(app)
         handler.postDelayed({
             if (!sessionOverUsb && isArmed(app)) {
-                AppLog.i("DongleBtGuard: no Android Auto through the adapter in ${WAIT_MS / 1000} s (#64)")
+                AppLog.i("DongleBtGuard: no Android Auto through the adapter in ${wait / 1000} s (#64)")
                 release(app, "timeout")
                 if (!handsFreeConnected()) cycleBluetooth()
             }
-        }, WAIT_MS)
+        }, wait)
     }
 
     /** A session started: over USB, the adapter won; the car gets its Bluetooth back. */

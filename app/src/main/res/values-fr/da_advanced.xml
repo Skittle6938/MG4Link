@@ -11,5 +11,7 @@
     <string name="dset_wait_bt_links">Attendre le Bluetooth de la voiture</string>
     <string name="dset_wait_bt_links_summary">Avant de lancer Android Auto, attend jusqu\'à 5 s que la voiture ait fini de relier le téléphone en Bluetooth, pour que la musique lancée toute seule sorte dans la voiture et pas sur le haut-parleur du téléphone.</string>
     <string name="dset_dongle_bt_guard">Priorité au dongle Android Auto au démarrage</string>
-    <string name="dset_dongle_bt_guard_summary">Expérimental, uniquement avec un adaptateur Android Auto sans fil (dongle). Au démarrage, la voiture attend jusqu\'à 3 minutes avant de relier le téléphone en Bluetooth, pour que l\'adaptateur le prenne en premier. À laisser désactivé sans adaptateur.</string>
+    <string name="dset_dongle_bt_guard_summary">Expérimental, uniquement avec un adaptateur Android Auto sans fil (dongle). Au démarrage, la voiture attend (durée réglée en dessous) avant de relier le téléphone en Bluetooth, pour que l’adaptateur le prenne en premier. À laisser désactivé sans adaptateur.</string>
+    <string name="dset_dongle_wait">Priorité au dongle : durée</string>
+    <string name="dset_dongle_wait_summary">Temps pendant lequel la voiture attend Android Auto par le dongle avant de relier le téléphone en Bluetooth comme d’habitude. Seulement avec l’option au-dessus.</string>
 </resources>

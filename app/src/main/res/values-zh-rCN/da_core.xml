@@ -51,7 +51,9 @@
     <string name="dset_wait_bt_links">等待车辆蓝牙</string>
     <string name="dset_wait_bt_links_summary">启动 Android Auto 前，最多等待 5 秒，让车辆完成与手机的蓝牙连接，使自动播放的音乐从车内而不是手机扬声器播放。</string>
     <string name="dset_dongle_bt_guard">启动时优先连接 Android Auto 适配器</string>
-    <string name="dset_dongle_bt_guard_summary">实验功能，仅用于无线 Android Auto 适配器。启动时，车辆最多等待 3 分钟再通过蓝牙连接手机，让适配器先连接。没有适配器时请保持关闭。</string>
+    <string name="dset_dongle_bt_guard_summary">实验功能，仅用于无线 Android Auto 适配器。启动时，车辆先等待（下方设置的时间）再通过蓝牙连接手机，让适配器先连接。没有适配器时请保持关闭。</string>
+    <string name="dset_dongle_wait">适配器优先：等待时间</string>
+    <string name="dset_dongle_wait_summary">车辆在通过蓝牙照常连接手机前，等待适配器启动 Android Auto 的时间。仅配合上面的选项使用。</string>
     <string name="fullscreen_nav_only">仅隐藏左侧栏</string>
     <string name="ota_dialog_install_message">将下载并安装 MG4Link %1$s（%2$s）。没有 Wi-Fi 时会使用车辆的移动数据。随后 MG4Link 会重新启动，Android Auto 将中断几秒。</string>
     <string name="ota_dialog_no_stable_message">目前没有比 %1$s 更新的正式版。在设置中启用检查测试版更新后，即可收到测试版。</string>
