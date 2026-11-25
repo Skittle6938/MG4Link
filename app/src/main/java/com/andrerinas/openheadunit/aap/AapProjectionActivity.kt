@@ -74,7 +74,9 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
     private var overlayState = OverlayState.STARTING
     private val watchdogHandler = android.os.Handler(android.os.Looper.getMainLooper())
     /** Suppresses reconnect toast spam when the phone keeps retrying TCP. */
-    private var lastWifiDisconnectToastAtMs = 0L
+    /** Whether the session that just ended was wireless, for the hint on the reconnecting screen (#72). */
+    private var lastSessionWireless = false
+    private var showWifiHintOnReconnect = false
 
     /**
      * Ken Burns scale animation applied to a static image loading screen.
@@ -827,20 +829,9 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
                             dismissRendererConfirmBanner()
                             if (!state.isClean && !state.isUserExit) {
                                 AppLog.w("AapProjectionActivity: Disconnected unexpectedly.")
-                                val now = SystemClock.elapsedRealtime()
-                                if (now - lastWifiDisconnectToastAtMs >= WIFI_DISCONNECT_TOAST_COOLDOWN_MS) {
-                                    lastWifiDisconnectToastAtMs = now
-                                    ToastUtils.showToast(
-                                        this@AapProjectionActivity,
-                                        getString(R.string.wifi_disconnect_toast),
-                                        Toast.LENGTH_LONG,
-                                    )
-                                } else {
-                                    AppLog.i(
-                                        "AapProjectionActivity: wifi_disconnect_toast suppressed " +
-                                            "(cooldown ${WIFI_DISCONNECT_TOAST_COOLDOWN_MS}ms)",
-                                    )
-                                }
+                                // #72: the Wi-Fi hint is no toast any more; the reconnecting screen
+                                // shows it, and only after a wireless session.
+                                showWifiHintOnReconnect = lastSessionWireless
                             }
                             // Only finish immediately if the user explicitly exited, it was a clean close, or killOnDisconnect is enabled.
                             if (state.isUserExit || state.isClean || settings.killOnDisconnect) {
@@ -884,6 +875,8 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
                             }
                         }
                         is CommManager.ConnectionState.TransportStarted -> {
+                            lastSessionWireless = commManager.isWirelessSession
+                            showWifiHintOnReconnect = false
                             watchdogHandler.removeCallbacks(exitRunnable)
                         }
                         else -> {}
@@ -1090,7 +1083,11 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
         val button = findViewById<Button>(R.id.disconnect_button)
         overlay.visibility = View.VISIBLE
         title?.text = getString(R.string.connection_interrupted)
-        detail?.text = getString(R.string.connection_interrupted_detail)
+        detail?.text = if (showWifiHintOnReconnect) {
+            getString(R.string.connection_interrupted_detail) + "\n\n" + getString(R.string.wifi_disconnect_toast)
+        } else {
+            getString(R.string.connection_interrupted_detail)
+        }
         detail?.visibility = View.VISIBLE
         button?.visibility = View.VISIBLE
     }
@@ -2018,7 +2015,6 @@ open class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks,
         const val EXTRA_APPLY_FULLSCREEN = "apply_fullscreen"
         const val EXTRA_FOCUS = "focus"
         /** Align with AapService USER_EXIT_COOLDOWN_MS so reconnect spam stays quiet for one settle window. */
-        private const val WIFI_DISCONNECT_TOAST_COOLDOWN_MS = 15_000L
         private const val GESTURE_HINT_REPEATS = 3
         private const val GESTURE_HINT_TOAST_MS = 3_500L
         @Volatile var isForeground = false
