@@ -11,7 +11,7 @@ import kotlin.math.max
  * temperature. Google's servers then work out the energy of each stretch of the route themselves,
  * with the speed they expect there (traffic included) and the climb.
  *
- * Figures: A = mass in running order × g × 0.0099; under 20 °C, A is divided by the cold factor of
+ * Figures: A = mass in running order × g × 0.0102; under 20 °C, A is divided by the cold factor of
  * the automobile-propre simulator, max(0.55, 0.72 + 0.0187 · (T − 5)). C = ½ · 1.225 · Cd 0.287
  * (MG's figure) · 2.36 m² ≈ 0.415 at 20 °C for every MG4, the body being the same, scaled by the air
  * density at the outside temperature. With Cd 0.27 and no density, two cold motorway trips of a
@@ -23,13 +23,11 @@ import kotlin.math.max
  * 2.2.8: A and C raised 5 % (0.0097 to 0.0102, 0.424 to 0.445). Six trips by another MG4 since
  * 2.2.7-beta19 had Maps a little optimistic (forecast ÷ real 0.96 on average, 0.89 in rain and
  * wind); a slightly pessimistic forecast is better than an optimistic one (#14).
- * 2.2.8-beta6: brought back to +2 % (0.0099, 0.432): with the short-trip reserve fixed, the same
- * driver found +5 % too pessimistic; long trips vary too much with weather and driving to go further (#14).
  */
 object Mg4MapsEnergyModel {
 
     /** Air at 20 °C, N/(m/s)². */
-    const val C = 0.432f
+    const val C = 0.445f
 
     /** Air density relative to 20 °C (ideal gas): +7 % at 0 °C, −3 % at 30 °C; 1 when unknown. */
     fun airDensityFactor(tempC: Float?): Float =
@@ -41,7 +39,7 @@ object Mg4MapsEnergyModel {
     const val DRIVETRAIN = 0.88f
 
     /** Rolling resistance coefficient, also written in each recorded trip. */
-    const val ROLLING = 0.0099f
+    const val ROLLING = 0.0102f
     private const val G = 9.81f
 
     /** Electronics, 12 V and ventilation: what is left with the climate off. */
