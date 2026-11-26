@@ -58,6 +58,7 @@ class AapNavigationHelper(
         val turnNumber: Int?,
         val turnAngle: Int?,
         val nextManeuver: Int?,
+        val roundaboutDirection: Int,
         val totalDistanceMeters: Int?,
         val totalTimeSeconds: Long?,
         val estimatedArrival: String?
@@ -79,7 +80,8 @@ class AapNavigationHelper(
             turnAngle = prepared.turnAngle,
             totalDistanceMeters = prepared.totalDistanceMeters,
             totalTimeSeconds = prepared.totalTimeSeconds,
-            estimatedArrival = prepared.estimatedArrival
+            estimatedArrival = prepared.estimatedArrival,
+            roundaboutDirection = prepared.roundaboutDirection
         )
         context.applicationContext.sendBroadcast(intent,
             if (com.andrerinas.openheadunit.BuildConfig.DEBUG)
@@ -221,6 +223,12 @@ val actionText = state?.stepsList?.firstOrNull()?.maneuver?.type?.let { maneuver
             turnNumber = turnNumber,
             turnAngle = turnAngle,
             nextManeuver = nextManeuver,
+            roundaboutDirection = roundaboutDirection(
+                maneuverType,
+                detail?.takeIf { it.hasNextTurn() }?.nextTurn,
+                detail?.takeIf { it.hasSide() }?.side,
+                com.andrerinas.openheadunit.utils.Settings(context).rightHandDrive,
+            ),
             totalDistanceMeters = totalDistanceMeters,
             totalTimeSeconds = totalTimeSeconds,
             estimatedArrival = estimatedArrival
@@ -432,6 +440,40 @@ val actionText = state?.stepsList?.firstOrNull()?.maneuver?.type?.let { maneuver
     }
 
     companion object {
+        /**
+         * Which way the next roundabout turns, for the exit angle and number (#74): from the maneuver
+         * type of newer phones, else from the older turn event, whose side is the side of the traffic
+         * (left: clockwise), else the steering side of the car, as for the cluster.
+         */
+        fun roundaboutDirection(
+            type: NavigationStatus.NavigationManeuver.NavigationType?,
+            legacyEvent: NavigationStatus.NextTurnDetail.NextEvent?,
+            legacySide: NavigationStatus.NextTurnDetail.Side?,
+            rightHandDrive: Boolean,
+        ): Int = when (type) {
+            NavigationStatus.NavigationManeuver.NavigationType.ROUNDABOUT_ENTER_AND_EXIT_CW,
+            NavigationStatus.NavigationManeuver.NavigationType.ROUNDABOUT_ENTER_AND_EXIT_CW_WITH_ANGLE ->
+                NavigationUpdateIntent.ROUNDABOUT_CLOCKWISE
+            NavigationStatus.NavigationManeuver.NavigationType.ROUNDABOUT_ENTER_AND_EXIT_CCW,
+            NavigationStatus.NavigationManeuver.NavigationType.ROUNDABOUT_ENTER_AND_EXIT_CCW_WITH_ANGLE ->
+                NavigationUpdateIntent.ROUNDABOUT_COUNTER_CLOCKWISE
+            null -> when (legacyEvent) {
+                NavigationStatus.NextTurnDetail.NextEvent.ROUNDABOUT_ENTER,
+                NavigationStatus.NextTurnDetail.NextEvent.ROUNDABOUT_EXIT,
+                NavigationStatus.NextTurnDetail.NextEvent.ROUNDABOUT_ENTER_AND_EXIT -> {
+                    val clockwise = when (legacySide) {
+                        NavigationStatus.NextTurnDetail.Side.LEFT -> true
+                        NavigationStatus.NextTurnDetail.Side.RIGHT -> false
+                        else -> rightHandDrive
+                    }
+                    if (clockwise) NavigationUpdateIntent.ROUNDABOUT_CLOCKWISE
+                    else NavigationUpdateIntent.ROUNDABOUT_COUNTER_CLOCKWISE
+                }
+                else -> NavigationUpdateIntent.ROUNDABOUT_UNKNOWN
+            }
+            else -> NavigationUpdateIntent.ROUNDABOUT_UNKNOWN
+        }
+
         const val NAV_CHANNEL_ID = "headunit_navigation"
         private const val NAV_NOTIFICATION_ID = 2
 

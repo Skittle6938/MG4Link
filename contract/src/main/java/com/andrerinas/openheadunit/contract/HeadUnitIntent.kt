@@ -102,7 +102,8 @@ class NavigationUpdateIntent(
     turnAngle: Int? = null,
     totalDistanceMeters: Int? = null,
     totalTimeSeconds: Long? = null,
-    estimatedArrival: String? = null
+    estimatedArrival: String? = null,
+    roundaboutDirection: Int = ROUNDABOUT_UNKNOWN
 ) : Intent(action) {
     init {
         putExtra(EXTRA_DISTANCE_METERS, distanceMeters?.takeIf { it >= 0 } ?: -1)
@@ -116,6 +117,7 @@ class NavigationUpdateIntent(
         putExtra(EXTRA_TOTAL_DISTANCE_METERS, totalDistanceMeters?.takeIf { it >= 0 } ?: -1)
         putExtra(EXTRA_TOTAL_TIME_SECONDS, totalTimeSeconds?.takeIf { it >= 0 } ?: -1L)
         putExtra(EXTRA_ESTIMATED_ARRIVAL, estimatedArrival?.ifBlank { null } ?: "")
+        putExtra(EXTRA_ROUNDABOUT_DIRECTION, roundaboutDirection)
     }
 
     companion object {
@@ -151,8 +153,23 @@ class NavigationUpdateIntent(
         /** Roundabout exit/turn number if provided, otherwise -1. */
         const val EXTRA_TURN_NUMBER = "turn_number"
 
-        /** Turn angle in degrees if provided, otherwise -1. */
+        /**
+         * Roundabout exit angle in degrees if provided, otherwise -1: the distance travelled around
+         * the roundabout from its entry, in the direction of traffic (360 = back to the entry). So
+         * 90 is the exit on the right in a counter-clockwise roundabout and on the left in a
+         * clockwise one: read it with [EXTRA_ROUNDABOUT_DIRECTION]. The exit number counts the same way.
+         */
         const val EXTRA_TURN_ANGLE = "turn_angle"
+
+        /**
+         * Which way the next roundabout turns: [ROUNDABOUT_CLOCKWISE] (traffic on the left, e.g. UK),
+         * [ROUNDABOUT_COUNTER_CLOCKWISE] (traffic on the right), or [ROUNDABOUT_UNKNOWN] (not a
+         * roundabout, or not known). Draw the exit of a clockwise roundabout mirrored (#74).
+         */
+        const val EXTRA_ROUNDABOUT_DIRECTION = "roundabout_direction"
+        const val ROUNDABOUT_UNKNOWN = 0
+        const val ROUNDABOUT_CLOCKWISE = 1
+        const val ROUNDABOUT_COUNTER_CLOCKWISE = 2
 
         /**
          * Remaining distance to destination along the route (meters), from instrument-cluster
