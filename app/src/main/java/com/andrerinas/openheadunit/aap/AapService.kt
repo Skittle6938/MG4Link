@@ -1534,7 +1534,7 @@ class AapService : Service(), UsbReceiver.Listener {
                 val speed = runCatching { com.evsuite.hardware.EVHardware.getVehicleSpeedKmh() }.getOrNull()
                 val gear = runCatching { com.evsuite.hardware.EVHardware.getGearRaw() }.getOrNull()
                 val plan = VehicleSensors.plan(speed, lastSpeed, gear, lastGear)
-                VehicleSensors.batch(speed, gear, plan.speed, plan.gear, com.evsuite.hardware.EVHardware.gearIsPrnd())?.let {
+                VehicleSensors.batch(speed, gear, plan.speed, plan.gear)?.let {
                     commManager.send(VehicleSensors.message(it))
                 }
                 if (plan.speed) lastSpeed = speed

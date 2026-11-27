@@ -2270,13 +2270,8 @@ object EVHardware {
     }
 
     /**
-     * The car's gear as its firmware reports it (P = 1 everywhere; the other values are not mapped
-     * yet), or null when unreadable. Gear changes are logged, which is how the others get mapped.
+     * The car's gear as its firmware reports it (1 P, 2 R, 3 N, 4 D on every SWI firmware), or null when unreadable. Gear changes are logged, which is how the others get mapped.
      */
-    /** True when [getGearRaw] reads the A9 gear state, where 1..4 are P, R, N, D (measured on SWI69). */
-    fun gearIsPrnd(): Boolean =
-        FirmwareInfo.isNewGenVsm() || FirmwareInfo.getGeneration() == FirmwareInfo.Gen.SWI132
-
     fun getGearRaw(): Int? {
         val gen = FirmwareInfo.getGeneration()
         val gear = when {
