@@ -64,6 +64,6 @@
     <string name="trip_go">开始</string>
     <string name="dset_keep_car_wifi">保留车辆 Wi-Fi(实验性)</string>
     <string name="dset_keep_car_wifi_summary">实验性功能。在无线 Android Auto 期间,若网络允许,保持车辆 Wi-Fi 联网。</string>
-    <string name="dset_keep_car_wifi_explain">如果车辆连接在信道 36 至 48 的 5 GHz Wi-Fi 网络上(例如家用路由器),将保持连接用于上网,无线 Android Auto 的热点在同一信道上开启。车辆唯一的 Wi-Fi 射频因此无需切换信道,而切换信道正是造成短暂卡顿的原因。\n\n如果在行驶途中打开车辆 Wi-Fi,它有 30 秒时间连接已知网络。搜索期间 Android Auto 可能中断几秒;如果热点需要切换到该网络的信道,则中断约 15 秒。\n\n在其他信道、2.4 GHz 上,或车辆在行驶中失去该网络时,车辆 Wi-Fi 会照常关闭。两者共用信道时,Android Auto 的带宽可能略少。\n\n如果发现上述以外的其他不稳定情况(连接期间),请在 GitHub 上附带日志报告。</string>
+    <string name="dset_keep_car_wifi_explain">如果车辆连接在信道 36 至 48 的 5 GHz Wi-Fi 网络上(例如家用路由器),将保持连接用于上网,无线 Android Auto 的热点在同一信道上开启。车辆唯一的 Wi-Fi 射频因此无需切换信道,而切换信道正是造成短暂卡顿的原因。 MG4Link 会记住该信道,下次热点直接在该信道上开启。\n\n如果在行驶途中打开车辆 Wi-Fi,它有 30 秒时间连接已知网络。搜索期间 Android Auto 可能中断几秒;如果热点需要切换到该网络的信道,则中断约 15 秒。\n\n在其他信道、2.4 GHz 上,或车辆在行驶中失去该网络时,车辆 Wi-Fi 会照常关闭。两者共用信道时,Android Auto 的带宽可能略少。\n\n如果发现上述以外的其他不稳定情况(连接期间),请在 GitHub 上附带日志报告。</string>
     <string name="dset_keep_car_wifi_enable">启用</string>
 </resources>
