@@ -186,6 +186,8 @@ object HotspotManager {
     @Volatile private var sharedPrevious = SharedRadioPolicy.Client.OFF
     @Volatile private var sharedSearchingSince = 0L
     @Volatile private var sharedRestarted = false
+    /** The client was moved once this session to a saved network the hotspot can share. */
+    @Volatile private var sharedSwitchedNetwork = false
     /** The car's Wi-Fi was switched on during this session (by the driver), not kept from the start. */
     @Volatile private var sharedSwitchedOn = false
 
@@ -198,6 +200,7 @@ object HotspotManager {
         sharedSearchingSince = if (sharedPrevious == SharedRadioPolicy.Client.SEARCHING) System.currentTimeMillis() else 0L
         if (sharedPrevious == SharedRadioPolicy.Client.OFF) sharedRestarted = false
         sharedSwitchedOn = sharedRestarted
+        sharedSwitchedNetwork = false
     }
 
     private fun clientState(context: Context): SharedRadioPolicy.Client {
@@ -233,6 +236,15 @@ object HotspotManager {
         )
         val previous = sharedPrevious
         sharedPrevious = now
+        // Joined a network the hotspot cannot share (2.4 GHz, channel 149...): first move to a
+        // saved one in range on 36 to 48, once, and give it the search time to connect.
+        if (step == SharedRadioPolicy.Step.CLIENT_OFF && now == SharedRadioPolicy.Client.CONNECTED &&
+            clientChannel == null && !sharedSwitchedNetwork && switchToShareableNetwork(wifi, info)) {
+            sharedSwitchedNetwork = true
+            sharedPrevious = SharedRadioPolicy.Client.SEARCHING
+            sharedSearchingSince = nowMs
+            return
+        }
         when (step) {
             SharedRadioPolicy.Step.CLIENT_OFF -> {
                 AppLog.i("HotspotManager: car Wi-Fi $previous -> $now (channel ${clientChannel ?: "not 36-48"}) - switching it off for the session")
@@ -253,6 +265,23 @@ object HotspotManager {
             }
             SharedRadioPolicy.Step.WAIT, SharedRadioPolicy.Step.NOTHING -> Unit
         }
+    }
+
+    /** Asks the client to join a saved network on channels 36 to 48 in range; true if one was asked. */
+    private fun switchToShareableNetwork(wifi: WifiManager, info: android.net.wifi.WifiInfo?): Boolean {
+        val target = try {
+            @Suppress("DEPRECATION")
+            val saved = wifi.configuredNetworks.orEmpty().mapNotNull { c -> c.SSID?.let { SharedRadioPolicy.Saved(it, c.networkId) } }
+            val seen = wifi.scanResults.orEmpty().map { SharedRadioPolicy.Seen(it.SSID ?: "", it.frequency, it.level) }
+            SharedRadioPolicy.shareableNetwork(saved, seen, info?.networkId ?: -1)
+        } catch (e: Exception) {
+            AppLog.w("HotspotManager: could not look for a shareable network: ${e.message}")
+            null
+        } ?: return false
+        @Suppress("DEPRECATION")
+        val ok = try { wifi.enableNetwork(target, true) } catch (e: Exception) { false }
+        AppLog.i("HotspotManager: car Wi-Fi joined a network the hotspot cannot share (${info?.frequency} MHz) - moving it to a saved network on channels 36 to 48 (ok=$ok)")
+        return ok
     }
 
     /**

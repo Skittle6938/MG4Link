@@ -39,6 +39,12 @@ object UsbWifiClient {
                 try { Thread.sleep(200) } catch (e: InterruptedException) { return@Thread }
             }
             if (generation.get() != mine) return@Thread
+            // Someone else switched it on meanwhile (the hotspot handing the radio back): not ours
+            // to switch off when the session ends.
+            if (wifi.isWifiEnabled || wifi.wifiState == WifiManager.WIFI_STATE_ENABLING) {
+                AppLog.i("$TAG: USB session, the car's Wi-Fi client came back on by itself")
+                return@Thread
+            }
             if (!OneRadioPolicy.mayStartClient(accessPointUp = HotspotManager.isApUp(context))) {
                 AppLog.w("$TAG: the hotspot is still up after ${AP_DOWN_WAIT_MS} ms - leaving the car Wi-Fi client off")
                 return@Thread

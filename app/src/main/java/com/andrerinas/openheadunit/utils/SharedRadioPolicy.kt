@@ -29,6 +29,24 @@ object SharedRadioPolicy {
         return channel.takeIf { frequencyMhz in 5170..5250 && it in WifiChannelPicker.CHANNELS }
     }
 
+    /** A saved network of the car: its quoted SSID as WifiConfiguration holds it, and its id. */
+    data class Saved(val quotedSsid: String, val networkId: Int)
+
+    /** A network the last scan saw. */
+    data class Seen(val ssid: String, val frequencyMhz: Int, val level: Int)
+
+    /**
+     * A saved network in range that the hotspot can share (channels 36 to 48), strongest first,
+     * other than [currentNetworkId]: a box often has one name for 2.4 GHz and another for 5 GHz,
+     * and the car may join the 2.4 GHz one by itself. Null when there is none.
+     */
+    fun shareableNetwork(saved: List<Saved>, seen: List<Seen>, currentNetworkId: Int): Int? = seen
+        .filter { channelOf(it.frequencyMhz) != null }
+        .sortedByDescending { it.level }
+        .firstNotNullOfOrNull { scan ->
+            saved.firstOrNull { it.quotedSsid == "\"" + scan.ssid + "\"" && it.networkId != currentNetworkId }
+        }?.networkId
+
     enum class Client { OFF, SEARCHING, CONNECTED }
 
     enum class Step { NOTHING, WAIT, KEEP, RESTART_ACCESS_POINT, CLIENT_OFF }

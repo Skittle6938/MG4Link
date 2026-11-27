@@ -57,4 +57,17 @@ class SharedRadioPolicyTest {
         assertEquals(Step.NOTHING, step(Client.OFF, Client.SEARCHING, apUp = false))
         assertEquals(Step.NOTHING, step(Client.CONNECTED, Client.OFF))
     }
+
+    @Test fun `a box with a 2 point 4 GHz and a 5 GHz name, the 5 GHz one on 36 to 48 is chosen`() {
+        val saved = listOf(SharedRadioPolicy.Saved("\"box\"", 1), SharedRadioPolicy.Saved("\"box-5G\"", 2), SharedRadioPolicy.Saved("\"phone\"", 3))
+        val seen = listOf(
+            SharedRadioPolicy.Seen("box", 2437, -40),
+            SharedRadioPolicy.Seen("phone", 5745, -30), // channel 149, cannot be shared
+            SharedRadioPolicy.Seen("box-5G", 5180, -60),
+            SharedRadioPolicy.Seen("neighbour", 5200, -50), // not saved
+        )
+        assertEquals(2, SharedRadioPolicy.shareableNetwork(saved, seen, currentNetworkId = 1))
+        assertNull(SharedRadioPolicy.shareableNetwork(saved, seen, currentNetworkId = 2))
+        assertNull(SharedRadioPolicy.shareableNetwork(saved, seen.filter { it.ssid != "box-5G" }, currentNetworkId = 1))
+    }
 }
