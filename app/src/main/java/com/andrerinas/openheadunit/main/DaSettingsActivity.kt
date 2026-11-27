@@ -171,8 +171,14 @@ class DaSettingsActivity : BaseActivity() {
                 settings.dongleBluetoothGuard = it
                 com.andrerinas.openheadunit.utils.DongleBluetoothGuard.onSettingChanged(this, it)
             })
-        row(R.string.dset_keep_car_wifi, R.string.dset_keep_car_wifi_summary,
-            yesNo(settings.keepCarWifi) { settings.keepCarWifi = it })
+        // Experimental: turning it on first explains what it does in each case and what it costs.
+        row(R.string.dset_keep_car_wifi, R.string.dset_keep_car_wifi_summary, yesNo(settings.keepCarWifi) { on ->
+            if (!on) {
+                settings.keepCarWifi = false
+                return@yesNo
+            }
+            keepCarWifiDialog().setOnDismissListener { showTab(selectedTab) }
+        })
         val dongleWaits = listOf(60, 120, 180, 300)
         row(R.string.dset_dongle_wait, R.string.dset_dongle_wait_summary,
             choices(listOf("1 min", "2 min", "3 min", "5 min"),
@@ -870,6 +876,16 @@ class DaSettingsActivity : BaseActivity() {
         }
         list.addView(v)
     }
+
+    /** The warning shown before the experimental option to keep the car's Wi-Fi is turned on. */
+    internal fun keepCarWifiDialog(): androidx.appcompat.app.AlertDialog =
+        MaterialAlertDialogBuilder(this, R.style.DarkAlertDialog)
+            .setTitle(R.string.dset_keep_car_wifi)
+            .setMessage(R.string.dset_keep_car_wifi_explain)
+            .setPositiveButton(R.string.dset_keep_car_wifi_enable) { _, _ -> settings.keepCarWifi = true }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+            .apply { findViewById<android.widget.TextView>(android.R.id.message)?.textSize = 24f }
 
     private fun yesNo(on: Boolean, onChange: (Boolean) -> Unit): View =
         choices(listOf(getString(R.string.dset_no), getString(R.string.dset_yes)), if (on) 1 else 0) { onChange(it == 1) }
