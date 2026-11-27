@@ -242,6 +242,7 @@ object HotspotManager {
                 restart(context)
             }
             SharedRadioPolicy.Step.KEEP -> if (previous != SharedRadioPolicy.Client.CONNECTED) {
+                clientChannel?.let { WifiChannelPicker.rememberShared(context, it) }
                 AppLog.i("HotspotManager: car Wi-Fi joined a network on the hotspot's channel $clientChannel - keeping both")
             }
             SharedRadioPolicy.Step.WAIT, SharedRadioPolicy.Step.NOTHING -> Unit

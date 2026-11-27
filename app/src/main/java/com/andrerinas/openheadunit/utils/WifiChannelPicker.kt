@@ -23,16 +23,40 @@ object WifiChannelPicker {
 
     /** The channel to write into the access point configuration on its next start. */
     fun channelForNextStart(context: Context): Int {
-        HotspotManager.sharedChannel(context)?.let { return it }
         val settings = Settings(context)
-        val fixed = settings.wifiChannel
-        if (fixed != 0) return fixed
+        val shared = HotspotManager.sharedChannel(context)
+        if (shared != null) rememberShared(settings, shared)
+        val sharedFirst = choose(shared, settings.wifiChannel, settings.keepCarWifi, settings.wifiSharedChannel)
+        if (sharedFirst != null) return sharedFirst
         val picked = leastBusy(context)
         if (picked != null && picked != settings.wifiAutoChannel) {
             AppLog.i("WifiChannelPicker: auto channel ${settings.wifiAutoChannel} -> $picked")
             settings.wifiAutoChannel = picked
         }
         return settings.wifiAutoChannel
+    }
+
+    /**
+     * The channel decided before any scan, or null for the least busy one: the channel shared with
+     * the car's Wi-Fi now, else a channel set by hand, else, with the "keep the car's Wi-Fi"
+     * option, the last one shared with it, so the hotspot is already there when the car's Wi-Fi
+     * joins that network again and need not be restarted.
+     */
+    fun choose(shared: Int?, fixed: Int, keepCarWifi: Boolean, lastShared: Int): Int? = when {
+        shared != null -> shared
+        fixed != 0 -> fixed
+        keepCarWifi && lastShared in CHANNELS -> lastShared
+        else -> null
+    }
+
+    /** Remembers the channel the hotspot shared with the car's Wi-Fi, for [choose]. */
+    fun rememberShared(context: Context, channel: Int) = rememberShared(Settings(context), channel)
+
+    private fun rememberShared(settings: Settings, channel: Int) {
+        if (channel in CHANNELS && channel != settings.wifiSharedChannel) {
+            AppLog.i("WifiChannelPicker: channel shared with the car Wi-Fi ${settings.wifiSharedChannel} -> $channel")
+            settings.wifiSharedChannel = channel
+        }
     }
 
     /** The channel the access point was last configured with (0 in the configuration means 36). */
