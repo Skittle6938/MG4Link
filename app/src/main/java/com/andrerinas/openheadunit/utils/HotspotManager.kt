@@ -186,6 +186,8 @@ object HotspotManager {
     @Volatile private var sharedPrevious = SharedRadioPolicy.Client.OFF
     @Volatile private var sharedSearchingSince = 0L
     @Volatile private var sharedRestarted = false
+    /** The car's Wi-Fi was switched on during this session (by the driver), not kept from the start. */
+    @Volatile private var sharedSwitchedOn = false
 
     /**
      * A new wireless session: the client is watched afresh ([checkSharedClient]). The one restart
@@ -195,6 +197,7 @@ object HotspotManager {
         sharedPrevious = clientState(context)
         sharedSearchingSince = if (sharedPrevious == SharedRadioPolicy.Client.SEARCHING) System.currentTimeMillis() else 0L
         if (sharedPrevious == SharedRadioPolicy.Client.OFF) sharedRestarted = false
+        sharedSwitchedOn = sharedRestarted
     }
 
     private fun clientState(context: Context): SharedRadioPolicy.Client {
@@ -215,6 +218,7 @@ object HotspotManager {
         val nowMs = System.currentTimeMillis()
         if (now == SharedRadioPolicy.Client.SEARCHING && sharedPrevious != SharedRadioPolicy.Client.SEARCHING) {
             sharedSearchingSince = nowMs
+            if (sharedPrevious == SharedRadioPolicy.Client.OFF) sharedSwitchedOn = true
         }
         val clientChannel = SharedRadioPolicy.channelOf(info?.frequency ?: -1)
         val step = SharedRadioPolicy.duringSession(
@@ -235,14 +239,16 @@ object HotspotManager {
                 pauseStation(context)
                 sharedPrevious = SharedRadioPolicy.Client.OFF
                 sharedRestarted = false
+                sharedSwitchedOn = false
             }
             SharedRadioPolicy.Step.RESTART_ACCESS_POINT -> {
                 AppLog.i("HotspotManager: car Wi-Fi joined a network on channel $clientChannel - restarting the hotspot on it (Android Auto reconnects)")
                 sharedRestarted = true
+                if (sharedSwitchedOn) clientChannel?.let { WifiChannelPicker.rememberShared(context, it) }
                 restart(context)
             }
             SharedRadioPolicy.Step.KEEP -> if (previous != SharedRadioPolicy.Client.CONNECTED) {
-                clientChannel?.let { WifiChannelPicker.rememberShared(context, it) }
+                if (sharedSwitchedOn) clientChannel?.let { WifiChannelPicker.rememberShared(context, it) }
                 AppLog.i("HotspotManager: car Wi-Fi joined a network on the hotspot's channel $clientChannel - keeping both")
             }
             SharedRadioPolicy.Step.WAIT, SharedRadioPolicy.Step.NOTHING -> Unit

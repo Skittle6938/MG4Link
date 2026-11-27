@@ -25,7 +25,6 @@ object WifiChannelPicker {
     fun channelForNextStart(context: Context): Int {
         val settings = Settings(context)
         val shared = HotspotManager.sharedChannel(context)
-        if (shared != null) rememberShared(settings, shared)
         val sharedFirst = choose(shared, settings.wifiChannel, settings.keepCarWifi, settings.wifiSharedChannel)
         if (sharedFirst != null) return sharedFirst
         val picked = leastBusy(context)
@@ -38,8 +37,9 @@ object WifiChannelPicker {
 
     /**
      * The channel decided before any scan, or null for the least busy one: the channel shared with
-     * the car's Wi-Fi now, else a channel set by hand, else, with the "keep the car's Wi-Fi"
-     * option, the last one shared with it, so the hotspot is already there when the car's Wi-Fi
+     * the car's Wi-Fi now (at home, say), else a channel set by hand, else, with the "keep the
+     * car's Wi-Fi" option, the channel of the network the driver last joined by switching the car's
+     * Wi-Fi on during a session (a phone's hotspot, say), so the hotspot is already there when it
      * joins that network again and need not be restarted.
      */
     fun choose(shared: Int?, fixed: Int, keepCarWifi: Boolean, lastShared: Int): Int? = when {
@@ -49,12 +49,11 @@ object WifiChannelPicker {
         else -> null
     }
 
-    /** Remembers the channel the hotspot shared with the car's Wi-Fi, for [choose]. */
-    fun rememberShared(context: Context, channel: Int) = rememberShared(Settings(context), channel)
-
-    private fun rememberShared(settings: Settings, channel: Int) {
+    /** Remembers the channel of a network joined during a session, for [choose]. */
+    fun rememberShared(context: Context, channel: Int) {
+        val settings = Settings(context)
         if (channel in CHANNELS && channel != settings.wifiSharedChannel) {
-            AppLog.i("WifiChannelPicker: channel shared with the car Wi-Fi ${settings.wifiSharedChannel} -> $channel")
+            AppLog.i("WifiChannelPicker: channel of the network joined during a session ${settings.wifiSharedChannel} -> $channel")
             settings.wifiSharedChannel = channel
         }
     }

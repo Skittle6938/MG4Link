@@ -341,7 +341,7 @@ class Settings(private val context: Context) {
         set(value) { prefs.edit().putInt("wifi-channel", if (value in WifiChannelPicker.CHANNELS) value else 0).apply() }
 
     /** The channel automatic mode chose last. */
-    /** Last channel the hotspot shared with the car's Wi-Fi ("keep the car's Wi-Fi"), 0 if none. */
+    /** Channel of the network last joined by switching the car's Wi-Fi on during a session, 0 if none. */
     var wifiSharedChannel: Int
         get() = prefs.getInt("wifi-shared-channel", 0)
         set(value) { prefs.edit().putInt("wifi-shared-channel", value).apply() }
