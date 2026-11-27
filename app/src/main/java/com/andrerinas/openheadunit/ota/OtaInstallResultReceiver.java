@@ -3,6 +3,9 @@ package com.andrerinas.openheadunit.ota;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.content.pm.PackageInstaller;
 import android.util.Log;
 import android.widget.Toast;
@@ -10,12 +13,24 @@ import android.widget.Toast;
 import com.andrerinas.openheadunit.R;
 
 /**
- * PackageInstaller session sonucu.
+ * The result of a PackageInstaller session.
  */
 public final class OtaInstallResultReceiver extends BroadcastReceiver {
 
     public static final String ACTION_INSTALL_RESULT = "com.andrerinas.openheadunit.OTA_INSTALL_RESULT";
     private static final String TAG = "DiAuto_OTA";
+
+    /**
+     * The confirmation screen comes from the system installer; only a system app's activity is
+     * opened, so an intent slipped into the extra cannot start another app's screen.
+     */
+    static boolean opensSystemInstaller(Context context, Intent confirm) {
+        ResolveInfo info = context.getPackageManager().resolveActivity(confirm, PackageManager.MATCH_DEFAULT_ONLY);
+        boolean system = info != null && info.activityInfo != null
+                && (info.activityInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
+        if (!system) Log.w(TAG, "confirm UI refused: not the system installer");
+        return system;
+    }
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -27,7 +42,7 @@ public final class OtaInstallResultReceiver extends BroadcastReceiver {
         switch (status) {
             case PackageInstaller.STATUS_PENDING_USER_ACTION:
                 Intent confirm = intent.getParcelableExtra(Intent.EXTRA_INTENT);
-                if (confirm != null) {
+                if (confirm != null && opensSystemInstaller(context, confirm)) {
                     confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     try {
                         context.startActivity(confirm);
