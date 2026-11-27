@@ -268,6 +268,8 @@ object HotspotManager {
     }
 
     /** Asks the client to join a saved network on channels 36 to 48 in range; true if one was asked. */
+    // System app: it holds the Wi-Fi and location permissions, and a refusal is caught below.
+    @android.annotation.SuppressLint("MissingPermission")
     private fun switchToShareableNetwork(wifi: WifiManager, info: android.net.wifi.WifiInfo?): Boolean {
         val target = try {
             @Suppress("DEPRECATION")
