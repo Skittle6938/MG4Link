@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_cluster_media">仪表盘显示歌曲（实验性）</string>
+    <string name="dset_cluster_media_summary">实验性功能。在仪表盘的媒体页面显示 Android Auto 正在播放的封面、标题和艺术家。适用于仪表盘带媒体页面的车辆（#76）。</string>
+</resources>

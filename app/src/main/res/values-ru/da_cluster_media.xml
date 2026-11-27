@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_cluster_media">Трек на приборной панели (экспериментально)</string>
+    <string name="dset_cluster_media_summary">Экспериментально. Показывает обложку, название и исполнителя трека из Android Auto на странице медиа приборной панели. Для автомобилей, у панели которых есть страница медиа (#76).</string>
+</resources>

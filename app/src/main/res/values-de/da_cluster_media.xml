@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_cluster_media">Titel im Kombiinstrument (experimentell)</string>
+    <string name="dset_cluster_media_summary">Experimentell. Zeigt Cover, Titel und Interpret der Android-Auto-Wiedergabe auf der Medienseite des Kombiinstruments. Für Fahrzeuge, deren Kombiinstrument eine Medienseite hat (#76).</string>
+</resources>

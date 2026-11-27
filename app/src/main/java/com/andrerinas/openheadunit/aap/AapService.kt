@@ -151,6 +151,10 @@ class AapService : Service(), UsbReceiver.Listener {
     val wirelessPort: Int
         get() = com.andrerinas.openheadunit.connection.CarNetworkQuirks.autoWirelessPort()
     private val mediaNotification by lazy { BackgroundNotification(this) }
+    /** The playing track in the instrument cluster, when the experimental setting is on (#76). */
+    private val clusterMedia by lazy {
+        com.andrerinas.openheadunit.hud.ClusterMediaOverlay(this) { App.provide(this).settings.clusterMedia }
+    }
 
     private val settingsPreferenceListener =
         SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
@@ -405,6 +409,9 @@ class AapService : Service(), UsbReceiver.Listener {
     private fun onAaMediaMetadataFromPhone(meta: MediaPlayback.MediaMetaData) {
         if (isDestroying) return
         lastAaMediaMetadata = meta
+        clusterMedia.onMetadata(meta.song, meta.artist,
+            if (meta.hasAlbumArt() && !meta.albumArt.isEmpty) meta.albumArt.toByteArray() else null,
+            if (meta.hasDurationSeconds()) meta.durationSeconds.toLong() and 0xFFFFFFFFL else 0L)
         if (!App.provide(this).settings.syncMediaSessionWithAaMetadata) return
         // Avoid showing a previous track's art with new title/artist until decode finishes.
         cachedAaAlbumArtBitmap = null
@@ -442,6 +449,8 @@ class AapService : Service(), UsbReceiver.Listener {
         }
         val isPlayingFromStatus = resolveIsPlayingFromStatus(status)
         lastAaPlaybackIsPlaying = isPlayingFromStatus
+        clusterMedia.onStatus(isPlayingFromStatus,
+            if (status.hasPlaybackSeconds()) status.playbackSeconds.protoUint32ToLong() else null)
         if (isPlayingFromStatus == true) scheduleMusicAudioRecovery()
         mediaSessionIsPlaying = isPlayingFromStatus
 
@@ -1031,6 +1040,7 @@ class AapService : Service(), UsbReceiver.Listener {
                     is CommManager.ConnectionState.Disconnected -> {
                         SessionState.publish(this@AapService, false, false)
                         vehicleSensorsJob?.cancel()
+                        clusterMedia.clear()
                         com.andrerinas.openheadunit.connection.UsbWifiClient.onSessionEnded(this@AapService)
                         if (hasEverConnected || connectedSinceLastDisconnect) {
                             connectedSinceLastDisconnect = false
@@ -2028,6 +2038,7 @@ class AapService : Service(), UsbReceiver.Listener {
         com.andrerinas.openheadunit.vehicle.AbrpUploader.stop()
         AppLog.i("AapService destroying... (wakeLock held=${bootWakeLock?.isHeld == true})")
         isDestroying = true
+        clusterMedia.close()
         mediaMetadataDecodeJob?.cancel()
         cachedAaAlbumArtBitmap = null
         mediaNotification.cancel()

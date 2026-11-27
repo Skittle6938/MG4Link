@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_cluster_media">Morceau dans le combiné (expérimental)</string>
+    <string name="dset_cluster_media_summary">Expérimental. Affiche la pochette, le titre et l\'artiste joués par Android Auto sur la page Média du combiné d\'instruments. Pour les voitures dont le combiné a une page Média (#76).</string>
+</resources>

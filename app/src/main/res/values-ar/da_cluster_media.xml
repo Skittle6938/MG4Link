@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_cluster_media">المقطع في لوحة العدادات (تجريبي)</string>
+    <string name="dset_cluster_media_summary">تجريبي. يعرض الغلاف والعنوان والفنان لما يُشغَّل عبر Android Auto في صفحة الوسائط بلوحة العدادات. للسيارات التي تحتوي لوحة عداداتها على صفحة وسائط (#76).</string>
+</resources>

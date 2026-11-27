@@ -258,6 +258,9 @@ class DaSettingsActivity : BaseActivity() {
                 settings.fpsLimit = if (it == 1) 60 else 30
                 appliesOnReconnect()
             })
+        row(R.string.dset_cluster_media, R.string.dset_cluster_media_summary, yesNo(settings.clusterMedia) {
+            settings.clusterMedia = it
+        })
         if (settings.testMode) {
             row(R.string.dset_cluster_probe, R.string.dset_cluster_probe_summary, yesNo(settings.clusterSinkProbe) {
                 settings.clusterSinkProbe = it

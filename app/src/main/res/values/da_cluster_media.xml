@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_cluster_media">Track in the instrument cluster (experimental)</string>
+    <string name="dset_cluster_media_summary">Experimental. Shows the cover, title and artist playing over Android Auto on the instrument cluster\'s media page. For cars whose cluster has a media page (#76).</string>
+</resources>

@@ -301,6 +301,11 @@ class Settings(private val context: Context) {
         get() = prefs.getBoolean("dongle-bt-guard", false)
         set(value) { prefs.edit().putBoolean("dongle-bt-guard", value).apply() }
 
+    /** Experimental: the track playing over Android Auto in the instrument cluster's media page (#76). */
+    var clusterMedia: Boolean
+        get() = prefs.getBoolean("cluster-media", false)
+        set(value) { prefs.edit().putBoolean("cluster-media", value).apply() }
+
     /** Experimental: keep the car's Wi-Fi client on, the hotspot on its channel (SharedRadioPolicy). */
     var keepCarWifi: Boolean
         get() = prefs.getBoolean("keep-car-wifi", false)

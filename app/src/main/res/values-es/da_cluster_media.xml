@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_cluster_media">Canción en el cuadro de instrumentos (experimental)</string>
+    <string name="dset_cluster_media_summary">Experimental. Muestra la portada, el título y el artista que suenan por Android Auto en la página de medios del cuadro de instrumentos. Para coches cuyo cuadro tiene página de medios (#76).</string>
+</resources>
