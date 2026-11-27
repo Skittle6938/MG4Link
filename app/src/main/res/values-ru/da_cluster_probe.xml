@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_cluster_probe">Проверка потока на приборную панель</string>
+    <string name="dset_cluster_probe_summary">Предлагает Android Auto второй небольшой экран на приборной панели и записывает в журнал, использует ли его телефон. Ничего не показывается. Для задачи #77.</string>
+</resources>

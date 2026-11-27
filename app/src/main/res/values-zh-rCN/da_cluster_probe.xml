@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_cluster_probe">仪表盘视频流探测</string>
+    <string name="dset_cluster_probe_summary">向 Android Auto 提供仪表盘中的第二块小屏幕，并在日志中记录手机是否使用它。不显示任何内容。用于问题 #77。</string>
+</resources>

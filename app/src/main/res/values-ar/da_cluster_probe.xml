@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_cluster_probe">اختبار بث لوحة العدادات</string>
+    <string name="dset_cluster_probe_summary">يعرض على Android Auto شاشة ثانية صغيرة في لوحة العدادات ويسجل ما إذا كان الهاتف يستخدمها. لا يُعرض شيء. للمشكلة #77.</string>
+</resources>

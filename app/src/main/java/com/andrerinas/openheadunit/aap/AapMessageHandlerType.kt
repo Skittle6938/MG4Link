@@ -29,6 +29,10 @@ internal class AapMessageHandlerType(
         // See AapTransport.lastMessageReceivedMs for why that distinction matters.
         transport.noteMessageReceived()
 
+        // Test-mode cluster sink (#77): its own channel, never the main video path.
+        if (message.channel == ClusterSinkProbe.CHANNEL &&
+            ClusterSinkProbe.handle(message, transport, android.os.SystemClock.elapsedRealtime())) return
+
         val msgType = message.type
         val flags = message.flags
 

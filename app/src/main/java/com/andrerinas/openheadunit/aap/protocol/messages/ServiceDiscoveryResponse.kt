@@ -171,6 +171,8 @@ class ServiceDiscoveryResponse private constructor(proto: Control.ServiceDiscove
             }.build()
 
             services.add(video)
+            com.andrerinas.openheadunit.aap.ClusterSinkProbe.declare(
+                services, settings.clusterSinkProbe, android.os.SystemClock.elapsedRealtime())
 
             val input = Control.Service.newBuilder().also { service ->
                 service.id = Channel.ID_INP

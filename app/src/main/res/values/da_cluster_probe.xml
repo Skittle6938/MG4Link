@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_cluster_probe">Cluster stream probe</string>
+    <string name="dset_cluster_probe_summary">Offers Android Auto a second, small screen in the instrument cluster and logs whether the phone uses it. Nothing is shown. For issue #77.</string>
+</resources>
