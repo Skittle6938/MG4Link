@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_cluster_probe">Kombiinstrument-Stream testen</string>
+    <string name="dset_cluster_probe_summary">Bietet Android Auto einen zweiten, kleinen Bildschirm im Kombiinstrument an und protokolliert, ob das Telefon ihn nutzt. Es wird nichts angezeigt. Für Issue #77.</string>
+</resources>

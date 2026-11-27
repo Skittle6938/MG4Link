@@ -258,6 +258,12 @@ class DaSettingsActivity : BaseActivity() {
                 settings.fpsLimit = if (it == 1) 60 else 30
                 appliesOnReconnect()
             })
+        if (settings.testMode) {
+            row(R.string.dset_cluster_probe, R.string.dset_cluster_probe_summary, yesNo(settings.clusterSinkProbe) {
+                settings.clusterSinkProbe = it
+                appliesOnReconnect()
+            })
+        }
     }
 
     private fun soundTab() {

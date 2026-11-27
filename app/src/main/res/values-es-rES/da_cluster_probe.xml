@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dset_cluster_probe">Prueba de vídeo en el cuadro</string>
+    <string name="dset_cluster_probe_summary">Ofrece a Android Auto una segunda pantalla pequeña en el cuadro de instrumentos y registra si el teléfono la usa. No se muestra nada. Para la incidencia #77.</string>
+</resources>

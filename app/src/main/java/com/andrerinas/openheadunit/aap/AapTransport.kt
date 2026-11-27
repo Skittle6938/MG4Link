@@ -494,6 +494,7 @@ class AapTransport(
         onQuit = null
 
         AppLog.i("AapTransport quitting (clean=$clean)")
+        ClusterSinkProbe.logSummary(SystemClock.elapsedRealtime())
         bluetoothControl.close()
         cb.invoke(clean)
         micRecorder.stop()

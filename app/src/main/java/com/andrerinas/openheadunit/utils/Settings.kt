@@ -348,6 +348,11 @@ class Settings(private val context: Context) {
         get() = testMode && prefs.getBoolean("maps-model-overlay", false)
         set(value) { prefs.edit().putBoolean("maps-model-overlay", value).apply() }
 
+    /** Test mode: declares a cluster video sink and logs what the phone does with it (#77, aap/ClusterSinkProbe). */
+    var clusterSinkProbe: Boolean
+        get() = testMode && prefs.getBoolean("cluster-sink-probe", false)
+        set(value) { prefs.edit().putBoolean("cluster-sink-probe", value).apply() }
+
     /** The car access point's 5 GHz channel: 0 automatic, or 36, 40, 44, 48 (see WifiChannelPicker). */
     var wifiChannel: Int
         get() = prefs.getInt("wifi-channel", 0).let { if (it in WifiChannelPicker.CHANNELS) it else 0 }
