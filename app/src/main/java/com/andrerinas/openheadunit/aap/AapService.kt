@@ -94,6 +94,8 @@ class AapService : Service(), UsbReceiver.Listener {
     // SupervisorJob prevents a child coroutine failure from cancelling the whole scope
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var stationRestoreJob: Job? = null
+    /** Sends the car's speed, gear and parking brake to the phone during a session (#75). */
+    private var vehicleSensorsJob: Job? = null
     /** Experimental shared channel: watches the car Wi-Fi client during a wireless session. */
     private var sharedClientJob: Job? = null
 
@@ -987,6 +989,7 @@ class AapService : Service(), UsbReceiver.Listener {
                     is CommManager.ConnectionState.TransportStarted -> {
                         sessionTransportStartedAtMs = SystemClock.elapsedRealtime()
                         SessionState.publish(this@AapService, true, commManager.isWirelessSession)
+                        sendVehicleSensors()
                         musicRecoveryDone = false
                         musicRecoveryJob?.cancel()
                         hasEverConnected = true
@@ -1027,6 +1030,7 @@ class AapService : Service(), UsbReceiver.Listener {
                     }
                     is CommManager.ConnectionState.Disconnected -> {
                         SessionState.publish(this@AapService, false, false)
+                        vehicleSensorsJob?.cancel()
                         com.andrerinas.openheadunit.connection.UsbWifiClient.onSessionEnded(this@AapService)
                         if (hasEverConnected || connectedSinceLastDisconnect) {
                             connectedSinceLastDisconnect = false
@@ -1516,6 +1520,26 @@ class AapService : Service(), UsbReceiver.Listener {
                 AppLog.w("AapService: $device sent no picture ${UsbVideoFallback.NO_VIDEO_MS / 1000}s after the video setup - asking it for 720p from now on and reconnecting")
                 commManager.disconnectForLinkLoss(2_000L)
                 return@launch
+            }
+        }
+    }
+
+    private fun sendVehicleSensors() {
+        vehicleSensorsJob?.cancel()
+        if (!com.andrerinas.openheadunit.vehicle.Mg4EnergyProvider.available(this)) return
+        vehicleSensorsJob = serviceScope.launch(Dispatchers.IO) {
+            var lastSpeed: Float? = null
+            var lastGear: Int? = null
+            while (commManager.isConnected) {
+                val speed = runCatching { com.evsuite.hardware.EVHardware.getVehicleSpeedKmh() }.getOrNull()
+                val gear = runCatching { com.evsuite.hardware.EVHardware.getGearRaw() }.getOrNull()
+                val plan = VehicleSensors.plan(speed, lastSpeed, gear, lastGear)
+                VehicleSensors.batch(speed, gear, plan.speed, plan.gear)?.let {
+                    commManager.send(VehicleSensors.message(it))
+                }
+                if (plan.speed) lastSpeed = speed
+                if (plan.gear) lastGear = gear
+                delay(VEHICLE_SENSORS_MS)
             }
         }
     }
@@ -3650,6 +3674,8 @@ class AapService : Service(), UsbReceiver.Listener {
     companion object {
         /** Bind attempts before the wireless server gives up and reports the port unusable. */
         private const val BIND_ATTEMPTS = 3
+        /** How often the car's speed and gear are sent to the phone (#75). */
+        private const val VEHICLE_SENSORS_MS = 500L
         /** How often the shared-channel client is checked during a wireless session. */
         private const val SHARED_CLIENT_CHECK_MS = 2_000L
         /** How long a USB session waits for a hotspot start that was running to finish. */

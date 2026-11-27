@@ -1,0 +1,38 @@
+package com.andrerinas.openheadunit.aap
+
+import com.andrerinas.openheadunit.aap.protocol.proto.Sensors
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/** #75: the car's speed, gear and parking brake for the phone. */
+class VehicleSensorsTest {
+
+    @Test fun `speed goes in metres per second times a million`() {
+        assertEquals(10_000_000, VehicleSensors.speedE6(36f))
+        assertEquals(0, VehicleSensors.speedE6(-5f))
+    }
+
+    @Test fun `P is the only gear known everywhere, and it means the parking brake is on`() {
+        assertEquals(Sensors.SensorBatch.GearData.GEAR.PARK, VehicleSensors.gearFor(1))
+        assertNull(VehicleSensors.gearFor(3))
+        val inPark = VehicleSensors.batch(0f, 1, sendSpeed = false, sendGear = true)!!
+        assertTrue(inPark.getParkingbrakeData(0).isEngaged)
+        assertEquals(Sensors.SensorBatch.GearData.GEAR.PARK, inPark.getGearData(0).gear)
+        val driving = VehicleSensors.batch(50f, 3, sendSpeed = true, sendGear = true)!!
+        assertFalse(driving.getParkingbrakeData(0).isEngaged)
+        assertEquals(0, driving.gearDataCount)
+        assertEquals(1, driving.speedDataCount)
+    }
+
+    @Test fun `speed while moving or when it changes, gear when it changes`() {
+        assertTrue(VehicleSensors.plan(50f, 50f, 3, 3).speed)
+        assertFalse(VehicleSensors.plan(0f, 0f, 1, 1).speed)
+        assertTrue(VehicleSensors.plan(0f, 30f, 1, 1).speed)
+        assertFalse(VehicleSensors.plan(0f, 0f, 1, 1).gear)
+        assertTrue(VehicleSensors.plan(0f, 0f, 3, 1).gear)
+        assertNull(VehicleSensors.batch(null, null, sendSpeed = true, sendGear = true))
+    }
+}

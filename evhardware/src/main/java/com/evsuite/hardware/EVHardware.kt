@@ -2265,6 +2265,15 @@ object EVHardware {
     private val sIgnitionLog = StateChangeLog<Int>()
 
     fun isVehicleInPark(): Boolean? {
+        val gear = getGearRaw() ?: return null
+        return gear == GEAR_PARK_VALUE
+    }
+
+    /**
+     * The car's gear as its firmware reports it (P = 1 everywhere; the other values are not mapped
+     * yet), or null when unreadable. Gear changes are logged, which is how the others get mapped.
+     */
+    fun getGearRaw(): Int? {
         val gen = FirmwareInfo.getGeneration()
         val gear = when {
             gen == FirmwareInfo.Gen.SWI133 ->
@@ -2279,9 +2288,9 @@ object EVHardware {
             ?: return null
         // Read once a second by the telemetry sampler; only gear changes are worth a line.
         if (sGearLog.accept(gear)) {
-            AppLogger.i(TAG, "isVehicleInPark — gen=$gen gear=$gear (P=$GEAR_PARK_VALUE)")
+            AppLogger.i(TAG, "gear — gen=$gen gear=$gear (P=$GEAR_PARK_VALUE)")
         }
-        return gear == GEAR_PARK_VALUE
+        return gear
     }
 
     // ── Read gear SWI68/165 (poll direct) + A9 (CarStateClient) ───────────

@@ -45,6 +45,13 @@ class ServiceDiscoveryResponse private constructor(proto: Control.ServiceDiscove
                     
                     // Always announce Night sensor, as we control it via NightModeManager
                     sources.addSensors(makeSensorType(Sensors.SensorType.NIGHT))
+
+                    // The car's speed, gear and parking brake, as car-built head units send them (#75).
+                    if (Mg4EnergyProvider.available(context)) {
+                        sources.addSensors(makeSensorType(Sensors.SensorType.CAR_SPEED))
+                        sources.addSensors(makeSensorType(Sensors.SensorType.GEAR))
+                        sources.addSensors(makeSensorType(Sensors.SensorType.PARKING_BRAKE))
+                    }
                     AppLog.i("[ServiceDiscovery] Announcing NIGHT sensor support. Strategy: ${settings.nightMode}")
 
                     // Announce EV even before the first SoC poll. If we wait for snapshot(),
