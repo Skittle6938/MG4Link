@@ -14,4 +14,6 @@
     <string name="dset_dongle_bt_guard_summary">Experimental, for a wireless Android Auto adapter (dongle) only. At start-up the car waits (time set below) before connecting the phone over Bluetooth, so the adapter reaches it first. Leave it off without an adapter.</string>
     <string name="dset_dongle_wait">Dongle priority: how long</string>
     <string name="dset_dongle_wait_summary">How long the car waits for Android Auto through the dongle before connecting the phone over Bluetooth as usual. Only with the option above.</string>
+    <string name="dset_keep_car_wifi">Keep the car\'s Wi-Fi (experimental)</string>
+    <string name="dset_keep_car_wifi_summary">Experimental. When the car is already on a 5 GHz Wi-Fi network on channel 36 to 48, it stays connected for internet and the wireless Android Auto hotspot opens on the same channel. Android Auto may have a little less bandwidth. On another channel, or once the car loses that network, the car\'s Wi-Fi goes off as usual.</string>
 </resources>

@@ -62,4 +62,6 @@
     <string name="ota_progress_installing">جارٍ التثبيت… سيُعاد تشغيل MG4Link تلقائيًا.</string>
     <string name="ota_status_no_stable">لا يوجد إصدار رسمي أحدث</string>
     <string name="trip_go">بدء</string>
+    <string name="dset_keep_car_wifi">الإبقاء على Wi-Fi السيارة (تجريبي)</string>
+    <string name="dset_keep_car_wifi_summary">تجريبي. إذا كانت السيارة متصلة مسبقًا بشبكة Wi-Fi بتردد 5 غيغاهرتز على قناة من 36 إلى 48، فإنها تحتفظ بها للإنترنت وتُفتح نقطة اتصال Android Auto اللاسلكي على القناة نفسها. قد يحصل Android Auto على نطاق ترددي أقل قليلًا. على قناة أخرى، أو عندما تفقد السيارة تلك الشبكة، يُطفأ Wi-Fi السيارة كالمعتاد.</string>
 </resources>

@@ -23,6 +23,7 @@ object WifiChannelPicker {
 
     /** The channel to write into the access point configuration on its next start. */
     fun channelForNextStart(context: Context): Int {
+        HotspotManager.sharedChannel(context)?.let { return it }
         val settings = Settings(context)
         val fixed = settings.wifiChannel
         if (fixed != 0) return fixed

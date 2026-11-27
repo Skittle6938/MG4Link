@@ -171,6 +171,8 @@ class DaSettingsActivity : BaseActivity() {
                 settings.dongleBluetoothGuard = it
                 com.andrerinas.openheadunit.utils.DongleBluetoothGuard.onSettingChanged(this, it)
             })
+        row(R.string.dset_keep_car_wifi, R.string.dset_keep_car_wifi_summary,
+            yesNo(settings.keepCarWifi) { settings.keepCarWifi = it })
         val dongleWaits = listOf(60, 120, 180, 300)
         row(R.string.dset_dongle_wait, R.string.dset_dongle_wait_summary,
             choices(listOf("1 min", "2 min", "3 min", "5 min"),

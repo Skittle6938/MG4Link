@@ -62,4 +62,6 @@
     <string name="ota_progress_installing">正在安装… MG4Link 将自动重启。</string>
     <string name="ota_status_no_stable">没有较新的正式版</string>
     <string name="trip_go">开始</string>
+    <string name="dset_keep_car_wifi">保留车辆 Wi-Fi(实验性)</string>
+    <string name="dset_keep_car_wifi_summary">实验性功能。如果车辆已连接到信道 36 至 48 的 5 GHz Wi-Fi 网络,将保持连接用于上网,无线 Android Auto 的热点在同一信道上开启。Android Auto 的带宽可能略少。在其他信道上,或车辆失去该网络时,车辆 Wi-Fi 会照常关闭。</string>
 </resources>

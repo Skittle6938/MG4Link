@@ -116,7 +116,7 @@ object HotspotManager {
      */
     fun ensure5GhzBeforeSession(context: Context, pauseStation: Boolean) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) return
-        val pausedStation = pauseStation && pauseStation(context)
+        val pausedStation = pauseStation && sharedChannel(context) == null && pauseStation(context)
         val stored = SoftApConfigCompat.legacyBandAndChannel(context)
         AppLog.i("HotspotManager: stored AP config apBand=${stored?.first} apChannel=${stored?.second}")
         val configIs5Ghz = stored != null &&
@@ -163,6 +163,38 @@ object HotspotManager {
             try { Thread.sleep(200) } catch (e: InterruptedException) { break }
         }
         return ok
+    }
+
+    /**
+     * The channel the hotspot shares with the car's Wi-Fi client under the experimental "keep the
+     * car's Wi-Fi" option, or null when the client is switched off as usual ([SharedRadioPolicy]).
+     */
+    fun sharedChannel(context: Context): Int? {
+        val wifi = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        val info = try { wifi.connectionInfo } catch (e: Exception) { null }
+        return SharedRadioPolicy.sharedChannel(
+            optionOn = Settings(context).keepCarWifi,
+            clientOn = wifi.isWifiEnabled,
+            clientConnected = isClientConnected(info),
+            frequencyMhz = info?.frequency ?: -1,
+        )
+    }
+
+    private fun isClientConnected(info: android.net.wifi.WifiInfo?): Boolean =
+        info != null && info.networkId != -1 && info.supplicantState == android.net.wifi.SupplicantState.COMPLETED
+
+    /**
+     * While the hotspot shares the client's channel: a client that lost its network (the car drove
+     * away) keeps scanning and starves the hotspot, so it goes off until the session ends.
+     */
+    fun checkSharedClient(context: Context) {
+        val wifi = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        val info = try { wifi.connectionInfo } catch (e: Exception) { null }
+        if (SharedRadioPolicy.clientMustGoOff(Settings(context).keepCarWifi, wifi.isWifiEnabled,
+                isClientConnected(info), isApUp(context))) {
+            AppLog.i("HotspotManager: the car Wi-Fi lost its network while sharing the hotspot's channel - switching it off for the session")
+            pauseStation(context)
+        }
     }
 
     /**
@@ -214,8 +246,13 @@ object HotspotManager {
         // access point follows the client's band and comes up on 2.4 GHz (test, 2026-11-11).
         // pauseStation remembers it, so the client comes back once the access point is down.
         val wifi = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        if (wifi.isWifiEnabled) pauseStation(context)
-        if (!OneRadioPolicy.mayStartAccessPoint(clientOn = wifi.isWifiEnabled)) {
+        val shared = sharedChannel(context)
+        if (shared != null) {
+            AppLog.i("HotspotManager: keeping the car Wi-Fi on (experimental option) - the hotspot opens on its channel $shared")
+        } else if (wifi.isWifiEnabled) {
+            pauseStation(context)
+        }
+        if (shared == null && !OneRadioPolicy.mayStartAccessPoint(clientOn = wifi.isWifiEnabled)) {
             AppLog.w("HotspotManager: the car Wi-Fi client is still on after ${AP_STATE_TIMEOUT_MS} ms - not starting the hotspot, it would follow the client's band (2.4 GHz)")
             return false
         }

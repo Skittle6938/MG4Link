@@ -94,6 +94,8 @@ class AapService : Service(), UsbReceiver.Listener {
     // SupervisorJob prevents a child coroutine failure from cancelling the whole scope
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var stationRestoreJob: Job? = null
+    /** Experimental shared channel: watches the car Wi-Fi client during a wireless session. */
+    private var sharedClientJob: Job? = null
 
     private lateinit var uiModeManager: UiModeManager
     private lateinit var usbReceiver: UsbReceiver
@@ -1051,6 +1053,7 @@ class AapService : Service(), UsbReceiver.Listener {
     private fun onConnected() {
         joinFailures = 0
         if (!commManager.isWirelessSession) usbTakesTheRadio()
+        else if (settings.keepCarWifi) watchSharedClient()
         isSwitchingToAccessory.set(false)
         updateNotification()
         acquireWifiLock()
@@ -1515,7 +1518,19 @@ class AapService : Service(), UsbReceiver.Listener {
         }
     }
 
+    /** While the hotspot shares the car Wi-Fi's channel, a client that lost its network goes off. */
+    private fun watchSharedClient() {
+        sharedClientJob?.cancel()
+        sharedClientJob = serviceScope.launch(Dispatchers.IO) {
+            while (commManager.isConnected && commManager.isWirelessSession) {
+                HotspotManager.checkSharedClient(this@AapService)
+                delay(SHARED_CLIENT_CHECK_MS)
+            }
+        }
+    }
+
     private fun onDisconnected(state: CommManager.ConnectionState.Disconnected) {
+        sharedClientJob?.cancel()
         usbPictureWatchJob?.cancel()
         usbPictureWatchJob = null
         val endedOverUsb = lastSessionOverUsb
@@ -3632,6 +3647,8 @@ class AapService : Service(), UsbReceiver.Listener {
     companion object {
         /** Bind attempts before the wireless server gives up and reports the port unusable. */
         private const val BIND_ATTEMPTS = 3
+        /** How often the shared-channel client is checked during a wireless session. */
+        private const val SHARED_CLIENT_CHECK_MS = 5_000L
         /** How long a USB session waits for a hotspot start that was running to finish. */
         private const val USB_HOTSPOT_START_WAIT_MS = 30_000L
 

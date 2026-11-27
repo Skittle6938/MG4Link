@@ -288,6 +288,11 @@ class Settings(private val context: Context) {
         get() = prefs.getBoolean("dongle-bt-guard", false)
         set(value) { prefs.edit().putBoolean("dongle-bt-guard", value).apply() }
 
+    /** Experimental: keep the car's Wi-Fi client on, the hotspot on its channel (SharedRadioPolicy). */
+    var keepCarWifi: Boolean
+        get() = prefs.getBoolean("keep-car-wifi", false)
+        set(value) { prefs.edit().putBoolean("keep-car-wifi", value).apply() }
+
     /** How long [dongleBluetoothGuard] holds the car's Bluetooth back after a start, seconds. */
     var dongleWaitSeconds: Int
         get() = prefs.getInt("dongle-wait-s", 180).coerceIn(30, 600)

@@ -62,4 +62,6 @@
     <string name="ota_progress_installing">Instalando… MG4Link se reiniciará automáticamente.</string>
     <string name="ota_status_no_stable">No hay una versión oficial más reciente</string>
     <string name="trip_go">INICIAR</string>
+    <string name="dset_keep_car_wifi">Mantener el Wi-Fi del coche (experimental)</string>
+    <string name="dset_keep_car_wifi_summary">Experimental. Si el coche ya está conectado a una red Wi-Fi de 5 GHz en un canal del 36 al 48, la mantiene para internet y el punto de acceso de Android Auto inalámbrico se abre en el mismo canal. Android Auto puede tener algo menos de ancho de banda. En otro canal, o en cuanto el coche pierde esa red, su Wi-Fi se apaga como siempre.</string>
 </resources>
