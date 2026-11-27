@@ -183,17 +183,68 @@ object HotspotManager {
     private fun isClientConnected(info: android.net.wifi.WifiInfo?): Boolean =
         info != null && info.networkId != -1 && info.supplicantState == android.net.wifi.SupplicantState.COMPLETED
 
+    @Volatile private var sharedPrevious = SharedRadioPolicy.Client.OFF
+    @Volatile private var sharedSearchingSince = 0L
+    @Volatile private var sharedRestarted = false
+
     /**
-     * While the hotspot shares the client's channel: a client that lost its network (the car drove
-     * away) keeps scanning and starves the hotspot, so it goes off until the session ends.
+     * A new wireless session: the client is watched afresh ([checkSharedClient]). The one restart
+     * allowed is kept across the reconnection it causes, until the client goes off.
+     */
+    fun resetSharedClientWatch(context: Context) {
+        sharedPrevious = clientState(context)
+        sharedSearchingSince = if (sharedPrevious == SharedRadioPolicy.Client.SEARCHING) System.currentTimeMillis() else 0L
+        if (sharedPrevious == SharedRadioPolicy.Client.OFF) sharedRestarted = false
+    }
+
+    private fun clientState(context: Context): SharedRadioPolicy.Client {
+        val wifi = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        if (!wifi.isWifiEnabled) return SharedRadioPolicy.Client.OFF
+        val info = try { wifi.connectionInfo } catch (e: Exception) { null }
+        return if (isClientConnected(info)) SharedRadioPolicy.Client.CONNECTED else SharedRadioPolicy.Client.SEARCHING
+    }
+
+    /**
+     * The experimental "keep the car's Wi-Fi" during a wireless session, checked every few seconds:
+     * see [SharedRadioPolicy.duringSession]. Blocks while the access point is restarted.
      */
     fun checkSharedClient(context: Context) {
         val wifi = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         val info = try { wifi.connectionInfo } catch (e: Exception) { null }
-        if (SharedRadioPolicy.clientMustGoOff(Settings(context).keepCarWifi, wifi.isWifiEnabled,
-                isClientConnected(info), isApUp(context))) {
-            AppLog.i("HotspotManager: the car Wi-Fi lost its network while sharing the hotspot's channel - switching it off for the session")
-            pauseStation(context)
+        val now = clientState(context)
+        val nowMs = System.currentTimeMillis()
+        if (now == SharedRadioPolicy.Client.SEARCHING && sharedPrevious != SharedRadioPolicy.Client.SEARCHING) {
+            sharedSearchingSince = nowMs
+        }
+        val clientChannel = SharedRadioPolicy.channelOf(info?.frequency ?: -1)
+        val step = SharedRadioPolicy.duringSession(
+            optionOn = Settings(context).keepCarWifi,
+            accessPointUp = isApUp(context),
+            previous = sharedPrevious,
+            now = now,
+            searchingForMs = if (now == SharedRadioPolicy.Client.SEARCHING) nowMs - sharedSearchingSince else 0L,
+            clientChannel = clientChannel,
+            accessPointChannel = WifiChannelPicker.configuredChannel(context),
+            restartedAlready = sharedRestarted,
+        )
+        val previous = sharedPrevious
+        sharedPrevious = now
+        when (step) {
+            SharedRadioPolicy.Step.CLIENT_OFF -> {
+                AppLog.i("HotspotManager: car Wi-Fi $previous -> $now (channel ${clientChannel ?: "not 36-48"}) - switching it off for the session")
+                pauseStation(context)
+                sharedPrevious = SharedRadioPolicy.Client.OFF
+                sharedRestarted = false
+            }
+            SharedRadioPolicy.Step.RESTART_ACCESS_POINT -> {
+                AppLog.i("HotspotManager: car Wi-Fi joined a network on channel $clientChannel - restarting the hotspot on it (Android Auto reconnects)")
+                sharedRestarted = true
+                restart(context)
+            }
+            SharedRadioPolicy.Step.KEEP -> if (previous != SharedRadioPolicy.Client.CONNECTED) {
+                AppLog.i("HotspotManager: car Wi-Fi joined a network on the hotspot's channel $clientChannel - keeping both")
+            }
+            SharedRadioPolicy.Step.WAIT, SharedRadioPolicy.Step.NOTHING -> Unit
         }
     }
 

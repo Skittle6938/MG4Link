@@ -15,5 +15,5 @@
     <string name="dset_dongle_wait">Dongle priority: how long</string>
     <string name="dset_dongle_wait_summary">How long the car waits for Android Auto through the dongle before connecting the phone over Bluetooth as usual. Only with the option above.</string>
     <string name="dset_keep_car_wifi">Keep the car\'s Wi-Fi (experimental)</string>
-    <string name="dset_keep_car_wifi_summary">Experimental. When the car is already on a 5 GHz Wi-Fi network on channel 36 to 48, it stays connected for internet and the wireless Android Auto hotspot opens on the same channel. Android Auto may have a little less bandwidth. On another channel, or once the car loses that network, the car\'s Wi-Fi goes off as usual.</string>
+    <string name="dset_keep_car_wifi_summary">Experimental. When the car is on a 5 GHz Wi-Fi network on channel 36 to 48, it stays connected for internet and the wireless Android Auto hotspot uses the same channel. Turned on during a drive, the car\'s Wi-Fi may briefly interrupt Android Auto while it looks for a network and the hotspot moves to its channel. On another channel, or once the car loses the network, its Wi-Fi goes off as usual.</string>
 </resources>

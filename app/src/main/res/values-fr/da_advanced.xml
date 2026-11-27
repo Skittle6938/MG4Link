@@ -15,5 +15,5 @@
     <string name="dset_dongle_wait">Priorité au dongle : durée</string>
     <string name="dset_dongle_wait_summary">Temps pendant lequel la voiture attend Android Auto par le dongle avant de relier le téléphone en Bluetooth comme d’habitude. Seulement avec l’option au-dessus.</string>
     <string name="dset_keep_car_wifi">Garder le Wi-Fi de la voiture (expérimental)</string>
-    <string name="dset_keep_car_wifi_summary">Expérimental. Si la voiture est déjà connectée à un réseau Wi-Fi 5 GHz sur un canal de 36 à 48, elle le garde pour internet et le point d’accès d’Android Auto sans fil s’ouvre sur le même canal. Android Auto peut avoir un peu moins de débit. Sur un autre canal, ou dès que la voiture perd ce réseau, son Wi-Fi se coupe comme d’habitude.</string>
+    <string name="dset_keep_car_wifi_summary">Expérimental. Si la voiture est sur un réseau Wi-Fi 5 GHz d’un canal de 36 à 48, elle le garde pour internet et le point d’accès d’Android Auto sans fil prend le même canal. Si vous rallumez le Wi-Fi en cours de route, Android Auto peut être brièvement interrompu le temps qu’il cherche un réseau et que le point d’accès change de canal. Sur un autre canal, ou dès que la voiture perd ce réseau, son Wi-Fi se coupe comme d’habitude.</string>
 </resources>

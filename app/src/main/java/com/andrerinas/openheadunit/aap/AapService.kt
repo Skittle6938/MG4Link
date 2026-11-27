@@ -1522,6 +1522,7 @@ class AapService : Service(), UsbReceiver.Listener {
     private fun watchSharedClient() {
         sharedClientJob?.cancel()
         sharedClientJob = serviceScope.launch(Dispatchers.IO) {
+            HotspotManager.resetSharedClientWatch(this@AapService)
             while (commManager.isConnected && commManager.isWirelessSession) {
                 HotspotManager.checkSharedClient(this@AapService)
                 delay(SHARED_CLIENT_CHECK_MS)
@@ -3648,7 +3649,7 @@ class AapService : Service(), UsbReceiver.Listener {
         /** Bind attempts before the wireless server gives up and reports the port unusable. */
         private const val BIND_ATTEMPTS = 3
         /** How often the shared-channel client is checked during a wireless session. */
-        private const val SHARED_CLIENT_CHECK_MS = 5_000L
+        private const val SHARED_CLIENT_CHECK_MS = 2_000L
         /** How long a USB session waits for a hotspot start that was running to finish. */
         private const val USB_HOTSPOT_START_WAIT_MS = 30_000L
 
