@@ -411,10 +411,12 @@ object BluetoothHelper {
                                 AppLog.i("BluetoothHelper: hands-free off ${other.address} → ${callProfile(proxy, "disconnect", other)} (#59)")
                             }
                         }
-                        AppLog.i("BluetoothHelper: hands-free to the Android Auto phone ${target.address} → ${callProfile(proxy, "connect", target)} (#59)")
+                        // The car's hands-free takes one phone: asked while the other is still letting
+                        // go, the connect is refused (seen in #59, 3 ms after the disconnect). So it is
+                        // asked again until the link is up.
+                        connectHandsFree(adapter, profileId, proxy, target, 0)
                     } catch (e: Exception) {
                         AppLog.w("BluetoothHelper: moving the hands-free failed: ${e.message}")
-                    } finally {
                         try { adapter.closeProfileProxy(profileId, proxy) } catch (_: Exception) {}
                     }
                 }
@@ -427,6 +429,44 @@ object BluetoothHelper {
         }
     }
 
+    /** When the hands-free connect is asked, after the other phone was told to let go (#59). */
+    val HANDS_FREE_CONNECT_AT_MS = listOf(0L, 1_500L, 4_000L, 8_000L)
+
+    /** Whether to ask (again) for the hands-free link, from its state (0 off, 1 connecting, 2 on). */
+    fun handsFreeConnectWanted(state: Int): Boolean =
+        state != BluetoothProfile.STATE_CONNECTED && state != BluetoothProfile.STATE_CONNECTING
+
+    @SuppressLint("MissingPermission")
+    private fun connectHandsFree(
+        adapter: BluetoothAdapter,
+        profileId: Int,
+        proxy: BluetoothProfile,
+        target: android.bluetooth.BluetoothDevice,
+        attempt: Int,
+    ) {
+        val done = try {
+            val state = proxy.getConnectionState(target)
+            if (!handsFreeConnectWanted(state)) {
+                AppLog.i("BluetoothHelper: hands-free to the phone on the projection ${target.address}: state $state (#59)")
+                true
+            } else {
+                AppLog.i("BluetoothHelper: hands-free to the phone on the projection ${target.address} → " +
+                    "${callProfile(proxy, "connect", target)} (try ${attempt + 1}, #59)")
+                attempt + 1 >= HANDS_FREE_CONNECT_AT_MS.size
+            }
+        } catch (e: Exception) {
+            AppLog.w("BluetoothHelper: hands-free connect failed: ${e.message}")
+            true
+        }
+        if (done) {
+            try { adapter.closeProfileProxy(profileId, proxy) } catch (_: Exception) {}
+            return
+        }
+        val wait = HANDS_FREE_CONNECT_AT_MS[attempt + 1] - HANDS_FREE_CONNECT_AT_MS[attempt]
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(
+            { connectHandsFree(adapter, profileId, proxy, target, attempt + 1) }, wait)
+    }
+
     /**
      * The paired device whose name is [phoneName] (as Android Auto reports it), or null when none
      * or several match. Names compare trimmed and case-insensitively.
@@ -437,6 +477,10 @@ object BluetoothHelper {
         return matches.singleOrNull()?.first
     }
 
+    /** Phones often report just "Android" as their name: nothing to match, and nothing to hide in logs. */
+    fun isGenericPhoneName(name: String?): Boolean =
+        name.isNullOrBlank() || name.trim().equals("Android", ignoreCase = true)
+
     /** [moveCarHandsFreeTo] for the paired phone named [phoneName], when exactly one matches (#59). */
     @SuppressLint("MissingPermission")
     fun moveCarHandsFreeToNamed(context: Context, phoneName: String?) {
@@ -445,8 +489,9 @@ object BluetoothHelper {
             adapter.bondedDevices.orEmpty().map { it.address to it.name }
         } catch (e: Exception) { emptyList() }
         val address = pairedAddressForName(paired, phoneName)
-        AppLog.i("BluetoothHelper: Android Auto phone by name - ${paired.size} paired, " +
-            (if (address != null) "one matches" else "no single match") + " (#59)")
+        AppLog.i("BluetoothHelper: phone on the projection by name - ${paired.size} paired, " +
+            (if (address != null) "one matches" else "no single match") +
+            (if (isGenericPhoneName(phoneName)) ", the phone gave no name of its own" else "") + " (#59)")
         if (address != null) moveCarHandsFreeTo(context, address)
     }
 
