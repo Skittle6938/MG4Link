@@ -18,4 +18,9 @@
     <string name="dset_keep_car_wifi_summary">Experimental. Keeps the car\'s Wi-Fi connected for internet during wireless Android Auto, when its network allows it.</string>
     <string name="dset_keep_car_wifi_explain">When the car is connected to a 5 GHz Wi-Fi network on channel 36 to 48 (a home box, for example), it stays connected for internet and the wireless Android Auto hotspot opens on the same channel. The car\'s single Wi-Fi radio then never has to switch channels, which is what causes short stutters.\n\nIf you switch the car\'s Wi-Fi on during a drive, it has 30 s to join a known network. Android Auto may be interrupted for a few seconds while it looks, and for about 15 s if the hotspot has to move to the network\'s channel. MG4Link remembers the channel of that network (a phone\'s hotspot, for example), so the next hotspot opens on it straight away.\n\nOn another channel, on 2.4 GHz, or as soon as the car loses the network while driving, the car\'s Wi-Fi goes off as usual. Android Auto may have a little less bandwidth while both share the channel.\n\nIf you notice other instabilities than those described above (during the connection), please report them on GitHub with a log.</string>
     <string name="dset_keep_car_wifi_enable">Enable</string>
+    <string name="dset_reset_settings">Default settings</string>
+    <string name="dset_reset_settings_summary">Puts every MG4Link setting back to its default.</string>
+    <string name="dset_reset_settings_button">Reset</string>
+    <string name="dset_reset_settings_message">Every MG4Link setting goes back to its default, including the experimental options. Your phones, the steps already done at first start, what MG4Link learned about your car and your ABRP token are kept.</string>
+    <string name="dset_reset_settings_done">Settings reset to their defaults</string>
 </resources>

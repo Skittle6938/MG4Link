@@ -31,6 +31,19 @@ class Settings(private val context: Context) {
             }
         }
 
+    /**
+     * Every setting back to its default ("Reset settings" in About). What is not a choice stays:
+     * the phones and devices already set up, the first-run steps, what was learned or measured on
+     * this car, and the ABRP token and key. Returns how many settings were cleared.
+     */
+    fun resetToDefaults(): Int {
+        val editor = prefs.edit()
+        val cleared = prefs.all.keys.filter { !SettingsReset.keeps(it) }
+        cleared.forEach { editor.remove(it) }
+        editor.apply()
+        return cleared.size
+    }
+
     fun isConnectingDevice(deviceCompat: UsbDeviceCompat): Boolean {
         val allowDevices = prefs.getStringSet("allow-devices", null) ?: return false
         return allowDevices.contains(deviceCompat.uniqueName)

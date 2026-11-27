@@ -171,6 +171,12 @@ class DaSettingsActivity : BaseActivity() {
                 settings.dongleBluetoothGuard = it
                 com.andrerinas.openheadunit.utils.DongleBluetoothGuard.onSettingChanged(this, it)
             })
+        val dongleWaits = listOf(60, 120, 180, 300)
+        row(R.string.dset_dongle_wait, R.string.dset_dongle_wait_summary,
+            choices(listOf("1 min", "2 min", "3 min", "5 min"),
+                dongleWaits.indexOf(settings.dongleWaitSeconds).takeIf { it >= 0 } ?: 2) {
+                settings.dongleWaitSeconds = dongleWaits[it]
+            })
         // Experimental: turning it on first explains what it does in each case and what it costs.
         row(R.string.dset_keep_car_wifi, R.string.dset_keep_car_wifi_summary, yesNo(settings.keepCarWifi) { on ->
             if (!on) {
@@ -179,12 +185,6 @@ class DaSettingsActivity : BaseActivity() {
             }
             keepCarWifiDialog().setOnDismissListener { showTab(selectedTab) }
         })
-        val dongleWaits = listOf(60, 120, 180, 300)
-        row(R.string.dset_dongle_wait, R.string.dset_dongle_wait_summary,
-            choices(listOf("1 min", "2 min", "3 min", "5 min"),
-                dongleWaits.indexOf(settings.dongleWaitSeconds).takeIf { it >= 0 } ?: 2) {
-                settings.dongleWaitSeconds = dongleWaits[it]
-            })
         val delays = listOf(10, 30, 60, 120, 300)
         val delay = delays.indexOf(settings.stationRestoreDelaySeconds).takeIf { it >= 0 } ?: 2
         row(R.string.dset_station_delay, R.string.dset_station_delay_summary,
@@ -425,6 +425,16 @@ class DaSettingsActivity : BaseActivity() {
         if (mg4DashInstalled()) row(R.string.dset_open_mg4dash, R.string.dset_open_mg4dash_summary,
             button(getString(R.string.dset_open)) { openMg4Dash() })
         row(R.string.dset_logs, R.string.dset_logs_summary, button(getString(R.string.dset_export)) { exportLogs() })
+        row(R.string.dset_reset_settings, R.string.dset_reset_settings_summary,
+            button(getString(R.string.dset_reset_settings_button), danger = true) {
+                MaterialAlertDialogBuilder(this, R.style.DarkAlertDialog)
+                    .setTitle(R.string.dset_reset_settings)
+                    .setMessage(R.string.dset_reset_settings_message)
+                    .setPositiveButton(R.string.dset_reset_settings_button) { _, _ -> resetSettings() }
+                    .setNegativeButton(R.string.cancel, null)
+                    .showImmersive()
+                    .apply { findViewById<android.widget.TextView>(android.R.id.message)?.textSize = 24f }
+            })
         row(R.string.restore_allgo, R.string.dset_restore_summary, button(getString(R.string.dset_restore), danger = true) {
             MaterialAlertDialogBuilder(this, R.style.DarkAlertDialog)
                 .setTitle(R.string.restore_allgo)
@@ -877,6 +887,19 @@ class DaSettingsActivity : BaseActivity() {
         list.addView(v)
     }
 
+    /** Every setting back to its default; what was learned or set up with the phone stays. */
+    private fun resetSettings() {
+        // The dongle option holds the car's Bluetooth back while it is on: give it back first.
+        if (settings.dongleBluetoothGuard) {
+            com.andrerinas.openheadunit.utils.DongleBluetoothGuard.onSettingChanged(this, false)
+        }
+        val cleared = settings.resetToDefaults()
+        Settings.syncAutoStartOnBootToDeviceStorage(this, settings.autoStartOnBoot)
+        AppLog.i("DaSettings: $cleared settings reset to their defaults")
+        Toast.makeText(this, R.string.dset_reset_settings_done, Toast.LENGTH_LONG).show()
+        recreate()
+    }
+
     /** The warning shown before the experimental option to keep the car's Wi-Fi is turned on. */
     internal fun keepCarWifiDialog(): androidx.appcompat.app.AlertDialog =
         MaterialAlertDialogBuilder(this, R.style.DarkAlertDialog)
@@ -884,8 +907,25 @@ class DaSettingsActivity : BaseActivity() {
             .setMessage(R.string.dset_keep_car_wifi_explain)
             .setPositiveButton(R.string.dset_keep_car_wifi_enable) { _, _ -> settings.keepCarWifi = true }
             .setNegativeButton(R.string.cancel, null)
-            .show()
+            .showImmersive()
             .apply { findViewById<android.widget.TextView>(android.R.id.message)?.textSize = 24f }
+
+    /**
+     * Shows a dialog without bringing back the status bar and the car's sidebar: its window is
+     * made full screen before it can take the focus, as the settings screen itself is.
+     */
+    private fun MaterialAlertDialogBuilder.showImmersive(): androidx.appcompat.app.AlertDialog {
+        val dialog = create()
+        val window = dialog.window
+        window?.setFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+        dialog.show()
+        window?.let {
+            SystemUI.applyWindow(it, Settings.FullscreenMode.IMMERSIVE)
+            it.clearFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+        }
+        return dialog
+    }
 
     private fun yesNo(on: Boolean, onChange: (Boolean) -> Unit): View =
         choices(listOf(getString(R.string.dset_no), getString(R.string.dset_yes)), if (on) 1 else 0) { onChange(it == 1) }
