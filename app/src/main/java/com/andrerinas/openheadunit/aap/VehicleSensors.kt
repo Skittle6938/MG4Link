@@ -9,8 +9,9 @@ import com.andrerinas.openheadunit.aap.protocol.proto.Sensors
  * is weak (tunnels, car parks) and to find the road again faster after a stop.
  *
  * Speed comes from the car's speed property (km/h). The gear's raw values differ between firmware
- * generations and only P (1) is known everywhere, so only P is sent for now; the MG4 holds the
- * parking brake on in P, so P stands for it too.
+ * generations: P (1) is known everywhere, and R/N/D were measured on the A9 gear state (SWI69:
+ * 1 P, 2 R, 3 N, 4 D). Elsewhere only P is sent. The MG4 holds the parking brake on in P, so P
+ * stands for it too.
  */
 object VehicleSensors {
     /** Raw gear value for P on every studied firmware. */
@@ -19,14 +20,21 @@ object VehicleSensors {
     /** SpeedData.speed_e6: metres per second × 10^6. */
     fun speedE6(kmh: Float): Int = (kmh.coerceIn(0f, 300f) / 3.6f * 1_000_000f).toInt()
 
-    /** The Android Auto gear for a raw firmware value, or null when it is not known yet. */
-    fun gearFor(raw: Int?): Sensors.SensorBatch.GearData.GEAR? = when (raw) {
-        RAW_PARK -> Sensors.SensorBatch.GearData.GEAR.PARK
+    /**
+     * The Android Auto gear for a raw firmware value, or null when it is not known yet.
+     * [prnd]: the value comes from the A9 gear state, where 1..4 are P, R, N, D.
+     */
+    fun gearFor(raw: Int?, prnd: Boolean): Sensors.SensorBatch.GearData.GEAR? = when {
+        raw == RAW_PARK -> Sensors.SensorBatch.GearData.GEAR.PARK
+        !prnd -> null
+        raw == 2 -> Sensors.SensorBatch.GearData.GEAR.REVERSE
+        raw == 3 -> Sensors.SensorBatch.GearData.GEAR.NEUTRAL
+        raw == 4 -> Sensors.SensorBatch.GearData.GEAR.DRIVE
         else -> null
     }
 
     /** One batch with what is known; null when there is nothing to send. */
-    fun batch(speedKmh: Float?, gearRaw: Int?, sendSpeed: Boolean, sendGear: Boolean): Sensors.SensorBatch? {
+    fun batch(speedKmh: Float?, gearRaw: Int?, sendSpeed: Boolean, sendGear: Boolean, prnd: Boolean = false): Sensors.SensorBatch? {
         val builder = Sensors.SensorBatch.newBuilder()
         var any = false
         if (sendSpeed && speedKmh != null) {
@@ -35,7 +43,7 @@ object VehicleSensors {
         }
         if (sendGear && gearRaw != null) {
             builder.addParkingbrakeData(Sensors.SensorBatch.ParkingBrakeData.newBuilder().setIsEngaged(gearRaw == RAW_PARK))
-            gearFor(gearRaw)?.let { builder.addGearData(Sensors.SensorBatch.GearData.newBuilder().setGear(it)) }
+            gearFor(gearRaw, prnd)?.let { builder.addGearData(Sensors.SensorBatch.GearData.newBuilder().setGear(it)) }
             any = true
         }
         return if (any) builder.build() else null

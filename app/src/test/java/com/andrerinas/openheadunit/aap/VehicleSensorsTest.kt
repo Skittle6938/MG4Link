@@ -16,8 +16,8 @@ class VehicleSensorsTest {
     }
 
     @Test fun `P is the only gear known everywhere, and it means the parking brake is on`() {
-        assertEquals(Sensors.SensorBatch.GearData.GEAR.PARK, VehicleSensors.gearFor(1))
-        assertNull(VehicleSensors.gearFor(3))
+        assertEquals(Sensors.SensorBatch.GearData.GEAR.PARK, VehicleSensors.gearFor(1, prnd = false))
+        assertNull(VehicleSensors.gearFor(3, prnd = false))
         val inPark = VehicleSensors.batch(0f, 1, sendSpeed = false, sendGear = true)!!
         assertTrue(inPark.getParkingbrakeData(0).isEngaged)
         assertEquals(Sensors.SensorBatch.GearData.GEAR.PARK, inPark.getGearData(0).gear)
@@ -25,6 +25,16 @@ class VehicleSensorsTest {
         assertFalse(driving.getParkingbrakeData(0).isEngaged)
         assertEquals(0, driving.gearDataCount)
         assertEquals(1, driving.speedDataCount)
+    }
+
+    @Test fun `the A9 gear state gives P, R, N and D`() {
+        val prnd = listOf(Sensors.SensorBatch.GearData.GEAR.PARK, Sensors.SensorBatch.GearData.GEAR.REVERSE,
+            Sensors.SensorBatch.GearData.GEAR.NEUTRAL, Sensors.SensorBatch.GearData.GEAR.DRIVE)
+        assertEquals(prnd, (1..4).map { VehicleSensors.gearFor(it, prnd = true) })
+        assertNull(VehicleSensors.gearFor(7, prnd = true))
+        val reverse = VehicleSensors.batch(0f, 2, sendSpeed = false, sendGear = true, prnd = true)!!
+        assertEquals(Sensors.SensorBatch.GearData.GEAR.REVERSE, reverse.getGearData(0).gear)
+        assertFalse(reverse.getParkingbrakeData(0).isEngaged)
     }
 
     @Test fun `speed while moving or when it changes, gear when it changes`() {
