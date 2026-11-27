@@ -52,6 +52,11 @@
         android:name="com.allgo.app.androidauto.permission.RESERVE_MARGIN"
         android:protectionLevel="signature" />
 
+    <!-- Apps signed like MG4Link (platform key) learn whether an Android Auto session runs (#78). -->
+    <permission
+        android:name="com.allgo.app.androidauto.permission.SESSION_STATE"
+        android:protectionLevel="signature" />
+
     <!-- Apps signed like MG4Link (platform key) say a sentence to the phone's assistant (#71). -->
     <permission
         android:name="com.allgo.app.androidauto.permission.ASSISTANT_COMMAND"
@@ -319,6 +324,15 @@
             android:permission="com.allgo.app.androidauto.permission.USER_DISCONNECT">
             <intent-filter>
                 <action android:name="com.allgo.app.androidauto.USER_DISCONNECT" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".aap.SessionStateReceiver"
+            android:exported="true"
+            android:permission="com.allgo.app.androidauto.permission.SESSION_STATE">
+            <intent-filter>
+                <action android:name="com.allgo.app.androidauto.QUERY_SESSION_STATE" />
             </intent-filter>
         </receiver>
 

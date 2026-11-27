@@ -132,6 +132,11 @@ internet over Bluetooth is not possible on the MG4: its Bluetooth stack has no n
 
   An Android Auto session must be running. The engine used is the default one if it speaks the
   language, else Pico TTS.
+- The same apps can learn whether an Android Auto session is running (#78): MG4Link broadcasts
+  `com.allgo.app.androidauto.SESSION_STATE` on every change, to holders of
+  `com.allgo.app.androidauto.permission.SESSION_STATE`, with `connected` (boolean) and `transport`
+  (`wireless`, `usb`, or empty). Send `com.allgo.app.androidauto.QUERY_SESSION_STATE` to ask: as an
+  ordered broadcast the answer is in the result extras, otherwise `SESSION_STATE` is sent again.
 
 ### Simple screens, in your language
 - A home screen and settings in five tabs (Connection, Display, Sound, Car, About) with large

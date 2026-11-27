@@ -986,6 +986,7 @@ class AapService : Service(), UsbReceiver.Listener {
                     }
                     is CommManager.ConnectionState.TransportStarted -> {
                         sessionTransportStartedAtMs = SystemClock.elapsedRealtime()
+                        SessionState.publish(this@AapService, true, commManager.isWirelessSession)
                         musicRecoveryDone = false
                         musicRecoveryJob?.cancel()
                         hasEverConnected = true
@@ -1025,6 +1026,7 @@ class AapService : Service(), UsbReceiver.Listener {
                         }
                     }
                     is CommManager.ConnectionState.Disconnected -> {
+                        SessionState.publish(this@AapService, false, false)
                         com.andrerinas.openheadunit.connection.UsbWifiClient.onSessionEnded(this@AapService)
                         if (hasEverConnected || connectedSinceLastDisconnect) {
                             connectedSinceLastDisconnect = false
