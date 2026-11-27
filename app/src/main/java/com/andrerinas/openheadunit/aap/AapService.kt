@@ -3072,10 +3072,20 @@ class AapService : Service(), UsbReceiver.Listener {
         softApCredentialsProvider?.stop()
         nativeAaHandshakeManager?.invalidateCredentials()
         serviceScope.launch(Dispatchers.IO) {
+            // A start still running when the cable came in brings the hotspot up afterwards: let it
+            // finish before looking, or the hotspot stays on for the whole USB session.
+            var waited = 0L
+            while (HotspotManager.isStarting && waited < USB_HOTSPOT_START_WAIT_MS) {
+                delay(500)
+                waited += 500
+            }
             if (HotspotManager.isApUp(this@AapService)) {
                 AppLog.i("AapService: USB session - switching the hotspot off for the car's Wi-Fi client")
                 HotspotManager.setHotspotEnabled(this@AapService, false)
             }
+            // The car's Wi-Fi client, if MG4Link switched it off for the hotspot, comes back at once:
+            // a USB session needs no hotspot, and it stayed off until the cable was plugged in again.
+            HotspotManager.restorePausedStation(this@AapService)
         }
     }
 
@@ -3622,6 +3632,8 @@ class AapService : Service(), UsbReceiver.Listener {
     companion object {
         /** Bind attempts before the wireless server gives up and reports the port unusable. */
         private const val BIND_ATTEMPTS = 3
+        /** How long a USB session waits for a hotspot start that was running to finish. */
+        private const val USB_HOTSPOT_START_WAIT_MS = 30_000L
 
         /** Gap between them. A port released by a peer that just left frees within this. */
         private const val BIND_RETRY_DELAY_MS = 700L
