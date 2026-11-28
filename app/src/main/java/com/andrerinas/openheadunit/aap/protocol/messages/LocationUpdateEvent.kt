@@ -11,7 +11,7 @@ class LocationUpdateEvent(location: Location)
         /** Stand-in for a fix that reports no accuracy: 100 m, in the field's millimetres. */
         private const val UNKNOWN_ACCURACY_MM = 100_000
 
-        private fun makeProto(location: Location): Message {
+        internal fun makeProto(location: Location): Message {
             return Sensors.SensorBatch.newBuilder().also { batch ->
                 batch.addLocationData(
                     Sensors.SensorBatch.LocationData.newBuilder().apply {
