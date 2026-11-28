@@ -1039,6 +1039,7 @@ class AapService : Service(), UsbReceiver.Listener {
                     }
                     is CommManager.ConnectionState.Disconnected -> {
                         SessionState.publish(this@AapService, false, false)
+                        com.andrerinas.openheadunit.utils.PhoneIdentity.sessionEnded()
                         vehicleSensorsJob?.cancel()
                         clusterMedia.clear()
                         com.andrerinas.openheadunit.connection.UsbWifiClient.onSessionEnded(this@AapService)

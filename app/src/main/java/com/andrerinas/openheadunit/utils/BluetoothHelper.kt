@@ -481,18 +481,22 @@ object BluetoothHelper {
     fun isGenericPhoneName(name: String?): Boolean =
         name.isNullOrBlank() || name.trim().equals("Android", ignoreCase = true)
 
-    /** [moveCarHandsFreeTo] for the paired phone named [phoneName], when exactly one matches (#59). */
+    /**
+     * [moveCarHandsFreeTo] the paired phone on the projection, found by [PhoneIdentity.resolve]
+     * (#59); the car is also told it is the Android Auto phone, so it keeps that phone's link.
+     */
     @SuppressLint("MissingPermission")
-    fun moveCarHandsFreeToNamed(context: Context, phoneName: String?) {
+    fun moveCarHandsFreeToProjectionPhone(context: Context, label: String?, deviceName: String?, instanceId: String?) {
         val adapter = try { getBluetoothAdapter(context) } catch (e: Exception) { null } ?: return
         val paired = try {
             adapter.bondedDevices.orEmpty().map { it.address to it.name }
         } catch (e: Exception) { emptyList() }
-        val address = pairedAddressForName(paired, phoneName)
-        AppLog.i("BluetoothHelper: phone on the projection by name - ${paired.size} paired, " +
-            (if (address != null) "one matches" else "no single match") +
-            (if (isGenericPhoneName(phoneName)) ", the phone gave no name of its own" else "") + " (#59)")
-        if (address != null) moveCarHandsFreeTo(context, address)
+        val found = PhoneIdentity.resolve(paired, label, deviceName, PhoneIdentity.learned(context, instanceId))
+        AppLog.i("BluetoothHelper: phone on the projection - ${paired.size} paired, " +
+            (found?.let { "found by ${it.second}" } ?: "not found") + " (#59)")
+        val address = found?.first ?: return
+        com.andrerinas.openheadunit.aap.AllgoRelayNotifier.phoneAddressSeen(address)
+        moveCarHandsFreeTo(context, address)
     }
 
     private fun callProfile(proxy: BluetoothProfile, name: String, device: android.bluetooth.BluetoothDevice): Boolean? {

@@ -61,9 +61,16 @@ object AllgoRelayNotifier {
         RelayState.update(false, null, null)
     }
 
+    /**
+     * The connected phone, only when it is the one paired phone (dongles and other devices aside): with several, the connected one
+     * may well not be the Android Auto phone, and the car would then keep the wrong phone's link
+     * and cut the right one (#59). The phone is announced once it is known instead.
+     */
     @SuppressLint("MissingPermission")
     private fun connectedPhone(context: Context): String? = try {
-        BluetoothHelper.getBluetoothAdapter(context)?.bondedDevices?.firstOrNull { dev ->
+        BluetoothHelper.getBluetoothAdapter(context)?.bondedDevices
+            ?.filter { it.bluetoothClass?.majorDeviceClass == android.bluetooth.BluetoothClass.Device.Major.PHONE }
+            ?.singleOrNull()?.takeIf { dev ->
             runCatching { dev.javaClass.getMethod("isConnected").invoke(dev) as? Boolean }.getOrNull() == true
         }?.address
     } catch (e: Exception) {

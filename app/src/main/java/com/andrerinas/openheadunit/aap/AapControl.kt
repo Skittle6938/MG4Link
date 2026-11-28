@@ -370,10 +370,18 @@ internal class AapControlService(
         // A generic "Android" is not private, and hiding it garbled every "Android Auto" in the log (#59).
         if (!com.andrerinas.openheadunit.utils.BluetoothHelper.isGenericPhoneName(request.phoneName)) AppLog.hide(request.phoneName)
         AppLog.i("Service Discovery Request: %s", request.phoneName)
-        // #59: through a wireless adapter the phone never sends its Bluetooth address, only its
-        // name here; find it among the car's paired phones and move the hands-free to it.
+        // #59: through a wireless adapter the phone may never send its Bluetooth address: find it
+        // among the car's paired phones by its label, its device name or its instance id, and move
+        // the hands-free (and the car's idea of the Android Auto phone) to it.
         if (!com.andrerinas.openheadunit.App.provide(context).commManager.isWirelessSession) {
-            com.andrerinas.openheadunit.utils.BluetoothHelper.moveCarHandsFreeToNamed(context, request.phoneName)
+            val deviceName = if (request.hasPhoneBrand()) request.phoneBrand else null
+            if (!com.andrerinas.openheadunit.utils.BluetoothHelper.isGenericPhoneName(deviceName)) AppLog.hide(deviceName)
+            val instanceId = com.andrerinas.openheadunit.utils.PhoneIdentity.instanceId(request.unknownFields)
+            AppLog.i("Service Discovery Request: device name %s, instance id %s (#59)",
+                deviceName ?: "none", if (instanceId != null) "present" else "none")
+            com.andrerinas.openheadunit.utils.PhoneIdentity.sessionStarted(instanceId)
+            com.andrerinas.openheadunit.utils.BluetoothHelper.moveCarHandsFreeToProjectionPhone(
+                context, request.phoneName, deviceName, instanceId)
         }
 
         val msg = ServiceDiscoveryResponse(context)

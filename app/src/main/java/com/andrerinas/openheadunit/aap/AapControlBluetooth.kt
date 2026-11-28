@@ -74,6 +74,7 @@ internal class AapControlBluetooth(
             return
         }
         AllgoRelayNotifier.phoneAddressSeen(phoneAddress)
+        com.andrerinas.openheadunit.utils.PhoneIdentity.addressSeen(context, phoneAddress)
         val alreadyPaired = isBonded(phoneAddress)
         if (alreadyPaired) {
             clearPairing()
