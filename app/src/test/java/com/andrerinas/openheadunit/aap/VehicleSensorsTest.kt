@@ -10,9 +10,9 @@ import org.junit.Test
 /** #75: the car's speed, gear and parking brake for the phone. */
 class VehicleSensorsTest {
 
-    @Test fun `speed goes in metres per second times a million`() {
-        assertEquals(10_000_000, VehicleSensors.speedE6(36f))
-        assertEquals(0, VehicleSensors.speedE6(-5f))
+    @Test fun `speed goes in metres per second times a thousand`() {
+        assertEquals(10_000, VehicleSensors.speedE3(36f))
+        assertEquals(0, VehicleSensors.speedE3(-5f))
     }
 
     @Test fun `P means the parking brake is on`() {

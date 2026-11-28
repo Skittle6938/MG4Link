@@ -132,7 +132,7 @@ message SensorBatch
     }
     message SpeedData
     {
-        required int32 speed_e6 =1;
+        required int32 speed_e6 =1; // really speed_e3: metres per second x 1000 (#75)
         optional bool cruise_engaged=2;
         optional bool cruise_set_speed=3;
     }

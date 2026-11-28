@@ -15,8 +15,12 @@ object VehicleSensors {
     /** Raw gear value for P on every studied firmware. */
     const val RAW_PARK = 1
 
-    /** SpeedData.speed_e6: metres per second × 10^6. */
-    fun speedE6(kmh: Float): Int = (kmh.coerceIn(0f, 300f) / 3.6f * 1_000_000f).toInt()
+    /**
+     * SpeedData field 1: metres per second × 1000 (speed_e3 in the Android Auto protocol). The
+     * pre-generated class calls it speed_e6; sent as × 10^6 the phone read a speed 1000 times too
+     * high and Maps lost the position (#75).
+     */
+    fun speedE3(kmh: Float): Int = (kmh.coerceIn(0f, 300f) / 3.6f * 1_000f).toInt()
 
     /** The Android Auto gear for a raw firmware value, or null when it is not a known gear. */
     fun gearFor(raw: Int?): Sensors.SensorBatch.GearData.GEAR? = when (raw) {
@@ -32,7 +36,7 @@ object VehicleSensors {
         val builder = Sensors.SensorBatch.newBuilder()
         var any = false
         if (sendSpeed && speedKmh != null) {
-            builder.addSpeedData(Sensors.SensorBatch.SpeedData.newBuilder().setSpeedE6(speedE6(speedKmh)))
+            builder.addSpeedData(Sensors.SensorBatch.SpeedData.newBuilder().setSpeedE6(speedE3(speedKmh)))
             any = true
         }
         if (sendGear && gearRaw != null) {
